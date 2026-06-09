@@ -10,10 +10,16 @@ RELAY_URL="{{ relay_url }}"
 SAAS_URL="http://{{ saas_host }}:{{ saas_port }}"
 NODE_IMAGE="{{ node_image }}"
 
+# Fallback : si NODE_IMAGE est vide ou sans prefixe registre, le construire depuis saas_host
+if [ -z "$NODE_IMAGE" ] || [[ "$NODE_IMAGE" != *"/"* ]]; then
+    NODE_IMAGE="{{ saas_host }}:5000/ss-node:dev"
+fi
+
 echo ""
 echo "===================================================="
 echo "  EL BARAA CONSULT — Installation du logiciel PME"
 echo "  Tenant : {{ tenant.name }}"
+echo "  Image  : $NODE_IMAGE"
 echo "===================================================="
 echo ""
 
@@ -73,8 +79,6 @@ echo "      Registre $REGISTRY_HOST autorise."
 echo "[2/4] Configuration du nœud PME..."
 mkdir -p "$INSTALL_DIR"
 cat > "$INSTALL_DIR/docker-compose.yml" << COMPOSE_EOF
-version: "3.9"
-
 # Généré pour {{ tenant.name }} — ne pas modifier TENANT_ID ni REGISTRATION_TOKEN
 
 networks:

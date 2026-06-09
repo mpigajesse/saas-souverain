@@ -30,14 +30,21 @@ pub async fn run(first_node: bool, config_path: &Path) -> Result<()> {
         let relay_url = std::env::var("RELAY_URL")
             .unwrap_or_else(|_| "http://localhost:8080".to_string());
 
+        // Spike : générer une DEK locale pour que le nœud puisse démarrer.
+        // En production, la DEK sera reçue via enrôlement QR code depuis un
+        // nœud déjà autorisé — jamais générée localement sur chaque machine.
+        let dek = ss_crypto::Dek::generate();
+        let sealed = keypair.public.seal_dek(&dek)?;
+
         println!("Mode Docker détecté — initialisation automatique");
         println!("  ID      : {}", node_id);
         println!("  Clé pub : {}", hex::encode(keypair.public.as_bytes()));
+        println!("  DEK     : générée localement (spike — remplacer par enrôlement en prod)");
 
         let config = NodeConfig {
             node_id,
             secret_key_hex: hex::encode(keypair.secret_bytes()),
-            sealed_dek_hex: None,
+            sealed_dek_hex: Some(hex::encode(&sealed)),
             recovery_salt_hex: None,
             recovery_blob_hex: None,
             port: 9001,
@@ -48,7 +55,6 @@ pub async fn run(first_node: bool, config_path: &Path) -> Result<()> {
         };
         config.save(config_path)?;
         println!("Config sauvegardée : {}", config_path.display());
-        println!("  Note : DEK non encore configurée. Le nœud s'annoncera au relais.");
         return Ok(());
     }
 
