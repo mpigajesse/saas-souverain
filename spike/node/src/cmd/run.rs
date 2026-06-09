@@ -64,7 +64,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     let relay = crate::relay_client::RelayClient::new(&config.relay_url);
 
     if let Some(tenant_id) = config.tenant_id {
-        let addr = format!("{}:{}", hostname_or_unknown(), config.port);
+        let addr = node_addr(&config);
         let announce_req = crate::relay_client::AnnounceRequest {
             node_id: config.node_id,
             tenant_id,
@@ -153,12 +153,29 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
             }
         }
     } else {
-        // Pas de PG configuré — comportement original du spike
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        // Pas de PG configuré — annonce périodique au relais toutes les 30s
+        println!("  PostgreSQL non configuré — boucle d'annonce (30s).");
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+            if let Some(tid) = config.tenant_id {
+                let announce_req = crate::relay_client::AnnounceRequest {
+                    node_id: config.node_id,
+                    tenant_id: tid,
+                    addr: node_addr(&config),
+                    role: if mode == RunMode::Active {
+                        "active".to_string()
+                    } else {
+                        "passive".to_string()
+                    },
+                    epoch: my_epoch.value(),
+                };
+                match relay.announce(&announce_req).await {
+                    Ok(_) => {}
+                    Err(e) => println!("  Relais injoignable : {}", e),
+                }
+            }
+        }
     }
-
-    println!("  Arrêt propre.");
-    Ok(())
 }
 
 /// Boucle de supervision PostgreSQL.
@@ -224,8 +241,16 @@ async fn run_supervision_loop(
     Ok(())
 }
 
-fn hostname_or_unknown() -> String {
-    std::env::var("HOSTNAME")
+/// Retourne l'adresse d'annonce du nœud.
+/// Priorité : NODE_ADDR env var → HOSTNAME:port → unknown:port
+fn node_addr(config: &NodeConfig) -> String {
+    if let Ok(addr) = std::env::var("NODE_ADDR") {
+        if !addr.is_empty() {
+            return addr;
+        }
+    }
+    let host = std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME"))
-        .unwrap_or_else(|_| "unknown".to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    format!("{}:{}", host, config.port)
 }
