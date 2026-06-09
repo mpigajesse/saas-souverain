@@ -1,0 +1,140 @@
+{% autoescape off %}@echo off
+chcp 65001 >nul 2>&1
+setlocal EnableExtensions EnableDelayedExpansion
+title EL BARAA CONSULT - Installation PME
+
+echo.
+echo ====================================================
+echo  EL BARAA CONSULT - Installation du logiciel PME
+echo  Tenant : {{ tenant.name }}
+echo ====================================================
+echo.
+
+:: Verification droits administrateur
+net session >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo ERREUR : Executer en tant qu administrateur.
+    echo Clic droit - Executer en tant qu administrateur
+    pause
+    exit /b 1
+)
+
+set "INSTALL_DIR=%PROGRAMDATA%\ElBaraaConsult\PME"
+set "SAAS_URL=http://{{ saas_host }}:{{ saas_port }}"
+set "RELAY_URL={{ relay_url }}"
+mkdir "%INSTALL_DIR%" >nul 2>&1
+
+:: [0/4] Detection IP de cette machine via PowerShell
+echo [0/4] Detection de l'adresse reseau...
+set NODE_IP=
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*' } | Sort-Object PrefixLength | Select-Object -Last 1).IPAddress"`) do set NODE_IP=%%A
+if "!NODE_IP!"=="" set NODE_IP=127.0.0.1
+echo       IP : !NODE_IP!
+
+:: [1/4] Docker
+echo [1/4] Verification de Docker...
+docker info >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto DOCKER_READY
+
+echo       Docker non detecte, telechargement...
+set "DOCKER_OUT=%TEMP%\DockerSetup.exe"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://desktop.docker.com/win/main/amd64/Docker Desktop Installer.exe'; Invoke-WebRequest -Uri $u -OutFile '%DOCKER_OUT%' -UseBasicParsing"
+if %ERRORLEVEL% NEQ 0 goto DOCKER_DL_ERROR
+
+echo       Installation Docker Desktop...
+start /wait "" "%DOCKER_OUT%" install --quiet --accept-license
+del "%DOCKER_OUT%" >nul 2>&1
+
+echo       Demarrage Docker Desktop...
+start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+echo       Attente Docker...
+:WAIT_DOCKER
+timeout /t 5 /nobreak >nul
+docker info >nul 2>&1
+if %ERRORLEVEL% NEQ 0 goto WAIT_DOCKER
+goto DOCKER_READY
+
+:DOCKER_DL_ERROR
+echo ERREUR : Telechargement Docker impossible. Verifiez la connexion Internet.
+pause
+exit /b 1
+
+:DOCKER_READY
+echo       Docker operationnel.
+
+:: [2/4] Ecriture docker-compose.yml
+echo [2/4] Configuration du noeud PME...
+(
+echo version: "3.9"
+echo.
+echo networks:
+echo   ss-pme:
+echo     driver: bridge
+echo.
+echo services:
+echo   node1:
+echo     image: {{ node_image }}
+echo     networks:
+echo       - ss-pme
+echo     ports:
+echo       - "9001:9001"
+echo     volumes:
+echo       - node1-data:/data
+echo     environment:
+echo       SS_NODE_DIR: /data
+echo       TENANT_ID: "{{ tenant.id }}"
+echo       REGISTRATION_TOKEN: "{{ tenant.registration_token }}"
+echo       RELAY_URL: "!RELAY_URL!"
+echo       SAAS_URL: "!SAAS_URL!"
+echo       NODE_ADDR: "!NODE_IP!:9001"
+echo       HOSTNAME: node1
+echo     command: ["run", "--mode", "active"]
+echo     restart: unless-stopped
+echo.
+echo   updater:
+echo     image: containrrr/watchtower
+echo     volumes:
+echo       - /var/run/docker.sock:/var/run/docker.sock
+echo     environment:
+echo       WATCHTOWER_POLL_INTERVAL: "3600"
+echo       WATCHTOWER_CLEANUP: "true"
+echo     restart: unless-stopped
+echo.
+echo volumes:
+echo   node1-data:
+) > "%INSTALL_DIR%\docker-compose.yml"
+echo       docker-compose.yml cree.
+
+:: Pare-feu port 9001
+echo [2b] Ouverture port 9001 inter-noeuds...
+netsh advfirewall firewall add rule name="ElBaraaConsult-PME-Node" protocol=TCP dir=in localport=9001 action=allow >nul 2>&1
+
+:: [3/4] Demarrage
+echo [3/4] Demarrage du logiciel PME...
+cd /d "%INSTALL_DIR%"
+docker compose up -d
+if %ERRORLEVEL% NEQ 0 goto START_ERROR
+echo       Logiciel demarre.
+goto START_OK
+
+:START_ERROR
+echo ERREUR : Demarrage echoue. Docker Desktop doit etre lance.
+pause
+exit /b 1
+
+:START_OK
+
+:: [4/4] Demarrage automatique
+echo [4/4] Demarrage automatique au boot...
+schtasks /create /tn "ElBaraaConsultPME" /tr "docker compose -f \"%INSTALL_DIR%\docker-compose.yml\" up -d" /sc onstart /ru SYSTEM /f >nul 2>&1
+echo       Configure.
+
+echo.
+echo ====================================================
+echo  Installation terminee !
+echo  Noeud : !NODE_IP!:9001
+echo  Portail : !SAAS_URL!/tenants/bienvenue/
+echo ====================================================
+echo.
+pause
+{% endautoescape %}

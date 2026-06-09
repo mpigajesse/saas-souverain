@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}{{ tenant.name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'tenant-list' %}">← Tenants</a>
+  <span>/</span> <span>{{ tenant.name }}</span>
+</div>
+
+{% with status=tenant.licence_status %}
+{% if not status.ok %}
+<div class="alert alert-error" style="display:flex; align-items:center; gap:12px;">
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M10 6v5M10 14v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <div>
+    {% if status.reason == 'no_license' %}
+      <strong>Aucune licence active</strong> — Ce tenant ne peut pas utiliser le logiciel.
+    {% else %}
+      <strong>Dépassement de licence</strong> —
+      {{ status.used }} machines actives pour {{ status.total }} sièges autorisés (plan {{ status.plan }}).
+      Désactivez les machines excédentaires ou augmentez la licence.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <div class="avatar">{{ tenant.name|slice:':2'|upper }}</div>
+    <div>
+      <h1 class="page-title">{{ tenant.name }}</h1>
+      <div class="flex items-center gap-2 mt-1">
+        {% if tenant.is_active %}
+          <span class="badge badge-active">Actif</span>
+        {% else %}
+          <span class="badge badge-inactive">Inactif</span>
+        {% endif %}
+        <span class="text-muted">Créé le {{ tenant.created_at|date:"d/m/Y" }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'tenant-update' tenant.pk %}" class="btn btn-secondary">Modifier</a>
+    <a href="{% url 'tenant-delete' tenant.pk %}" class="btn btn-danger">Supprimer</a>
+  </div>
+</div>
+
+<!-- Infos générales -->
+<div class="card mb-3">
+  <div class="card-header">Informations</div>
+  <div class="card-body">
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-label">Email</div>
+        <div class="detail-value">{{ tenant.email }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Téléphone</div>
+        <div class="detail-value">{{ tenant.phone|default:"—" }}</div>
+      </div>
+      <div class="detail-item" style="grid-column: 1 / -1;">
+        <div class="detail-label">Adresse</div>
+        <div class="detail-value">{{ tenant.address|default:"—" }}</div>
+      </div>
+      <div class="detail-item" style="grid-column: 1 / -1;">
+        <div class="detail-label">Token d'enregistrement client</div>
+        <div class="detail-value mono" style="background:#F5EFE8; padding:8px 12px; border-radius:6px; font-size:13px; user-select:all;">
+          {{ tenant.registration_token }}
+        </div>
+        <p class="form-hint">À communiquer à la PME lors de l'installation du logiciel. Ne pas partager publiquement.</p>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Employés (postes autorisés)</div>
+        <div class="detail-value" style="font-size:22px; font-weight:700; color:var(--crimson)">{{ tenant.employee_count }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Licences -->
+<div class="card mb-3">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <span>Licences</span>
+    <a href="{% url 'license-create' %}?tenant={{ tenant.pk }}" class="btn btn-primary btn-sm">+ Ajouter</a>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th>Sièges</th>
+          <th>Début</th>
+          <th>Fin</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lic in licenses %}
+        <tr>
+          <td>
+            <span class="badge badge-{{ lic.plan }}">{{ lic.get_plan_display }}</span>
+          </td>
+          <td>{{ lic.seats }}</td>
+          <td>{{ lic.starts_at|date:"d/m/Y" }}</td>
+          <td>{{ lic.expires_at|date:"d/m/Y"|default:"∞" }}</td>
+          <td>
+            {% if lic.is_active %}
+              <span class="badge badge-active">Active</span>
+            {% else %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">Aucune licence</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Machines -->
+<div class="card">
+  <div class="card-header">Parc machines ({{ devices|length }} / {{ tenant.employee_count }})</div>
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>OS</th>
+          <th>ID Installation</th>
+          <th>Dernière connexion</th>
+          <th>Licence</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+        <tr>
+          <td class="font-bold">{{ device.hostname|default:"—" }}</td>
+          <td>{{ device.os|default:"—" }}</td>
+          <td class="mono">{{ device.installation_id|stringformat:"s"|slice:":8" }}…</td>
+          <td class="text-secondary">{{ device.last_seen|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if device.is_within_license %}
+              <span class="badge badge-ok">OK</span>
+            {% else %}
+              <span class="badge badge-danger">Hors licence</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{% url 'device-toggle' device.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'tenant-detail' tenant.pk %}">
+              {% if device.is_active %}
+                <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Désactiver cette machine ? Pensez à la rotation DEK côté cluster.')">
+                  Désactiver
+                </button>
+              {% else %}
+                <button type="submit" class="btn btn-secondary btn-sm">Réactiver</button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">Aucune machine</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

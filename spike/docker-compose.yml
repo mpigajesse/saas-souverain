@@ -1,0 +1,176 @@
+version: "3.9"
+
+# Réseau bridge nommé avec plage IP fixe (requis sur Windows Docker Desktop)
+networks:
+  ss-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  # ─────────────────────────────────────────────
+  # Relais éditeur (zero-knowledge, topologie only)
+  # ─────────────────────────────────────────────
+  relay:
+    image: ss-relay:dev
+    build:
+      context: .
+      dockerfile: relay/Dockerfile
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "8080:8080"
+    environment:
+      RELAY_PORT: "8080"
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — Primaire (nœud 1)
+  # ─────────────────────────────────────────────
+  pg-primary:
+    image: postgres:16-alpine
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.20
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pgpass
+      POSTGRES_DB: ss_node
+    volumes:
+      - pg-primary-data:/var/lib/postgresql/data
+      - ./pg-config/init-primary.sh:/docker-entrypoint-initdb.d/01-init-primary.sh
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — Standby 1 (nœud 2)
+  # ─────────────────────────────────────────────
+  pg-standby1:
+    image: postgres:16-alpine
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.21
+    ports:
+      - "5434:5432"
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PG_PRIMARY_HOST: pg-primary
+      PGPASSWORD: replpass
+    volumes:
+      - pg-standby1-data:/var/lib/postgresql/data
+      - ./pg-config/standby-entrypoint.sh:/standby-entrypoint.sh
+    entrypoint: ["/bin/bash", "/standby-entrypoint.sh"]
+    depends_on:
+      - pg-primary
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — Standby 2 (nœud 3)
+  # ─────────────────────────────────────────────
+  pg-standby2:
+    image: postgres:16-alpine
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.22
+    ports:
+      - "5435:5432"
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      PG_PRIMARY_HOST: pg-primary
+      PGPASSWORD: replpass
+    volumes:
+      - pg-standby2-data:/var/lib/postgresql/data
+      - ./pg-config/standby-entrypoint.sh:/standby-entrypoint.sh
+    entrypoint: ["/bin/bash", "/standby-entrypoint.sh"]
+    depends_on:
+      - pg-primary
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Nœud 1 — Actif (primaire PostgreSQL)
+  # ─────────────────────────────────────────────
+  node1:
+    image: ss-node:dev
+    build:
+      context: .
+      dockerfile: node/Dockerfile
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "9001:9001"
+    volumes:
+      - node1-data:/data
+    environment:
+      SS_NODE_DIR: /data
+      RELAY_URL: "http://relay:8080"
+      HOSTNAME: node1
+      PG_URL: "postgres://postgres:pgpass@pg-primary:5432/ss_node"
+    command: ["run", "--mode", "active"]
+    depends_on:
+      - relay
+      - pg-primary
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Nœud 2 — Passif
+  # ─────────────────────────────────────────────
+  node2:
+    image: ss-node:dev
+    build:
+      context: .
+      dockerfile: node/Dockerfile
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "9002:9001"
+    volumes:
+      - node2-data:/data
+    environment:
+      SS_NODE_DIR: /data
+      RELAY_URL: "http://relay:8080"
+      HOSTNAME: node2
+      PG_URL: "postgres://postgres:pgpass@pg-standby1:5432/ss_node"
+    command: ["run", "--mode", "passive"]
+    depends_on:
+      - relay
+      - pg-standby1
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Nœud 3 — Passif (quorum >= 3 pour failover auto)
+  # ─────────────────────────────────────────────
+  node3:
+    image: ss-node:dev
+    build:
+      context: .
+      dockerfile: node/Dockerfile
+    networks:
+      ss-net:
+        ipv4_address: 172.20.0.13
+    ports:
+      - "9003:9001"
+    volumes:
+      - node3-data:/data
+    environment:
+      SS_NODE_DIR: /data
+      RELAY_URL: "http://relay:8080"
+      HOSTNAME: node3
+      PG_URL: "postgres://postgres:pgpass@pg-standby2:5432/ss_node"
+    command: ["run", "--mode", "passive"]
+    depends_on:
+      - relay
+      - pg-standby2
+    restart: unless-stopped
+
+volumes:
+  pg-primary-data:
+  pg-standby1-data:
+  pg-standby2-data:
+  node1-data:
+  node2-data:
+  node3-data:

@@ -1,0 +1,165 @@
+#!/bin/bash
+# EL BARAA CONSULT — Installateur PME (Linux)
+# Généré le : {{ generated_at }}
+set -e
+
+INSTALL_DIR="/opt/elbaraa-pme"
+TENANT_ID="{{ tenant.id }}"
+REGISTRATION_TOKEN="{{ tenant.registration_token }}"
+RELAY_URL="{{ relay_url }}"
+SAAS_URL="http://{{ saas_host }}:{{ saas_port }}"
+NODE_IMAGE="{{ node_image }}"
+
+echo ""
+echo "===================================================="
+echo "  EL BARAA CONSULT — Installation du logiciel PME"
+echo "  Tenant : {{ tenant.name }}"
+echo "===================================================="
+echo ""
+
+# ── Droits root ──────────────────────────────────────────────────────────────
+if [ "$EUID" -ne 0 ]; then
+    echo "ERREUR : Exécuter avec sudo : sudo bash installer-pme.sh"
+    exit 1
+fi
+
+# ── Détection de l'IP de cette machine ──────────────────────────────────────
+echo "[0/4] Détection de l'adresse réseau..."
+# Préférer l'interface sur le même sous-réseau que le serveur SaaS ({{ saas_host }})
+NODE_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read ip; do
+    prefix=$(echo "$ip" | cut -d. -f1-3)
+    saas_prefix=$(echo "{{ saas_host }}" | cut -d. -f1-3)
+    if [ "$prefix" = "$saas_prefix" ]; then echo "$ip"; break; fi
+done)
+# Fallback sur première IP non-loopback
+if [ -z "$NODE_IP" ]; then
+    NODE_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | head -1)
+fi
+if [ -z "$NODE_IP" ]; then NODE_IP="127.0.0.1"; fi
+echo "      IP détectée : $NODE_IP"
+
+# ── Étape 1 : Docker ────────────────────────────────────────────────────────
+echo "[1/4] Vérification de Docker..."
+if ! command -v docker &>/dev/null; then
+    echo "      Docker non détecté. Installation automatique..."
+    curl -fsSL https://get.docker.com | sh
+    systemctl start docker
+    systemctl enable docker
+    echo "      Docker installé."
+else
+    echo "      Docker détecté et opérationnel."
+fi
+
+# Autoriser le registre local de l'éditeur (sans TLS — réseau LAN interne)
+REGISTRY_HOST="{{ saas_host }}:5000"
+DAEMON_JSON="/etc/docker/daemon.json"
+if [ -f "$DAEMON_JSON" ]; then
+    if ! grep -q "$REGISTRY_HOST" "$DAEMON_JSON"; then
+        python3 -c "
+import json, sys
+with open('$DAEMON_JSON') as f: d=json.load(f)
+d.setdefault('insecure-registries',[]).append('$REGISTRY_HOST')
+with open('$DAEMON_JSON','w') as f: json.dump(d,f,indent=2)
+"
+        systemctl restart docker
+    fi
+else
+    echo "{\"insecure-registries\":[\"$REGISTRY_HOST\"]}" > "$DAEMON_JSON"
+    systemctl restart docker
+fi
+echo "      Registre $REGISTRY_HOST autorise."
+
+# ── Étape 2 : Configuration ──────────────────────────────────────────────────
+echo "[2/4] Configuration du nœud PME..."
+mkdir -p "$INSTALL_DIR"
+cat > "$INSTALL_DIR/docker-compose.yml" << COMPOSE_EOF
+version: "3.9"
+
+# Généré pour {{ tenant.name }} — ne pas modifier TENANT_ID ni REGISTRATION_TOKEN
+
+networks:
+  ss-pme:
+    driver: bridge
+
+services:
+  node1:
+    image: ${NODE_IMAGE}
+    networks:
+      - ss-pme
+    ports:
+      - "9001:9001"
+    volumes:
+      - node1-data:/data
+    environment:
+      SS_NODE_DIR: /data
+      TENANT_ID: "${TENANT_ID}"
+      REGISTRATION_TOKEN: "${REGISTRATION_TOKEN}"
+      RELAY_URL: "${RELAY_URL}"
+      SAAS_URL: "${SAAS_URL}"
+      NODE_ADDR: "${NODE_IP}:9001"
+      HOSTNAME: node1
+    command: ["run", "--mode", "active"]
+    restart: unless-stopped
+
+  updater:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_POLL_INTERVAL: "3600"
+      WATCHTOWER_CLEANUP: "true"
+    restart: unless-stopped
+
+volumes:
+  node1-data:
+COMPOSE_EOF
+echo "      Configuration créée dans $INSTALL_DIR"
+
+# ── Pare-feu : autoriser port 9001 (communication inter-nœuds PME) ──────────
+echo "[2b] Ouverture du port 9001 (nœuds PME)..."
+if command -v ufw &>/dev/null && ufw status | grep -q "active"; then
+    ufw allow 9001/tcp comment "ElBaraaConsult-PME-Node" 2>/dev/null || true
+elif command -v firewall-cmd &>/dev/null; then
+    firewall-cmd --permanent --add-port=9001/tcp 2>/dev/null && firewall-cmd --reload 2>/dev/null || true
+else
+    iptables -A INPUT -p tcp --dport 9001 -j ACCEPT 2>/dev/null || true
+fi
+
+# ── Étape 3 : Démarrage ─────────────────────────────────────────────────────
+echo "[3/4] Démarrage du logiciel PME..."
+cd "$INSTALL_DIR"
+docker compose up -d
+echo "      Logiciel démarré avec succès."
+
+# ── Étape 4 : Service systemd ────────────────────────────────────────────────
+echo "[4/4] Configuration du démarrage automatique..."
+cat > /etc/systemd/system/elbaraa-pme.service << 'SERVICE_EOF'
+[Unit]
+Description=EL BARAA CONSULT PME Node
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/elbaraa-pme
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+systemctl daemon-reload
+systemctl enable elbaraa-pme.service
+echo "      Démarrage automatique configuré."
+
+echo ""
+echo "===================================================="
+echo "  Installation terminée !"
+echo "  Machine enregistrée : ${NODE_IP}:9001"
+echo "  Retournez sur le portail pour vérifier la connexion."
+echo "  Portail : ${SAAS_URL}/tenants/bienvenue/"
+echo "===================================================="
+echo ""

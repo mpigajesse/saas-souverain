@@ -1,0 +1,18 @@
+FROM alpine:3.19
+RUN apk add --no-cache curl jq
+
+COPY entrypoint-stub.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENV SS_NODE_DIR=/data
+ENV RELAY_URL=http://192.168.200.1:8080
+ENV SAAS_URL=http://192.168.200.1:8000
+ENV TENANT_ID=""
+ENV REGISTRATION_TOKEN=""
+ENV NODE_ADDR=""
+ENV HOSTNAME=node1
+
+VOLUME ["/data"]
+EXPOSE 9001
+
+ENTRYPOINT ["/entrypoint.sh"]

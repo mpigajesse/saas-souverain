@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Tableau de bord{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tableau de bord</h1>
+    <p class="page-subtitle">Vue d'ensemble de la plateforme EL BARAA CONSULT</p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card stat-card--crimson">
+    <div class="stat-label">Tenants enregistrés</div>
+    <div class="stat-value stat-value--crimson">{{ stats.total_tenants }}</div>
+    <div class="stat-sublabel">entreprises clientes</div>
+  </div>
+  <div class="stat-card stat-card--gold">
+    <div class="stat-label">Licences actives</div>
+    <div class="stat-value stat-value--gold">{{ stats.active_licenses }}</div>
+    <div class="stat-sublabel">abonnements en cours</div>
+  </div>
+  <div class="stat-card stat-card--green">
+    <div class="stat-label">Machines enregistrées</div>
+    <div class="stat-value stat-value--green">{{ stats.total_devices }}</div>
+    <div class="stat-sublabel">postes installés</div>
+  </div>
+  {% if stats.tenants_over_limit > 0 %}
+  <div class="stat-card" style="border-top:3px solid var(--crimson); background:#FFF5F5;">
+    <div class="stat-label">⚠ Hors conformité</div>
+    <div class="stat-value" style="color:var(--crimson);">{{ stats.tenants_over_limit }}</div>
+    <div class="stat-sublabel">tenant(s) dépassant leur licence</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header">Tenants récents</div>
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Entreprise</th>
+          <th>Email</th>
+          <th>Employés</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tenant in recent_tenants %}
+        <tr>
+          <td>
+            <a href="{% url 'tenant-detail' tenant.pk %}" class="font-bold" style="color:var(--crimson)">{{ tenant.name }}</a>
+          </td>
+          <td class="text-secondary">{{ tenant.email }}</td>
+          <td>{{ tenant.employee_count }}</td>
+          <td>
+            {% if tenant.is_active %}
+              <span class="badge badge-active">Actif</span>
+            {% else %}
+              <span class="badge badge-inactive">Inactif</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:32px;">
+            Aucun tenant enregistré
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion — EL BARAA CONSULT</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="{% static 'img/logo.png' %}" alt="EL BARAA CONSULT">
+    </div>
+    <h1 class="login-title">EL BARAA CONSULT</h1>
+    <p class="login-sub">Connectez-vous à votre espace SaaS</p>
+    {% if form.errors %}
+      <div class="alert alert-error">Identifiants incorrects.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Identifiant</label>
+        <input type="text" name="username" class="form-control" autofocus required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" name="password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+        Se connecter
+      </button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

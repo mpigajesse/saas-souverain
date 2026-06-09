@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Parc machines{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Parc machines</h1>
+    <p class="page-subtitle">Suivi des installations — identifiant UUID, pas l'adresse MAC</p>
+  </div>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Tenant</th>
+        <th>Hostname</th>
+        <th>OS</th>
+        <th>ID Installation</th>
+        <th>Dernière connexion</th>
+        <th>Statut</th>
+        <th>Licence</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for device in devices %}
+      <tr>
+        <td>
+          <a href="{% url 'tenant-detail' device.tenant.pk %}" style="color:var(--crimson); font-weight:600;">{{ device.tenant.name }}</a>
+        </td>
+        <td class="font-bold">{{ device.hostname|default:"—" }}</td>
+        <td>{{ device.os|default:"—" }}</td>
+        <td class="mono" title="{{ device.installation_id }}">{{ device.installation_id|stringformat:"s"|slice:":8" }}…</td>
+        <td class="text-secondary">{{ device.last_seen|date:"d/m/Y H:i" }}</td>
+        <td>
+          {% if device.is_active %}<span class="badge badge-active">Actif</span>
+          {% else %}<span class="badge badge-inactive">Inactif</span>{% endif %}
+        </td>
+        <td>
+          {% if device.is_within_license %}<span class="badge badge-ok">OK</span>
+          {% else %}<span class="badge badge-danger">Hors licence</span>{% endif %}
+        </td>
+        <td>
+          <form method="post" action="{% url 'device-toggle' device.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="device-list">
+            {% if device.is_active %}
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('Désactiver cette machine ? Pensez à la rotation DEK côté cluster.')">
+                Désactiver
+              </button>
+            {% else %}
+              <button type="submit" class="btn btn-secondary btn-sm">Réactiver</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:32px;">Aucune machine enregistrée</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

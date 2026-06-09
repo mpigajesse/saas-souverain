@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer {{ tenant.name }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'tenant-list' %}">← Tenants</a>
+  <span>/</span> <a href="{% url 'tenant-detail' tenant.pk %}">{{ tenant.name }}</a>
+  <span>/</span> Supprimer
+</div>
+
+<div class="card" style="max-width:480px;">
+  <div class="card-body">
+    <h2 style="font-size:18px; font-weight:700; margin-bottom:12px; color:var(--crimson)">Confirmer la suppression</h2>
+    <p style="margin-bottom:20px;">
+      Voulez-vous vraiment supprimer le tenant <strong>{{ tenant.name }}</strong> ?
+      Cette action supprimera également toutes ses licences et machines associées.
+    </p>
+    <form method="post" class="flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Oui, supprimer</button>
+      <a href="{% url 'tenant-detail' tenant.pk %}" class="btn btn-secondary">Annuler</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Licences{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Licences</h1>
+    <p class="page-subtitle">Gestion des abonnements</p>
+  </div>
+  <a href="{% url 'license-create' %}" class="btn btn-primary">+ Nouvelle licence</a>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Tenant</th>
+        <th>Plan</th>
+        <th>Sièges</th>
+        <th>Début</th>
+        <th>Fin</th>
+        <th>Statut</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lic in licenses %}
+      <tr>
+        <td>
+          <a href="{% url 'tenant-detail' lic.tenant.pk %}" style="color:var(--crimson); font-weight:600;">{{ lic.tenant.name }}</a>
+        </td>
+        <td><span class="badge badge-{{ lic.plan }}">{{ lic.get_plan_display }}</span></td>
+        <td>{{ lic.seats }}</td>
+        <td>{{ lic.starts_at|date:"d/m/Y" }}</td>
+        <td>{{ lic.expires_at|date:"d/m/Y"|default:"∞" }}</td>
+        <td>
+          {% if lic.is_active %}<span class="badge badge-active">Active</span>
+          {% else %}<span class="badge badge-inactive">Inactive</span>{% endif %}
+        </td>
+        <td>
+          <a href="{% url 'license-update' lic.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+          <a href="{% url 'license-delete' lic.pk %}" class="btn btn-danger btn-sm">Supprimer</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:32px;">Aucune licence</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

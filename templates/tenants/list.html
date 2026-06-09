@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Tenants{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tenants</h1>
+    <p class="page-subtitle">Gestion des entreprises clientes</p>
+  </div>
+  <a href="{% url 'tenant-create' %}" class="btn btn-primary">+ Nouveau tenant</a>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Entreprise</th>
+        <th>Email</th>
+        <th>Employés</th>
+        <th>Statut</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tenant in tenants %}
+      <tr>
+        <td>
+          <a href="{% url 'tenant-detail' tenant.pk %}" class="font-bold" style="color:var(--crimson)">{{ tenant.name }}</a>
+        </td>
+        <td class="text-secondary">{{ tenant.email }}</td>
+        <td>{{ tenant.employee_count }}</td>
+        <td>
+          {% if tenant.is_active %}
+            <span class="badge badge-active">Actif</span>
+          {% else %}
+            <span class="badge badge-inactive">Inactif</span>
+          {% endif %}
+          {% with status=tenant.licence_status %}
+          {% if not status.ok %}
+            <span title="{% if status.reason == 'no_license' %}Aucune licence active{% else %}Dépassement : {{ status.used }}/{{ status.total }} sièges{% endif %}"
+                  style="color:var(--crimson); margin-left:6px; cursor:help;">
+              ⚠
+            </span>
+          {% endif %}
+          {% endwith %}
+        </td>
+        <td>
+          <a href="{% url 'tenant-update' tenant.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+          <a href="{% url 'tenant-delete' tenant.pk %}" class="btn btn-danger btn-sm">Supprimer</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" style="text-align:center; color:var(--text-muted); padding:32px;">
+          Aucun tenant enregistré
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

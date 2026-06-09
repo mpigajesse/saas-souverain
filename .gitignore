@@ -1,0 +1,56 @@
+# Secrets — NE JAMAIS COMMITTER
+.env
+*.env
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+env/
+.tox/
+node_modules/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Rust / Cargo
+spike/target/
+spike/.cargo/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Test / Coverage
+htmlcov/
+.coverage
+.pytest_cache/
+*.cover
+
+# Fichiers locaux sensibles
+*.key
+*.pem
+*.p12
+ouvrir-ports-editeur.bat

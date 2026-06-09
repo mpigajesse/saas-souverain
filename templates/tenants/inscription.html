@@ -1,0 +1,164 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription — EL BARAA CONSULT</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <style>
+    /* ── Auth page layout ── */
+    .auth-page {
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px 64px;
+    }
+    .auth-container {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 48px 44px;
+      width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,.35);
+    }
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .auth-logo img {
+      height: 60px;
+      display: block;
+      margin: 0 auto 12px;
+    }
+    /* has-error state */
+    .form-group.has-error .form-control {
+      border-color: var(--crimson);
+    }
+    @media (max-width: 680px) {
+      .auth-container { padding: 32px 20px; }
+      .auth-page { padding: 24px 12px 48px; }
+    }
+  </style>
+</head>
+<body class="auth-page">
+  <div class="auth-container" style="max-width:680px;">
+
+    <!-- Logo + marque -->
+    <div class="auth-logo">
+      <img src="{% static 'frontend/public/logoentreprise.png' %}" alt="EL BARAA CONSULT" onerror="this.style.display='none'">
+      <div style="font-size:1.1rem; font-weight:800; color:var(--crimson); letter-spacing:.02em;">EL BARAA CONSULT</div>
+    </div>
+
+    <h1 style="font-size:1.45rem; font-weight:700; margin-bottom:6px;">Créer votre espace entreprise</h1>
+    <p style="color:var(--text-muted); margin-bottom:36px; font-size:0.9rem;">
+      Déployez votre logiciel métier souverain en quelques minutes.
+    </p>
+
+    <!-- Erreurs globales non liées à un champ -->
+    {% if form.non_field_errors %}
+    <div class="alert alert-error" style="margin-bottom:24px;">
+      {% for error in form.non_field_errors %}{{ error }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'inscription' %}" novalidate>
+      {% csrf_token %}
+
+      <!-- ─── Section : Votre entreprise ─── -->
+      <div class="form-section">
+        <h3 class="form-section-title">Votre entreprise</h3>
+
+        <div class="form-grid-2">
+
+          <!-- Nom de l'entreprise -->
+          <div class="form-group {% if form.name.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.name.id_for_label }}">
+              {{ form.name.label }}{% if form.name.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.name }}
+            {% if form.name.errors %}<p class="form-error">{{ form.name.errors.as_text }}</p>{% endif %}
+          </div>
+
+          <!-- Email -->
+          <div class="form-group {% if form.email.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.email.id_for_label }}">
+              {{ form.email.label }}{% if form.email.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.email }}
+            {% if form.email.errors %}<p class="form-error">{{ form.email.errors.as_text }}</p>{% endif %}
+          </div>
+
+          <!-- Téléphone -->
+          <div class="form-group {% if form.phone.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.phone.id_for_label }}">
+              {{ form.phone.label }}{% if form.phone.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.phone }}
+            {% if form.phone.errors %}<p class="form-error">{{ form.phone.errors.as_text }}</p>{% endif %}
+          </div>
+
+          <!-- Nombre d'employés -->
+          <div class="form-group {% if form.employee_count.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.employee_count.id_for_label }}">
+              {{ form.employee_count.label }}{% if form.employee_count.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.employee_count }}
+            {% if form.employee_count.errors %}<p class="form-error">{{ form.employee_count.errors.as_text }}</p>{% endif %}
+          </div>
+
+        </div><!-- /form-grid-2 -->
+
+        <!-- Adresse — pleine largeur -->
+        <div class="form-group {% if form.address.errors %}has-error{% endif %}">
+          <label class="form-label" for="{{ form.address.id_for_label }}">
+            {{ form.address.label }}{% if form.address.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+          </label>
+          {{ form.address }}
+          {% if form.address.errors %}<p class="form-error">{{ form.address.errors.as_text }}</p>{% endif %}
+        </div>
+
+      </div><!-- /form-section entreprise -->
+
+      <!-- ─── Section : Votre compte ─── -->
+      <div class="form-section">
+        <h3 class="form-section-title">Votre compte</h3>
+
+        <div class="form-grid-2">
+
+          <!-- Mot de passe -->
+          <div class="form-group {% if form.password.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.password.id_for_label }}">
+              {{ form.password.label }}{% if form.password.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.password }}
+            {% if form.password.errors %}<p class="form-error">{{ form.password.errors.as_text }}</p>{% endif %}
+          </div>
+
+          <!-- Confirmation mot de passe -->
+          <div class="form-group {% if form.password_confirm.errors %}has-error{% endif %}">
+            <label class="form-label" for="{{ form.password_confirm.id_for_label }}">
+              {{ form.password_confirm.label }}{% if form.password_confirm.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
+            </label>
+            {{ form.password_confirm }}
+            {% if form.password_confirm.errors %}<p class="form-error">{{ form.password_confirm.errors.as_text }}</p>{% endif %}
+          </div>
+
+        </div><!-- /form-grid-2 -->
+      </div><!-- /form-section compte -->
+
+      <button type="submit" class="btn btn-primary"
+              style="width:100%; justify-content:center; padding:14px; font-size:1rem; margin-top:8px; border-radius:8px;">
+        Créer mon espace entreprise
+      </button>
+    </form>
+
+    <p style="text-align:center; margin-top:28px; color:var(--text-muted); font-size:0.875rem;">
+      Déjà un compte ?
+      <a href="{% url 'login' %}" style="color:var(--crimson); font-weight:600;">Se connecter</a>
+    </p>
+
+  </div><!-- /auth-container -->
+</body>
+</html>

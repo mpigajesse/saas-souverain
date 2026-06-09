@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }}{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{% url 'license-list' %}">← Licences</a>
+  {% if tenant %}<span>/</span><a href="{% url 'tenant-detail' tenant.pk %}">{{ tenant.name }}</a>{% endif %}
+  <span>/</span> {{ action }}
+</div>
+<div class="page-header">
+  <h1 class="page-title">{{ action }}</h1>
+</div>
+<div class="card" style="max-width:560px;">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-error">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% for field in form %}
+        <div class="form-group">
+          {% if field.field.widget.input_type != 'hidden' %}
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% endif %}
+          {{ field }}
+          {% for error in field.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+          {% if field.help_text %}<p class="form-hint">{{ field.help_text }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="flex gap-3 mt-3">
+        <button type="submit" class="btn btn-primary">{{ action }}</button>
+        {% if tenant %}
+          <a href="{% url 'tenant-detail' tenant.pk %}" class="btn btn-secondary">Annuler</a>
+        {% else %}
+          <a href="{% url 'license-list' %}" class="btn btn-secondary">Annuler</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

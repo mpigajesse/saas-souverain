@@ -1,0 +1,49 @@
+{% autoescape off %}version: "3.9"
+
+# Configuration générée automatiquement pour {{ tenant.name }}
+# Généré le : {% now "d/m/Y à H:i" %}
+# NE PAS MODIFIER : TENANT_ID, REGISTRATION_TOKEN
+#
+# NODE_ADDR : remplacer <IP_VM> par l'adresse IP réelle de cette machine
+#             sur le réseau de la PME (ex: 192.168.200.133:9001)
+#             Ce champ est pré-rempli automatiquement par installer-pme.bat
+
+networks:
+  ss-pme:
+    driver: bridge
+
+services:
+  node1:
+    image: {{ node_image }}
+    networks:
+      - ss-pme
+    ports:
+      - "9001:9001"
+    volumes:
+      - node1-data:/data
+    environment:
+      SS_NODE_DIR: /data
+      TENANT_ID: "{{ tenant.id }}"
+      REGISTRATION_TOKEN: "{{ tenant.registration_token }}"
+      RELAY_URL: "{{ relay_url }}"
+      SAAS_URL: "http://{{ saas_host }}:{{ saas_port }}"
+      NODE_ADDR: "<IP_VM>:9001"
+      HOSTNAME: node1
+    command: ["run", "--mode", "active"]
+    restart: unless-stopped
+
+  # Watchtower vérifie les mises à jour toutes les heures (géré par EL BARAA CONSULT)
+  updater:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_POLL_INTERVAL: "3600"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_LABEL_ENABLE: "false"
+    restart: unless-stopped
+
+volumes:
+  node1-data:
+{% endautoescape %}

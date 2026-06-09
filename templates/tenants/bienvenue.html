@@ -1,0 +1,334 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenue — EL BARAA CONSULT</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <style>
+    body { background: var(--content-bg); }
+
+    .onboarding-header {
+      background: var(--sidebar-bg);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .onboarding-header-left { display: flex; align-items: center; gap: 16px; }
+    .onboarding-header img { height: 40px; }
+    .onboarding-header-brand-name { color: #fff; font-weight: 700; font-size: 1rem; line-height: 1.2; }
+    .onboarding-header-tenant { color: var(--gold); font-size: 0.8rem; }
+
+    /* ── OS Selector ── */
+    .os-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .os-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 22px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+      min-width: 190px;
+    }
+    .os-btn:hover {
+      border-color: var(--crimson);
+      box-shadow: 0 2px 8px rgba(160,21,32,.12);
+      background: #FFF5F5;
+      color: var(--crimson);
+    }
+    .os-btn-primary {
+      border-color: var(--crimson);
+      background: var(--crimson);
+      color: #fff;
+    }
+    .os-btn-primary:hover {
+      background: #8B1119;
+      border-color: #8B1119;
+      color: #fff;
+    }
+    .os-icon { font-size: 1.3rem; line-height: 1; }
+
+    /* ── Info box ── */
+    .info-box {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.875rem;
+      color: #1E40AF;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .info-box svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Auto-update badge ── */
+    .autoupdate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ECFDF5;
+      border: 1px solid #6EE7B7;
+      color: #065F46;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      .onboarding-header { padding: 12px 16px; }
+      .bienvenue-content { padding: 24px 16px; }
+      .os-btn { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Header ─── -->
+  <header class="onboarding-header">
+    <div class="onboarding-header-left">
+      <img src="{% static 'frontend/public/logoentreprise.png' %}" alt="EL BARAA CONSULT" onerror="this.style.display='none'">
+      <div>
+        <div class="onboarding-header-brand-name">EL BARAA CONSULT</div>
+        <div class="onboarding-header-tenant">{{ tenant.name }}</div>
+      </div>
+    </div>
+    <a href="{% url 'logout' %}" style="color:rgba(255,255,255,.6); font-size:0.85rem; text-decoration:none;">
+      Déconnexion
+    </a>
+  </header>
+
+  <!-- ─── Contenu ─── -->
+  <div class="bienvenue-content">
+
+    <!-- Titre -->
+    <div style="margin-bottom:28px;">
+      <h1 style="font-size:1.6rem; font-weight:800; margin-bottom:6px;">
+        Bienvenue, <span style="color:var(--crimson);">{{ tenant.name }}</span>&nbsp;!
+      </h1>
+      <p style="color:var(--text-muted); font-size:0.95rem;">
+        Votre espace est prêt. Installez le logiciel en 3 étapes — pas besoin d'expertise technique.
+      </p>
+    </div>
+
+    <!-- Statut licence -->
+    {% if active_license %}
+      <div class="alert alert-success" style="display:flex; align-items:center; gap:10px; font-size:0.9rem; margin-bottom:24px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;">
+          <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm3.5 4.5-4.3 4.3-1.7-1.7-1 1 2.7 2.7 5.3-5.3-1-1z"/>
+        </svg>
+        <span>
+          Licence <strong>trial</strong> — {{ active_license.seats }} poste(s) —
+          expire le <strong>{{ active_license.expires_at|date:"d/m/Y" }}</strong>
+        </span>
+      </div>
+    {% else %}
+      <div class="alert alert-error" style="display:flex; align-items:center; gap:10px; font-size:0.9rem; margin-bottom:24px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0;">
+          <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm-.75 3.5v4.5h1.5V4.5h-1.5zm0 5.5v1.5h1.5V10h-1.5z"/>
+        </svg>
+        <span>Aucune licence active. Contactez l'équipe EL BARAA CONSULT.</span>
+      </div>
+    {% endif %}
+
+    <!-- ═══════════════════════════════════════════════
+         ÉTAPE 1 — Télécharger l'installateur
+    ════════════════════════════════════════════════ -->
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-body">
+        <div class="step-title">Télécharger l'installateur</div>
+        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:8px;">
+          Choisissez votre système d'exploitation. L'installateur contient tout —
+          y compris Docker si besoin.
+        </p>
+
+        <!-- Badge mise à jour auto -->
+        <div style="margin-bottom:18px;">
+          <span class="autoupdate-badge">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+            Mises à jour automatiques par EL BARAA CONSULT
+          </span>
+        </div>
+
+        <!-- Boutons OS -->
+        <div class="os-selector">
+          <a href="{% url 'telecharger-installeur' 'windows' %}"
+             class="os-btn os-btn-primary">
+            <span class="os-icon">🪟</span>
+            <span>
+              <span style="display:block; font-size:0.78rem; font-weight:400; opacity:.85; margin-bottom:1px;">Télécharger pour</span>
+              Windows 10 / 11
+            </span>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="margin-left:auto;">
+              <path d="M8 12L3 7h3V2h4v5h3L8 12zM2 14h12v-1.5H2V14z"/>
+            </svg>
+          </a>
+          <a href="{% url 'telecharger-installeur' 'linux' %}"
+             class="os-btn">
+            <span class="os-icon">🐧</span>
+            <span>
+              <span style="display:block; font-size:0.78rem; font-weight:400; opacity:.7; margin-bottom:1px;">Télécharger pour</span>
+              Linux (Ubuntu/Debian)
+            </span>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="margin-left:auto;">
+              <path d="M8 12L3 7h3V2h4v5h3L8 12zM2 14h12v-1.5H2V14z"/>
+            </svg>
+          </a>
+        </div>
+
+        <!-- Infos d'identification (pour référence uniquement) -->
+        <div style="background:#F5EFE8; border:1px solid var(--border); border-radius:8px; padding:14px 18px;">
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:10px;">
+            Ces identifiants sont déjà intégrés dans l'installateur. Conservez-les comme référence.
+          </p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:4px;">Token d'enregistrement</div>
+              <div class="token-display" style="font-size:0.78rem;">{{ tenant.registration_token }}</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:4px;">ID tenant</div>
+              <div class="token-display" style="font-size:0.78rem;">{{ tenant.id }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         ÉTAPE 2 — Lancer l'installateur
+    ════════════════════════════════════════════════ -->
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-body">
+        <div class="step-title">Exécuter l'installateur sur chaque PC</div>
+        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:16px;">
+          L'installateur s'occupe de tout automatiquement :
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
+          <div style="display:flex; align-items:center; gap:10px; font-size:0.875rem; color:var(--text-secondary);">
+            <span style="width:22px; height:22px; background:var(--crimson); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="#fff"><path d="M3 8l4 4 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </span>
+            Installe Docker automatiquement si absent
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; font-size:0.875rem; color:var(--text-secondary);">
+            <span style="width:22px; height:22px; background:var(--crimson); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="#fff"><path d="M3 8l4 4 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </span>
+            Configure et démarre le logiciel avec vos identifiants
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; font-size:0.875rem; color:var(--text-secondary);">
+            <span style="width:22px; height:22px; background:var(--crimson); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="#fff"><path d="M3 8l4 4 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </span>
+            Configure le démarrage automatique au boot
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; font-size:0.875rem; color:var(--text-secondary);">
+            <span style="width:22px; height:22px; background:var(--crimson); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="#fff"><path d="M3 8l4 4 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </span>
+            Les mises à jour futures sont appliquées automatiquement
+          </div>
+        </div>
+
+        <div class="info-box">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm-.75 5v1.5h-.5v1h2v-1h-.5V6h-1zm0-2.5v1.5h1.5V3.5h-1.5z"/>
+          </svg>
+          <span>
+            <strong>Windows :</strong> clic droit sur <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">installer-pme.bat</code> →
+            <em>Exécuter en tant qu'administrateur</em>.
+            <br>
+            <strong>Linux :</strong> <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">chmod +x installer-pme.sh &amp;&amp; sudo ./installer-pme.sh</code>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         ÉTAPE 3 — Vérification du parc
+    ════════════════════════════════════════════════ -->
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-body">
+        <div class="step-title">Vérification de votre parc</div>
+        <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:16px;">
+          Dès que chaque PC termine l'installation, il apparaît ici automatiquement.
+        </p>
+
+        {% if active_devices == 0 %}
+          <span class="status-badge pending">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm-.75 3.5v4.5h1.5V4.5h-1.5zm0 5.5v1.5h1.5V10h-1.5z"/>
+            </svg>
+            En attente — aucune machine connectée
+          </span>
+          <p style="color:var(--text-muted); font-size:0.8rem; margin-top:10px;">
+            Lancez l'installateur sur vos PC, puis rafraîchissez cette page.
+          </p>
+        {% elif active_license and active_devices >= active_license.seats %}
+          <span class="status-badge complete">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm3.5 4.5-4.3 4.3-1.7-1.7-1 1 2.7 2.7 5.3-5.3-1-1z"/>
+            </svg>
+            Parc complet — {{ active_devices }} machine{% if active_devices > 1 %}s{% endif %} connectée{% if active_devices > 1 %}s{% endif %}
+          </span>
+        {% else %}
+          <span class="status-badge active">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm3.5 4.5-4.3 4.3-1.7-1.7-1 1 2.7 2.7 5.3-5.3-1-1z"/>
+            </svg>
+            {{ active_devices }} machine{% if active_devices > 1 %}s{% endif %} connectée{% if active_devices > 1 %}s{% endif %}
+          </span>
+        {% endif %}
+
+        {% if active_license and active_devices > 0 %}
+          <p style="color:var(--text-muted); font-size:0.8rem; margin-top:10px;">
+            {{ active_devices }} / {{ active_license.seats }} poste(s) utilisé(s)
+          </p>
+        {% endif %}
+
+        <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+          <a href="{% url 'bienvenue' %}" class="btn btn-secondary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5" stroke-linecap="round"/>
+              <path d="M13.5 2.5v3h-3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Rafraîchir
+          </a>
+          {% if active_devices >= 1 %}
+          <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm">
+            Accéder à mon espace →
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /bienvenue-content -->
+
+</body>
+</html>
