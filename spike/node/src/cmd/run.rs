@@ -176,6 +176,8 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
             }
         }
     }
+
+    Ok(())
 }
 
 /// Boucle de supervision PostgreSQL.
