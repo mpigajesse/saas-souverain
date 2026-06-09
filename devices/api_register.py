@@ -59,6 +59,7 @@ def device_register(request):
         )
 
     # Créer ou retrouver la machine par installation_id
+    node_addr = request.data.get('node_addr', '')
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -66,14 +67,17 @@ def device_register(request):
             'hostname': request.data.get('hostname', ''),
             'os': request.data.get('os', ''),
             'mac_address': request.data.get('mac_address', ''),
+            'node_addr': node_addr,
             'is_active': True,
         },
     )
 
-    # Si la machine existait déjà, mettre à jour hostname/os et last_seen (auto_now)
+    # Si la machine existait déjà, mettre à jour hostname/os/node_addr et last_seen (auto_now)
     if not created:
         device.hostname = request.data.get('hostname', device.hostname)
         device.os = request.data.get('os', device.os)
+        if node_addr:
+            device.node_addr = node_addr
         device.save()
 
         if not device.is_active:

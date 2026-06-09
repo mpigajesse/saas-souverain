@@ -10,6 +10,7 @@ class Device(models.Model):
     mac_address = models.CharField(max_length=17, blank=True)
     hostname = models.CharField(max_length=200, blank=True)
     os = models.CharField(max_length=50, blank=True)
+    node_addr = models.CharField(max_length=255, blank=True, help_text="IP:port annoncée par le nœud (ex: 192.168.200.130:9001)")
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

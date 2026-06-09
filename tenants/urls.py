@@ -1,11 +1,12 @@
 from django.urls import path
 
-from . import views_web
+from . import views_web, views_espace
 
 urlpatterns = [
     path('', views_web.tenant_list, name='tenant-list'),
     path('inscription/', views_web.inscription, name='inscription'),
     path('bienvenue/', views_web.bienvenue, name='bienvenue'),
+    path('mon-espace/', views_espace.mon_espace, name='mon-espace'),
     path('telecharger/compose/', views_web.telecharger_compose, name='telecharger-compose'),
     path('telecharger/installeur/<str:os_type>/', views_web.telecharger_installeur, name='telecharger-installeur'),
     path('<uuid:pk>/', views_web.tenant_detail, name='tenant-detail'),

@@ -279,12 +279,15 @@ async fn register_with_saas(config: &NodeConfig) {
 
     let url = format!("{}/api/devices/register/", saas_url.trim_end_matches('/'));
 
+    let node_addr = std::env::var("NODE_ADDR").unwrap_or_default();
+
     let body = serde_json::json!({
         "tenant_token": reg_token,
         "installation_id": config.node_id.to_string(),
         "hostname": hostname,
         "os": std::env::consts::OS,
-        "mac_address": ""
+        "mac_address": "",
+        "node_addr": node_addr
     });
 
     match reqwest::Client::new()
