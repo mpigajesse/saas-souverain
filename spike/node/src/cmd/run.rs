@@ -87,6 +87,9 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
             ),
         }
 
+        // Enregistrement auprès du SaaS éditeur (portail "Vérification du parc")
+        register_with_saas(&config).await;
+
         // Découverte des pairs
         match relay.get_peers(tenant_id).await {
             Ok(peers) => {
@@ -173,6 +176,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     Ok(_) => {}
                     Err(e) => println!("  Relais injoignable : {}", e),
                 }
+                register_with_saas(&config).await;
             }
         }
     }
@@ -255,4 +259,50 @@ fn node_addr(config: &NodeConfig) -> String {
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .unwrap_or_else(|_| "unknown".to_string());
     format!("{}:{}", host, config.port)
+}
+
+/// Enregistre le nœud auprès du SaaS éditeur Django pour l'affichage dans le portail.
+/// Non bloquant — les erreurs sont loguées mais n'arrêtent pas le nœud.
+async fn register_with_saas(config: &NodeConfig) {
+    let saas_url = match std::env::var("SAAS_URL") {
+        Ok(u) if !u.is_empty() => u,
+        _ => return,
+    };
+    let reg_token = match std::env::var("REGISTRATION_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => return,
+    };
+
+    let hostname = std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("COMPUTERNAME"))
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let url = format!("{}/api/devices/register/", saas_url.trim_end_matches('/'));
+
+    let body = serde_json::json!({
+        "tenant_token": reg_token,
+        "installation_id": config.node_id.to_string(),
+        "hostname": hostname,
+        "os": std::env::consts::OS,
+        "mac_address": ""
+    });
+
+    match reqwest::Client::new()
+        .post(&url)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let status = resp.status();
+            if status.is_success() {
+                println!("  SaaS     : appareil enregistré dans le portail");
+            } else {
+                let text = resp.text().await.unwrap_or_default();
+                println!("  SaaS     : enregistrement — {} {}", status, text.trim());
+            }
+        }
+        Err(e) => println!("  SaaS     : injoignable — {} (non bloquant)", e),
+    }
 }
