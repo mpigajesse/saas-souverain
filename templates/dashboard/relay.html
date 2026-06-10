@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Relais zero-knowledge{% endblock %}
+{% block content %}
+
+<meta http-equiv="refresh" content="30">
+
+<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+  <div>
+    <h1 class="page-title">Relais zero-knowledge</h1>
+    <p class="page-subtitle" style="font-family:monospace; font-size:0.82rem;">{{ relay_url }}</p>
+  </div>
+  <div style="display:flex; align-items:center; gap:10px;">
+    {% if health.reachable %}
+      <span style="display:inline-flex; align-items:center; gap:6px; background:#D1FAE5; color:#065F46; border-radius:20px; padding:5px 14px; font-size:0.8rem; font-weight:600;">
+        <span style="width:8px; height:8px; background:#10B981; border-radius:50%; display:inline-block;"></span>
+        En ligne · v{{ health.version }}
+      </span>
+    {% else %}
+      <span style="display:inline-flex; align-items:center; gap:6px; background:#FEE2E2; color:#991B1B; border-radius:20px; padding:5px 14px; font-size:0.8rem; font-weight:600;">
+        <span style="width:8px; height:8px; background:#EF4444; border-radius:50%; display:inline-block;"></span>
+        Hors ligne
+      </span>
+    {% endif %}
+    <a href="{% url 'relay-monitor' %}" style="background:var(--border); color:var(--text-secondary); border-radius:8px; padding:6px 14px; font-size:0.8rem; text-decoration:none;">
+      ↺ Rafraîchir
+    </a>
+  </div>
+</div>
+
+{% if not health.reachable %}
+<div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:16px 20px; margin-bottom:24px; color:#991B1B; font-size:0.875rem;">
+  <strong>Relais inaccessible</strong> — {{ health.error }}<br>
+  <span style="font-size:0.8rem; opacity:.8;">Vérifier que le conteneur ss-relay tourne sur le serveur relay : <code>docker ps</code></span>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid" style="margin-bottom:28px;">
+  <div class="stat-card stat-card--crimson">
+    <div class="stat-label">Nœuds actifs</div>
+    <div class="stat-value stat-value--crimson">{{ total_nodes }}</div>
+    <div class="stat-sublabel">machines PME connectées</div>
+  </div>
+  <div class="stat-card stat-card--gold">
+    <div class="stat-label">Tenants avec nœuds</div>
+    <div class="stat-value stat-value--gold">{{ tenants_data|length }}</div>
+    <div class="stat-sublabel">clusters enregistrés</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Service</div>
+    <div class="stat-value" style="color:var(--text-primary); font-size:1rem; font-weight:700; font-family:monospace;">{{ health.service|default:"—" }}</div>
+    <div class="stat-sublabel">rafraîchissement auto 30s</div>
+  </div>
+</div>
+
+<!-- Topologie par tenant -->
+{% for entry in tenants_data %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-weight:700;">{{ entry.tenant.name }}</span>
+      <span style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">{{ entry.tenant.id }}</span>
+    </div>
+    <span style="
+      background:{% if entry.nodes %}#D1FAE5{% else %}#F3F4F6{% endif %};
+      color:{% if entry.nodes %}#065F46{% else %}var(--text-muted){% endif %};
+      border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
+      {{ entry.nodes|length }} nœud{% if entry.nodes|length != 1 %}s{% endif %}
+    </span>
+  </div>
+
+  {% if entry.nodes %}
+  <div class="card-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>ID nœud</th>
+          <th>Adresse</th>
+          <th>Rôle</th>
+          <th>Époque</th>
+          <th>Dernier contact</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for node in entry.nodes %}
+        <tr>
+          <td style="font-family:monospace; font-size:0.82rem; color:var(--text-secondary);">{{ node.short_id }}…</td>
+          <td>
+            <span style="background:#F8F8F8; border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-family:monospace; font-size:0.82rem;">
+              {{ node.addr }}
+            </span>
+          </td>
+          <td>
+            {% if node.role == "active" %}
+              <span class="badge badge-active">actif</span>
+            {% else %}
+              <span class="badge badge-inactive">{{ node.role }}</span>
+            {% endif %}
+          </td>
+          <td style="font-family:monospace; text-align:center;">{{ node.epoch }}</td>
+          <td style="color:var(--text-muted); font-size:0.82rem;">il y a {{ node.time_ago }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body" style="color:var(--text-muted); font-size:0.875rem; text-align:center; padding:24px;">
+    Aucun nœud annoncé pour ce tenant.
+  </div>
+  {% endif %}
+</div>
+{% empty %}
+<div style="text-align:center; padding:48px; color:var(--text-muted);">
+  Aucun tenant enregistré.
+</div>
+{% endfor %}
+
+{% endblock %}
