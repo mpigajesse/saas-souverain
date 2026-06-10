@@ -1,0 +1,16 @@
+# Fins de ligne
+* text=auto
+
+# Scripts shell — toujours LF (exécutés sur Linux)
+*.sh text eol=lf
+
+# Windows scripts — toujours CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Fichiers binaires
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+*.woff binary

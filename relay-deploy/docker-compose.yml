@@ -1,0 +1,43 @@
+# Serveur 2 — Relais zero-knowledge EL BARAA CONSULT
+# Déployer sur Ubuntu Server 24.04 (192.168.1.54 / 192.168.100.100)
+#
+# 1. Copier .env.example → .env et remplir les valeurs
+# 2. docker compose up -d
+
+networks:
+  relay-net:
+    driver: bridge
+
+services:
+  ss-relay:
+    build:
+      context: ../spike
+      dockerfile: relay/Dockerfile
+    image: ss-relay:prod
+    container_name: ss-relay
+    networks:
+      - relay-net
+    ports:
+      - "8080:8080"
+    volumes:
+      - blobs-data:/data/blobs
+    environment:
+      RELAY_PORT: "8080"
+      BLOBS_DIR: "/data/blobs"
+      RELAY_AUTH_TOKEN: "${RELAY_AUTH_TOKEN:-}"
+      RUST_LOG: "info"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  blobs-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/elbaraa-relay/blobs
