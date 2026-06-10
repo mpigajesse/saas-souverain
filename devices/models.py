@@ -17,6 +17,11 @@ class Device(models.Model):
         choices=[('primary', 'Primaire'), ('standby', 'Standby')],
         help_text='Rôle PostgreSQL de ce nœud dans le cluster PME',
     )
+    last_failover_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Dernier failover automatique détecté sur ce nœud',
+    )
+    failover_count = models.IntegerField(default=0)
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

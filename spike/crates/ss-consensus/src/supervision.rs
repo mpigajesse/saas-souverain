@@ -19,6 +19,17 @@ pub async fn promote_standby(pool: &PgPool) -> Result<bool> {
     Ok(row.0)
 }
 
+/// Returns true if the WAL receiver is actively streaming from a primary.
+/// An empty result means the connection to the primary was lost.
+pub async fn wal_receiver_active(pool: &PgPool) -> Result<bool> {
+    let row: (i64,) = sqlx::query_as(
+        "SELECT count(*) FROM pg_stat_wal_receiver WHERE status = 'streaming'",
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0 > 0)
+}
+
 /// Check if the cluster can perform automatic failover (≥ 3 nodes required).
 /// Uses the count of replication slots or connected standbys visible from the primary.
 pub async fn connected_standby_count(pool: &PgPool) -> Result<i64> {

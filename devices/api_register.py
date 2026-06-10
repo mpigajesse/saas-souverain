@@ -1,5 +1,6 @@
 import uuid
 
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -85,6 +86,10 @@ def device_register(request):
         if web_addr:
             device.web_addr = web_addr
         if node_role:
+            # Failover automatique détecté : le nœud était standby et annonce maintenant primary
+            if device.node_role == 'standby' and node_role == 'primary':
+                device.failover_count += 1
+                device.last_failover_at = timezone.now()
             device.node_role = node_role
         device.save()
 

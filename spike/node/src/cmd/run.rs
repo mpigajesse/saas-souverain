@@ -192,67 +192,87 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Boucle de supervision PostgreSQL.
+/// Boucle de supervision PostgreSQL — tourne indéfiniment.
 ///
-/// - Mode actif  : vérifie que PG est bien primaire (pas en recovery).
-/// - Mode passif : surveille si le primaire répond ; si non + quorum >= 3, auto-promote.
+/// - Mode actif  : vérifie que PG est bien primaire (réplication active).
+/// - Mode passif : surveille le WAL receiver. Si déconnecté ≥ WAL_FAILOVER_THRESHOLD
+///   ticks consécutifs (15 s par défaut) → promotion automatique sans intervention.
 async fn run_supervision_loop(
     mode: RunMode,
     pool: PgPool,
     config: &crate::config::NodeConfig,
-    config_path: &Path,
+    _config_path: &Path,
 ) -> Result<()> {
-    let relay = crate::relay_client::RelayClient::new(&config.relay_url);
+    // Nombre de ticks WAL inactif consécutifs avant promotion automatique.
+    // Seuil : ≥ 2 nœuds dans le cluster (couvre le cas 2 machines PME).
+    const WAL_FAILOVER_THRESHOLD: u32 = 3; // 3 × 5 s = 15 s
 
-    // Spike: 3 checks then exit cleanly.  In production this would run forever.
-    for tick in 1..=3u32 {
+    let mut tick: u32 = 0;
+    let mut wal_miss: u32 = 0;
+
+    loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        tick += 1;
 
         match supervision::is_primary(&pool).await {
             Ok(is_prim) => {
-                if mode == RunMode::Active && is_prim {
-                    println!("  [tick {tick}] PG primaire : OK (réplication active)");
-                    let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
-                    println!("  [tick {tick}] Standbys connectés : {}", standbys);
-                } else if mode == RunMode::Active && !is_prim {
-                    println!("  [tick {tick}] ERREUR : ce nœud actif est en mode recovery — état incohérent !");
-                } else if mode == RunMode::Passive && !is_prim {
-                    println!("  [tick {tick}] PG standby : en cours de réplication (normal).");
-                } else if mode == RunMode::Passive && is_prim {
-                    println!("  [tick {tick}] Ce standby est déjà primaire (failover précédent ?).");
-                }
-            }
-            Err(e) => {
-                println!("  [tick {tick}] PG injoignable : {}", e);
+                match (mode, is_prim) {
+                    (RunMode::Active, true) => {
+                        let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
+                        if tick % 12 == 1 {
+                            println!("  [tick {tick}] PG primaire OK — {} standby(s) connecté(s)", standbys);
+                        }
+                        wal_miss = 0;
+                    }
+                    (RunMode::Active, false) => {
+                        println!("  [tick {tick}] ERREUR : ce nœud actif est en mode recovery — état incohérent !");
+                    }
+                    (RunMode::Passive, true) => {
+                        // Déjà promu (failover précédent dans cette session)
+                        if tick % 12 == 1 {
+                            println!("  [tick {tick}] Ce nœud est désormais primaire.");
+                        }
+                        wal_miss = 0;
+                    }
+                    (RunMode::Passive, false) => {
+                        // Standby normal — vérifier que le WAL receiver est actif
+                        let wal_ok = supervision::wal_receiver_active(&pool).await.unwrap_or(true);
+                        if wal_ok {
+                            wal_miss = 0;
+                            if tick % 12 == 1 {
+                                println!("  [tick {tick}] PG standby : réplication active");
+                            }
+                        } else {
+                            wal_miss += 1;
+                            println!(
+                                "  [tick {tick}] ALERTE : WAL receiver inactif ({}/{}) — primaire injoignable ?",
+                                wal_miss, WAL_FAILOVER_THRESHOLD
+                            );
 
-                // Si passif et primaire injoignable → vérifier le quorum pour failover auto
-                if mode == RunMode::Passive {
-                    if let Some(tenant_id) = config.tenant_id {
-                        match relay.get_peers(tenant_id).await {
-                            Ok(peers) => {
-                                let node_count = peers.len();
-                                if node_count >= 3 {
-                                    println!(
-                                        "  [tick {tick}] Quorum atteint ({} nœuds) — failover automatique possible.",
-                                        node_count
-                                    );
-                                    println!("  [tick {tick}] Exécutez : ss-node failover --config <path>");
-                                    println!("  [tick {tick}] (Dans production : promotion auto sans intervention)");
-                                } else {
-                                    println!(
-                                        "  [tick {tick}] Quorum insuffisant ({} nœud(s)) — bascule manuelle requise.",
-                                        node_count
-                                    );
+                            if wal_miss >= WAL_FAILOVER_THRESHOLD {
+                                println!("  [tick {tick}] Primaire considéré hors service — FAILOVER AUTOMATIQUE");
+                                match supervision::promote_standby(&pool).await {
+                                    Ok(true) => {
+                                        println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire !");
+                                        register_with_saas_role(config, "primary").await;
+                                        wal_miss = 0;
+                                    }
+                                    Ok(false) => {
+                                        println!("  [tick {tick}] Promotion déjà en cours ou inutile.");
+                                        wal_miss = 0;
+                                    }
+                                    Err(e) => println!("  [tick {tick}] Erreur lors de la promotion : {}", e),
                                 }
                             }
-                            Err(re) => println!("  [tick {tick}] Relais injoignable aussi : {}", re),
                         }
                     }
                 }
             }
+            Err(e) => {
+                println!("  [tick {tick}] PG local injoignable : {}", e);
+            }
         }
     }
-    Ok(())
 }
 
 /// Retourne l'adresse d'annonce du nœud.
@@ -269,9 +289,18 @@ fn node_addr(config: &NodeConfig) -> String {
     format!("{}:{}", host, config.port)
 }
 
-/// Enregistre le nœud auprès du SaaS éditeur Django pour l'affichage dans le portail.
-/// Non bloquant — les erreurs sont loguées mais n'arrêtent pas le nœud.
+/// Enregistre le nœud avec le rôle détecté depuis NODE_MODE.
 async fn register_with_saas(config: &NodeConfig) {
+    let role = match std::env::var("NODE_MODE").as_deref() {
+        Ok("active") => "primary",
+        _ => "standby",
+    };
+    register_with_saas_role(config, role).await;
+}
+
+/// Enregistre le nœud avec un rôle explicite — utilisé après failover automatique.
+/// Non bloquant — les erreurs sont loguées mais n'arrêtent pas le nœud.
+async fn register_with_saas_role(config: &NodeConfig, node_role: &str) {
     let saas_url = match std::env::var("SAAS_URL") {
         Ok(u) if !u.is_empty() => u,
         _ => return,
@@ -294,11 +323,7 @@ async fn register_with_saas(config: &NodeConfig) {
     } else {
         String::new()
     };
-    // NODE_MODE=active → rôle primary, passive → standby
-    let node_role = match std::env::var("NODE_MODE").as_deref() {
-        Ok("active") => "primary",
-        _ => "standby",
-    };
+    let node_role = node_role;
 
     let body = serde_json::json!({
         "tenant_token": reg_token,

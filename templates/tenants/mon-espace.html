@@ -167,6 +167,31 @@
       opacity: .8;
     }
 
+    /* ── Failover alert ── */
+    .failover-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .failover-notice {
+      background: #FFF7ED;
+      border: 1px solid #FED7AA;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #92400E;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
     /* ── Phase banner ── */
     .phase-banner {
       background: #FFFBEB;
@@ -297,10 +322,29 @@
             {% endif %}
           </div>
           <div>
-            <div class="machine-name">{{ device.hostname|default:"Machine sans nom" }}</div>
+            <div class="machine-name">
+              {{ device.hostname|default:"Machine sans nom" }}
+              {% if device.node_role == "primary" %}
+                <span style="background:#D1FAE5; color:#065F46; border-radius:6px; padding:1px 7px; font-size:.7rem; font-weight:700; margin-left:4px;">Primaire</span>
+              {% elif device.node_role == "standby" %}
+                <span style="background:#FEF3C7; color:#92400E; border-radius:6px; padding:1px 7px; font-size:.7rem; font-weight:700; margin-left:4px;">Standby</span>
+              {% endif %}
+            </div>
             <div class="machine-os">{{ device.os|default:"OS inconnu" }}</div>
           </div>
         </div>
+
+        {% if device.failover_count > 0 %}
+        <div class="failover-notice">
+          <span>⚡</span>
+          <span>
+            Basculement automatique — {{ device.failover_count }} fois
+            {% if device.last_failover_at %}
+              (dernier : {{ device.last_failover_at|date:"d/m/Y H:i" }})
+            {% endif %}
+          </span>
+        </div>
+        {% endif %}
 
         {% if device.node_addr %}
         <div class="machine-addr">{{ device.node_addr }}</div>

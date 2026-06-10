@@ -34,6 +34,12 @@
         <td>
           {% if device.node_role == "primary" %}
             <span style="background:#D1FAE5; color:#065F46; border-radius:10px; padding:2px 10px; font-size:.75rem; font-weight:700;">Primaire</span>
+            {% if device.failover_count > 0 %}
+              <span title="Failover automatique — {{ device.last_failover_at|date:'d/m/Y H:i' }}"
+                    style="background:#FEE2E2; color:#991B1B; border-radius:10px; padding:2px 8px; font-size:.7rem; font-weight:700; margin-left:4px; cursor:default;">
+                ⚡ F×{{ device.failover_count }}
+              </span>
+            {% endif %}
           {% elif device.node_role == "standby" %}
             <span style="background:#FEF3C7; color:#92400E; border-radius:10px; padding:2px 10px; font-size:.75rem; font-weight:700;">Standby</span>
           {% else %}

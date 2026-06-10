@@ -4,7 +4,6 @@ use anyhow::{anyhow, Context, Result};
 use hex;
 use sqlx::PgPool;
 use ss_consensus::{check_fencing, supervision, EpochToken, FencingResult};
-use ss_crypto::Dek;
 
 use crate::config::NodeConfig;
 
