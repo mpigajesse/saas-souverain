@@ -12,6 +12,11 @@ class Device(models.Model):
     os = models.CharField(max_length=50, blank=True)
     node_addr = models.CharField(max_length=255, blank=True, help_text="IP:port annoncée par le nœud (ex: 192.168.200.130:9001)")
     web_addr = models.CharField(max_length=255, blank=True, help_text="IP:port de l'interface web PME (ex: 192.168.200.130:3000)")
+    node_role = models.CharField(
+        max_length=10, blank=True,
+        choices=[('primary', 'Primaire'), ('standby', 'Standby')],
+        help_text='Rôle PostgreSQL de ce nœud dans le cluster PME',
+    )
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

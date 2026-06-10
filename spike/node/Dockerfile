@@ -1,11 +1,11 @@
-FROM rust:latest AS builder
+FROM rust:1.82-bookworm AS builder
 WORKDIR /workspace
 # Contexte de build = spike/ (workspace Cargo complet)
 COPY . .
 RUN cargo build --release -p node
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /workspace/target/release/ss-node /usr/local/bin/ss-node
 ENV SS_NODE_DIR=/data
 VOLUME ["/data"]

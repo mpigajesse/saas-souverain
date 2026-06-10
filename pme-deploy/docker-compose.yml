@@ -1,0 +1,109 @@
+# Nœud PME — Logiciel de gestion souverain EL BARAA CONSULT
+#
+# VM1 (primaire) : NODE_ROLE=primary NODE_MODE=active  docker compose up -d --build
+# VM2 (standby)  : NODE_ROLE=standby NODE_MODE=passive docker compose up -d --build
+#
+# Ou utilisez les scripts : ./setup-primary.sh  /  ./setup-standby.sh <IP_PRIMAIRE>
+
+networks:
+  pme-net:
+    driver: bridge
+
+services:
+
+  # ── Base de données ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-bookworm
+    container_name: pg-node
+    restart: unless-stopped
+    networks: [pme-net]
+    environment:
+      POSTGRES_USER: "${PG_USER:-metier}"
+      POSTGRES_PASSWORD: "${PG_PASSWORD}"
+      POSTGRES_DB: "${PG_DB:-metier}"
+      PGDATA: /var/lib/postgresql/data
+      NODE_ROLE: "${NODE_ROLE:-primary}"
+      PRIMARY_IP: "${PRIMARY_IP:-}"
+      REPLICATION_PASSWORD: "${REPLICATION_PASSWORD}"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./postgres/entrypoint.sh:/entrypoint.sh:ro
+      - ./postgres/primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    ports:
+      - "5432:5432"
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c wal_keep_size=64
+        -c listen_addresses=*
+        -c synchronous_commit=remote_write
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-metier} -d ${PG_DB:-metier}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  # ── Logiciel métier PME ────────────────────────────────────────────────
+  ss-node:
+    build:
+      context: ../spike
+      dockerfile: node/Dockerfile
+    image: ss-node:prod
+    container_name: ss-node
+    restart: unless-stopped
+    networks: [pme-net]
+    ports:
+      - "9001:9001"
+    environment:
+      SS_NODE_DIR: /data
+      WEB_PORT: "9001"
+      NODE_ADDR: "${NODE_ADDR}"
+      RELAY_URL: "${RELAY_URL}"
+      SAAS_URL: "${SAAS_URL:-}"
+      REGISTRATION_TOKEN: "${REGISTRATION_TOKEN:-}"
+      PG_URL: "postgres://${PG_USER:-metier}:${PG_PASSWORD}@postgres:5432/${PG_DB:-metier}"
+      RUST_LOG: "info"
+    volumes:
+      - node-data:/data
+    command: ["run", "--mode", "${NODE_MODE:-passive}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Interface graphique — données PME en clair ─────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin
+    restart: unless-stopped
+    networks: [pme-net]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@pme.local}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD}"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/pme-node/pg-data
+  node-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/pme-node/node-data
+  pgadmin-data:

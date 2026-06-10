@@ -61,6 +61,7 @@ def device_register(request):
     # Créer ou retrouver la machine par installation_id
     node_addr = request.data.get('node_addr', '')
     web_addr = request.data.get('web_addr', '')
+    node_role = request.data.get('node_role', '')
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -70,6 +71,7 @@ def device_register(request):
             'mac_address': request.data.get('mac_address', ''),
             'node_addr': node_addr,
             'web_addr': web_addr,
+            'node_role': node_role,
             'is_active': True,
         },
     )
@@ -82,6 +84,8 @@ def device_register(request):
             device.node_addr = node_addr
         if web_addr:
             device.web_addr = web_addr
+        if node_role:
+            device.node_role = node_role
         device.save()
 
         if not device.is_active:

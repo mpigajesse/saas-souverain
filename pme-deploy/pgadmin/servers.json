@@ -1,0 +1,14 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "PostgreSQL — Données PME (local)",
+            "Group": "PME",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "metier",
+            "Username": "metier",
+            "SSLMode": "prefer",
+            "Comment": "Base de données métier locale — données en clair dans le périmètre PME"
+        }
+    }
+}

@@ -90,9 +90,29 @@ def relay_monitor(request):
         total_nodes += len(nodes)
         tenants_data.append({"tenant": tenant, "nodes": nodes})
 
+    # Dériver les labels de sous-réseau depuis les IPs réelles du relais
+    def _to_subnet_label(ip: str) -> str:
+        parts = ip.split(".")
+        return ".".join(parts[:3]) + ".x" if len(parts) == 4 else ip
+
+    editeur_subnet = ""
+    relay_subnet = ""
+    for net in health.get("networks", []):
+        role = net.get("role", "")
+        ip = net.get("ip", "")
+        if role in ("editeur", "LAN-editeur", "vers-editeur") and not editeur_subnet:
+            editeur_subnet = _to_subnet_label(ip)
+        elif role in ("interne", "relais", "LAN-relais") and not relay_subnet:
+            relay_subnet = _to_subnet_label(ip)
+
+    pme_subnet = getattr(settings, "PME_SUBNET_LABEL", "")
+
     return render(request, "dashboard/relay.html", {
         "relay_url": relay_url,
         "health": health,
         "tenants_data": tenants_data,
         "total_nodes": total_nodes,
+        "editeur_subnet": editeur_subnet,
+        "relay_subnet": relay_subnet,
+        "pme_subnet": pme_subnet,
     })

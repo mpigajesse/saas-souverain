@@ -87,6 +87,10 @@
   .net-role--editeur { background: rgba(59,130,246,.2);  color: #BAE6FD; }
   .net-role--relais  { background: rgba(99,102,241,.2);  color: #C7D2FE; }
   .net-role--autre   { background: rgba(255,255,255,.1); color: rgba(255,255,255,.6); }
+  .net-mode-tag {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    border-radius: 4px; padding: 2px 6px;
+  }
 
   /* ── ZK badge ── */
   .zk-badge {
@@ -192,7 +196,7 @@
   <!-- Interfaces réseau -->
   {% if health.networks %}
   <div class="net-section">
-    <div class="net-section-title">Interfaces réseau — réseau séparé du SaaS éditeur</div>
+    <div class="net-section-title">Interfaces réseau — ens33 DHCP (WAN éditeur) · ens34 statique (LAN RELAY — isolé des PME et du SaaS éditeur)</div>
     <div class="net-ifaces">
       {% for net in health.networks %}
         {% if net.role == "LAN-editeur" or net.role == "editeur" or net.role == "vers-editeur" %}
@@ -200,14 +204,16 @@
             <span class="net-dot dot--editeur"></span>
             <span class="net-iface-name">{{ net.iface }}</span>
             <span class="net-iface-ip net-iface-ip--editeur">{{ net.ip }}</span>
-            <span class="net-role net-role--editeur">Pont vers éditeur</span>
+            <span class="net-role net-role--editeur">WAN éditeur</span>
+            <span class="net-mode-tag" style="background:rgba(16,185,129,.15); color:#6EE7B7;">DHCP</span>
           </div>
         {% elif net.role == "LAN-relais" or net.role == "interne" or net.role == "relais" %}
           <div class="net-iface net-iface--relais">
             <span class="net-dot dot--relais"></span>
             <span class="net-iface-name">{{ net.iface }}</span>
             <span class="net-iface-ip net-iface-ip--relais">{{ net.ip }}</span>
-            <span class="net-role net-role--relais">LAN relais (isolé)</span>
+            <span class="net-role net-role--relais">LAN RELAY isolé</span>
+            <span class="net-mode-tag" style="background:rgba(245,158,11,.15); color:#FCD34D;">Statique</span>
           </div>
         {% else %}
           <div class="net-iface net-iface--autre">
@@ -237,7 +243,7 @@
   <!-- Zone éditeur -->
   <div class="net-zone net-zone--editeur">
     <div class="net-zone-title">Infrastructure éditeur</div>
-    <span class="net-badge-subnet subnet--editeur">192.168.1.x / 192.168.200.x</span>
+    <span class="net-badge-subnet subnet--editeur">{% if editeur_subnet %}{{ editeur_subnet }}{% else %}LAN éditeur{% endif %}</span>
     <div class="net-server">
       <span class="net-server-icon">🖥️</span>
       <div>
@@ -246,33 +252,34 @@
       </div>
     </div>
     <div style="font-size:.7rem; color:#3B82F6; text-align:center; padding:6px 0;">
-      ↕ même LAN 192.168.1.x
+      ↕ même LAN {% if editeur_subnet %}{{ editeur_subnet }}{% else %}éditeur{% endif %}
     </div>
     <div class="net-server" style="border-color:#6366F1; background:#F5F3FF;">
       <span class="net-server-icon">📡</span>
       <div>
-        <div class="net-server-name" style="color:#4338CA;">Relais (ens33)</div>
-        <div class="net-server-ip">
-          {% for net in health.networks %}{% if net.role == "LAN-editeur" or net.role == "editeur" or net.role == "vers-editeur" %}{{ net.ip }}{% endif %}{% endfor %}
+        <div class="net-server-name" style="color:#4338CA;">
+          ens33
+          <span style="font-size:.62rem; font-weight:600; background:rgba(16,185,129,.12); color:#059669; border-radius:4px; padding:1px 5px; margin-left:4px;">DHCP</span>
         </div>
+        <div class="net-server-ip">{% for net in health.networks %}{% if net.role == "LAN-editeur" or net.role == "editeur" or net.role == "vers-editeur" %}{{ net.ip }}{% endif %}{% endfor %}</div>
+        <div style="font-size:.62rem; color:#6366F1; margin-top:2px;">WAN éditeur</div>
       </div>
     </div>
   </div>
 
   <!-- Zone relay (réseau propre) -->
   <div class="net-zone net-zone--relay" style="max-width:220px; flex:0 0 220px;">
-    <div class="net-zone-title">Réseau isolé du relais</div>
-    <span class="net-badge-subnet subnet--relay">192.168.100.x</span>
+    <div class="net-zone-title">LAN RELAY — isolé des PME et du SaaS éditeur</div>
+    <span class="net-badge-subnet subnet--relay">{% if relay_subnet %}{{ relay_subnet }}{% else %}LAN relais{% endif %}</span>
     <div class="net-server" style="border-color:#6366F1; background:#EEF2FF;">
       <span class="net-server-icon">🔒</span>
       <div>
-        <div class="net-server-name" style="color:#4338CA;">Relais (ens34)</div>
-        <div class="net-server-ip">
-          {% for net in health.networks %}{% if net.role == "LAN-relais" or net.role == "interne" or net.role == "relais" %}{{ net.ip }}{% endif %}{% endfor %}
+        <div class="net-server-name" style="color:#4338CA;">
+          ens34
+          <span style="font-size:.62rem; font-weight:600; background:rgba(245,158,11,.15); color:#B45309; border-radius:4px; padding:1px 5px; margin-left:4px;">Statique</span>
         </div>
-        <div style="font-size:.65rem; color:#6366F1; margin-top:3px;">
-          {{ health.hostname }}
-        </div>
+        <div class="net-server-ip">{% for net in health.networks %}{% if net.role == "LAN-relais" or net.role == "interne" or net.role == "relais" %}{{ net.ip }}{% endif %}{% endfor %}/24</div>
+        <div style="font-size:.65rem; color:#6366F1; margin-top:3px;">{{ health.hostname }}</div>
       </div>
     </div>
     <div style="font-size:.68rem; color:#6366F1; line-height:1.5; margin-top:4px; padding:6px 8px; background:rgba(99,102,241,.06); border-radius:6px;">
@@ -284,7 +291,7 @@
   <!-- Zone PME -->
   <div class="net-zone net-zone--pme">
     <div class="net-zone-title">Cluster PME (souverain)</div>
-    <span class="net-badge-subnet subnet--pme">192.168.200.x</span>
+    <span class="net-badge-subnet subnet--pme">{% if pme_subnet %}{{ pme_subnet }}{% else %}LAN PME{% endif %}</span>
     {% for entry in tenants_data %}
       {% for node in entry.nodes %}
       <div class="net-server">

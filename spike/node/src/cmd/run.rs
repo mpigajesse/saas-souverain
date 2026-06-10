@@ -288,12 +288,16 @@ async fn register_with_saas(config: &NodeConfig) {
     let url = format!("{}/api/devices/register/", saas_url.trim_end_matches('/'));
 
     let node_addr = std::env::var("NODE_ADDR").unwrap_or_default();
-    // web_addr = même IP que node_addr mais sur le port 3000 (interface PME)
     let web_addr = if let Some(ip) = node_addr.split(':').next() {
         let web_port = std::env::var("WEB_PORT").unwrap_or_else(|_| "3000".to_string());
         format!("{}:{}", ip, web_port)
     } else {
         String::new()
+    };
+    // NODE_MODE=active → rôle primary, passive → standby
+    let node_role = match std::env::var("NODE_MODE").as_deref() {
+        Ok("active") => "primary",
+        _ => "standby",
     };
 
     let body = serde_json::json!({
@@ -303,7 +307,8 @@ async fn register_with_saas(config: &NodeConfig) {
         "os": std::env::consts::OS,
         "mac_address": "",
         "node_addr": node_addr,
-        "web_addr": web_addr
+        "web_addr": web_addr,
+        "node_role": node_role
     });
 
     match reqwest::Client::new()
