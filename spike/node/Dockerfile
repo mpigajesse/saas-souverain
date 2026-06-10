@@ -11,8 +11,8 @@ ENV SS_NODE_DIR=/data
 VOLUME ["/data"]
 EXPOSE 9001
 
-# Script d'entrée qui initialise le nœud si nécessaire avant de le démarrer
-RUN echo '#!/bin/sh\nset -e\nif [ ! -f "$SS_NODE_DIR/config.toml" ]; then\n  ss-node init\nfi\nexec ss-node "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+# Script d'entrée : init --first si nœud actif (génère la DEK), init seul sinon (enrôlement requis)
+RUN printf '#!/bin/sh\nset -e\nif [ ! -f "$SS_NODE_DIR/config.toml" ]; then\n  if [ "${NODE_MODE}" = "active" ]; then\n    ss-node init --first\n  else\n    ss-node init\n  fi\nfi\nexec ss-node "$@"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["run", "--mode", "passive"]

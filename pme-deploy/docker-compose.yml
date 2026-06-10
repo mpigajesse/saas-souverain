@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     networks: [pme-net]
     environment:
-      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@pme.local}"
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@pmempj.com}"
       PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD}"
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
