@@ -8,10 +8,13 @@ if [ "${NODE_ROLE}" = "standby" ]; then
     if [ ! -f "${DATA_DIR}/PG_VERSION" ]; then
         echo "[standby] Répertoire vide — pg_basebackup depuis ${PRIMARY_IP}:5432"
 
-        # Attendre que le primaire soit prêt à accepter des connexions de réplication
-        until PGPASSWORD="${REPLICATION_PASSWORD}" pg_isready \
-                -h "${PRIMARY_IP}" -p 5432 -U replicator 2>/dev/null; do
-            echo "[standby] Attente du primaire ${PRIMARY_IP}..."
+        # Attendre que le primaire accepte les connexions de réplication
+        # (psql -U replicator confirme que primary-init.sh a bien tourné)
+        until PGPASSWORD="${REPLICATION_PASSWORD}" psql \
+                -h "${PRIMARY_IP}" -p 5432 \
+                -U replicator -d postgres \
+                -c "SELECT 1" >/dev/null 2>&1; do
+            echo "[standby] Attente du primaire ${PRIMARY_IP} (user replicator)..."
             sleep 3
         done
 

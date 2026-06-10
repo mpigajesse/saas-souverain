@@ -1,143 +1,327 @@
 #!/bin/bash
 # EL BARAA CONSULT — Installateur PME (Linux)
 # Généré le : {{ generated_at }}
+# Tenant    : {{ tenant.name }}
 set -e
 
-INSTALL_DIR="/opt/elbaraa-pme"
-TENANT_ID="{{ tenant.id }}"
+# ── Variables injectées par le portail éditeur ────────────────────────────────
 REGISTRATION_TOKEN="{{ tenant.registration_token }}"
 RELAY_URL="{{ relay_url }}"
 SAAS_URL="http://{{ saas_host }}:{{ saas_port }}"
 NODE_IMAGE="{{ node_image }}"
+INSTALL_DIR="/opt/elbaraa-pme"
 
-# Fallback : si NODE_IMAGE est vide ou sans prefixe registre, le construire depuis saas_host
+# Fallback : si pas de registre configuré, construire l'URL depuis saas_host
 if [ -z "$NODE_IMAGE" ] || [[ "$NODE_IMAGE" != *"/"* ]]; then
     NODE_IMAGE="{{ saas_host }}:5000/ss-node:dev"
 fi
 
 echo ""
 echo "===================================================="
-echo "  EL BARAA CONSULT — Installation du logiciel PME"
+echo "  EL BARAA CONSULT — Installation logiciel PME"
 echo "  Tenant : {{ tenant.name }}"
-echo "  Image  : $NODE_IMAGE"
 echo "===================================================="
 echo ""
 
-# ── Droits root ──────────────────────────────────────────────────────────────
+# ── 0. Vérification root ──────────────────────────────────────────────────────
 if [ "$EUID" -ne 0 ]; then
-    echo "ERREUR : Exécuter avec sudo : sudo bash installer-pme.sh"
+    echo "ERREUR : Exécutez avec sudo : sudo bash installer-pme.sh"
     exit 1
 fi
 
-# ── Détection de l'IP de cette machine ──────────────────────────────────────
-echo "[0/4] Détection de l'adresse réseau..."
-# Préférer l'interface sur le même sous-réseau que le serveur SaaS ({{ saas_host }})
-NODE_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read ip; do
+# ── 1. Détecter l'IP de cette machine ────────────────────────────────────────
+echo "[1/5] Détection de l'adresse réseau..."
+MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read -r ip; do
     prefix=$(echo "$ip" | cut -d. -f1-3)
     saas_prefix=$(echo "{{ saas_host }}" | cut -d. -f1-3)
     if [ "$prefix" = "$saas_prefix" ]; then echo "$ip"; break; fi
 done)
-# Fallback sur première IP non-loopback
-if [ -z "$NODE_IP" ]; then
-    NODE_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | head -1)
-fi
-if [ -z "$NODE_IP" ]; then NODE_IP="127.0.0.1"; fi
-echo "      IP détectée : $NODE_IP"
+[ -z "$MY_IP" ] && MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | head -1)
+[ -z "$MY_IP" ] && MY_IP="127.0.0.1"
+echo "      IP détectée : $MY_IP"
 
-# ── Étape 1 : Docker ────────────────────────────────────────────────────────
-echo "[1/4] Vérification de Docker..."
+# ── 2. Docker ────────────────────────────────────────────────────────────────
+echo "[2/5] Vérification de Docker..."
 if ! command -v docker &>/dev/null; then
-    echo "      Docker non détecté. Installation automatique..."
+    echo "      Docker absent — installation automatique..."
     curl -fsSL https://get.docker.com | sh
-    systemctl start docker
-    systemctl enable docker
+    systemctl enable --now docker
     echo "      Docker installé."
 else
-    echo "      Docker détecté et opérationnel."
+    echo "      Docker déjà présent."
 fi
 
-# Autoriser le registre local de l'éditeur (sans TLS — réseau LAN interne)
+# Autoriser le registre local de l'éditeur (LAN — sans TLS)
 REGISTRY_HOST="{{ saas_host }}:5000"
 DAEMON_JSON="/etc/docker/daemon.json"
 if [ -f "$DAEMON_JSON" ]; then
-    if ! grep -q "$REGISTRY_HOST" "$DAEMON_JSON"; then
-        python3 -c "
-import json, sys
+    python3 -c "
+import json
 with open('$DAEMON_JSON') as f: d=json.load(f)
 d.setdefault('insecure-registries',[]).append('$REGISTRY_HOST')
 with open('$DAEMON_JSON','w') as f: json.dump(d,f,indent=2)
-"
-        systemctl restart docker
-    fi
+" 2>/dev/null || true
 else
-    echo "{\"insecure-registries\":[\"$REGISTRY_HOST\"]}" > "$DAEMON_JSON"
-    systemctl restart docker
+    printf '{"insecure-registries":["%s"]}\n' "$REGISTRY_HOST" > "$DAEMON_JSON"
 fi
-echo "      Registre $REGISTRY_HOST autorise."
+systemctl restart docker 2>/dev/null || true
 
-# ── Étape 2 : Configuration ──────────────────────────────────────────────────
-echo "[2/4] Configuration du nœud PME..."
-mkdir -p "$INSTALL_DIR"
-cat > "$INSTALL_DIR/docker-compose.yml" << COMPOSE_EOF
-# Généré pour {{ tenant.name }} — ne pas modifier TENANT_ID ni REGISTRATION_TOKEN
+# ── 3. Rôle du nœud : primaire ou standby ? ──────────────────────────────────
+echo "[3/5] Détection du rôle de ce nœud..."
+CLUSTER_JSON=$(curl -sf "${SAAS_URL}/api/devices/cluster-status/?token=${REGISTRATION_TOKEN}" 2>/dev/null \
+    || echo '{"node_count":0,"active_nodes":[]}')
+NODE_COUNT=$(python3 -c "import json,sys; print(json.loads('$CLUSTER_JSON').get('node_count',0))" 2>/dev/null || echo "0")
 
+NODE_ROLE="primary"
+NODE_MODE="active"
+PRIMARY_IP=""
+
+if [ "$NODE_COUNT" -gt 0 ]; then
+    NODE_ROLE="standby"
+    NODE_MODE="passive"
+
+    # Afficher les nœuds existants
+    echo ""
+    echo "      Nœuds déjà enregistrés pour {{ tenant.name }} :"
+    python3 -c "
+import json
+data = json.loads('$CLUSTER_JSON')
+for n in data.get('active_nodes', []):
+    role = n.get('node_role') or 'inconnu'
+    print('        - ' + n.get('hostname','?') + '  ' + n.get('node_addr','?') + '  [' + role + ']')
+" 2>/dev/null || echo "        (impossible de lister)"
+
+    # Trouver l'IP du primaire parmi les nœuds existants
+    SUGGESTED_IP=$(python3 -c "
+import json
+data = json.loads('$CLUSTER_JSON')
+nodes = data.get('active_nodes', [])
+primary = [n for n in nodes if n.get('node_role') == 'primary']
+src = primary[0] if primary else (nodes[0] if nodes else None)
+if src:
+    print(src.get('node_addr','').split(':')[0])
+" 2>/dev/null || echo "")
+
+    echo ""
+    if [ -n "$SUGGESTED_IP" ]; then
+        read -rp "      IP du nœud primaire [${SUGGESTED_IP}] : " INPUT_IP
+        PRIMARY_IP="${INPUT_IP:-${SUGGESTED_IP}}"
+    else
+        read -rp "      IP du nœud primaire : " PRIMARY_IP
+    fi
+    echo "      Rôle : STANDBY (réplication depuis ${PRIMARY_IP})"
+else
+    echo "      Aucun nœud enregistré — ce PC devient le PRIMAIRE."
+fi
+
+# ── 4. Générer les mots de passe (dérivés du token — identiques sur tous les nœuds) ──
+PG_PASSWORD=$(printf '%s-pg'       "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
+REPLICATION_PASSWORD=$(printf '%s-repl'   "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
+PGADMIN_PASSWORD=$(printf '%s-pgadmin' "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
+
+# ── 5. Créer la structure de fichiers ────────────────────────────────────────
+echo "[4/5] Création des fichiers de configuration..."
+mkdir -p "${INSTALL_DIR}/postgres" "${INSTALL_DIR}/pgadmin" \
+         /opt/pme-node/pg-data /opt/pme-node/node-data
+
+# .env
+cat > "${INSTALL_DIR}/.env" << ENV_EOF
+NODE_ROLE=${NODE_ROLE}
+NODE_MODE=${NODE_MODE}
+PG_USER=metier
+PG_PASSWORD=${PG_PASSWORD}
+PG_DB=metier
+REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
+PG_REPLICATION_SUBNET=
+PRIMARY_IP=${PRIMARY_IP}
+NODE_ADDR=${MY_IP}:9001
+RELAY_URL=${RELAY_URL}
+SAAS_URL=${SAAS_URL}
+REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
+PGADMIN_EMAIL=admin@pme.local
+PGADMIN_PASSWORD=${PGADMIN_PASSWORD}
+ENV_EOF
+
+# postgres/entrypoint.sh — s'exécute DANS le conteneur (single-quote = variables littérales)
+cat > "${INSTALL_DIR}/postgres/entrypoint.sh" << 'ENTRYPOINT_EOF'
+#!/bin/bash
+set -e
+DATA_DIR="${PGDATA:-/var/lib/postgresql/data}"
+if [ "${NODE_ROLE}" = "standby" ]; then
+    if [ ! -f "${DATA_DIR}/PG_VERSION" ]; then
+        echo "[standby] Répertoire vide — pg_basebackup depuis ${PRIMARY_IP}:5432"
+        until PGPASSWORD="${REPLICATION_PASSWORD}" psql \
+                -h "${PRIMARY_IP}" -p 5432 -U replicator -d postgres \
+                -c "SELECT 1" >/dev/null 2>&1; do
+            echo "[standby] Attente du primaire ${PRIMARY_IP}..."; sleep 3
+        done
+        PGPASSWORD="${REPLICATION_PASSWORD}" pg_basebackup \
+            -h "${PRIMARY_IP}" -p 5432 -U replicator \
+            -D "${DATA_DIR}" -Fp -Xs -P -R --checkpoint=fast
+        echo "[standby] pg_basebackup terminé — réplication configurée"
+    else
+        echo "[standby] Données existantes — reprise en mode standby"
+    fi
+fi
+exec /usr/local/bin/docker-entrypoint.sh "$@"
+ENTRYPOINT_EOF
+chmod +x "${INSTALL_DIR}/postgres/entrypoint.sh"
+
+# postgres/primary-init.sh — s'exécute DANS le conteneur au premier démarrage
+cat > "${INSTALL_DIR}/postgres/primary-init.sh" << 'INIT_EOF'
+#!/bin/bash
+set -e
+SUBNET="${PG_REPLICATION_SUBNET:-0.0.0.0/0}"
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" << SQL
+CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '${REPLICATION_PASSWORD}';
+SQL
+cat >> "${PGDATA}/pg_hba.conf" << HBA
+
+host    replication     replicator      ${SUBNET}       scram-sha-256
+host    all             all             ${SUBNET}       scram-sha-256
+HBA
+pg_ctl reload -D "${PGDATA}"
+echo "[primary-init] Utilisateur replicator créé, pg_hba.conf mis à jour."
+INIT_EOF
+chmod +x "${INSTALL_DIR}/postgres/primary-init.sh"
+
+# pgadmin/servers.json
+cat > "${INSTALL_DIR}/pgadmin/servers.json" << 'PGADMIN_EOF'
+{
+  "Servers": {
+    "1": {
+      "Name": "PostgreSQL — Données PME (local)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "metier",
+      "Username": "metier",
+      "SSLMode": "prefer"
+    }
+  }
+}
+PGADMIN_EOF
+
+# docker-compose.yml — single-quote preserves ${VAR} pour docker compose
+cat > "${INSTALL_DIR}/docker-compose.yml" << 'COMPOSE_EOF'
 networks:
-  ss-pme:
+  pme-net:
     driver: bridge
 
 services:
-  node1:
-    image: ${NODE_IMAGE}
-    networks:
-      - ss-pme
-    ports:
-      - "9001:9001"
-      - "3000:3000"
+  postgres:
+    image: postgres:16-bookworm
+    container_name: pg-node
+    restart: unless-stopped
+    networks: [pme-net]
+    environment:
+      POSTGRES_USER: "${PG_USER:-metier}"
+      POSTGRES_PASSWORD: "${PG_PASSWORD}"
+      POSTGRES_DB: "${PG_DB:-metier}"
+      PGDATA: /var/lib/postgresql/data
+      NODE_ROLE: "${NODE_ROLE:-primary}"
+      PRIMARY_IP: "${PRIMARY_IP:-}"
+      REPLICATION_PASSWORD: "${REPLICATION_PASSWORD}"
     volumes:
-      - node1-data:/data
+      - pg-data:/var/lib/postgresql/data
+      - ./postgres/entrypoint.sh:/entrypoint.sh:ro
+      - ./postgres/primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    ports: ["5432:5432"]
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c wal_keep_size=64
+        -c listen_addresses=*
+        -c synchronous_commit=remote_write
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-metier} -d ${PG_DB:-metier}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+COMPOSE_EOF
+
+# Injecter l'image ss-node (variable bash → docker-compose.yml)
+cat >> "${INSTALL_DIR}/docker-compose.yml" << SSNODE_EOF
+  ss-node:
+    image: ${NODE_IMAGE}
+    container_name: ss-node
+    restart: unless-stopped
+    networks: [pme-net]
+    ports: ["9001:9001"]
     environment:
       SS_NODE_DIR: /data
-      TENANT_ID: "${TENANT_ID}"
-      REGISTRATION_TOKEN: "${REGISTRATION_TOKEN}"
-      RELAY_URL: "${RELAY_URL}"
-      SAAS_URL: "${SAAS_URL}"
-      NODE_ADDR: "${NODE_IP}:9001"
-      HOSTNAME: node1
-    command: ["run", "--mode", "active"]
-    restart: unless-stopped
+      WEB_PORT: "9001"
+      NODE_ADDR: "\${NODE_ADDR}"
+      RELAY_URL: "\${RELAY_URL}"
+      SAAS_URL: "\${SAAS_URL:-}"
+      REGISTRATION_TOKEN: "\${REGISTRATION_TOKEN:-}"
+      PG_URL: "postgres://\${PG_USER:-metier}:\${PG_PASSWORD}@postgres:5432/\${PG_DB:-metier}"
+      RUST_LOG: info
+    volumes: [node-data:/data]
+    command: ["run", "--mode", "\${NODE_MODE:-passive}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  updater:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      WATCHTOWER_POLL_INTERVAL: "3600"
-      WATCHTOWER_CLEANUP: "true"
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin
     restart: unless-stopped
+    networks: [pme-net]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "\${PGADMIN_EMAIL:-admin@pme.local}"
+      PGADMIN_DEFAULT_PASSWORD: "\${PGADMIN_PASSWORD}"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports: ["5050:80"]
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
-  node1-data:
-COMPOSE_EOF
-echo "      Configuration créée dans $INSTALL_DIR"
+  pg-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: /opt/pme-node/pg-data}
+  node-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: /opt/pme-node/node-data}
+  pgadmin-data:
+SSNODE_EOF
 
-# ── Pare-feu : autoriser port 9001 (communication inter-nœuds PME) ──────────
-echo "[2b] Ouverture du port 9001 (nœuds PME)..."
-if command -v ufw &>/dev/null && ufw status | grep -q "active"; then
-    ufw allow 9001/tcp comment "ElBaraaConsult-PME-Node" 2>/dev/null || true
+# Pare-feu
+if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "active"; then
+    ufw allow 5432/tcp comment "PME-PostgreSQL" 2>/dev/null || true
+    ufw allow 5050/tcp comment "PME-pgAdmin"    2>/dev/null || true
+    ufw allow 9001/tcp comment "PME-Node"       2>/dev/null || true
 elif command -v firewall-cmd &>/dev/null; then
-    firewall-cmd --permanent --add-port=9001/tcp 2>/dev/null && firewall-cmd --reload 2>/dev/null || true
-else
-    iptables -A INPUT -p tcp --dport 9001 -j ACCEPT 2>/dev/null || true
+    firewall-cmd --permanent --add-port=5432/tcp 2>/dev/null || true
+    firewall-cmd --permanent --add-port=5050/tcp 2>/dev/null || true
+    firewall-cmd --permanent --add-port=9001/tcp 2>/dev/null || true
+    firewall-cmd --reload 2>/dev/null || true
 fi
 
-# ── Étape 3 : Démarrage ─────────────────────────────────────────────────────
-echo "[3/4] Démarrage du logiciel PME..."
-cd "$INSTALL_DIR"
+# ── 6. Démarrer le stack ─────────────────────────────────────────────────────
+echo "[5/5] Démarrage du stack PME (${NODE_ROLE})..."
+cd "${INSTALL_DIR}"
 docker compose up -d
-echo "      Logiciel démarré avec succès."
 
-# ── Étape 4 : Service systemd ────────────────────────────────────────────────
-echo "[4/4] Configuration du démarrage automatique..."
+# Initialisation du nœud primaire
+if [ "$NODE_ROLE" = "primary" ]; then
+    echo "      Attente de ss-node (peut prendre 2-3 min à la première compilation)..."
+    sleep 10
+    if [ ! -f /opt/pme-node/node-data/config.toml ]; then
+        docker exec ss-node ss-node init --first 2>/dev/null || true
+    fi
+fi
+
+# Systemd
 cat > /etc/systemd/system/elbaraa-pme.service << 'SERVICE_EOF'
 [Unit]
 Description=EL BARAA CONSULT PME Node
@@ -150,21 +334,45 @@ RemainAfterExit=yes
 WorkingDirectory=/opt/elbaraa-pme
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
-TimeoutStartSec=120
+TimeoutStartSec=300
 
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
-
 systemctl daemon-reload
 systemctl enable elbaraa-pme.service
-echo "      Démarrage automatique configuré."
+
+# ── Découverte réseau (primaire uniquement) ──────────────────────────────────
+NEXT_MACHINE=""
+if [ "$NODE_ROLE" = "primary" ]; then
+    SUBNET_PREFIX=$(echo "$MY_IP" | cut -d. -f1-3)
+    echo ""
+    echo "      Scan réseau ${SUBNET_PREFIX}.0/24 pour détecter la 2ème machine..."
+    for i in $(seq 1 254); do
+        T="${SUBNET_PREFIX}.${i}"
+        [ "$T" = "$MY_IP" ] && continue
+        if ping -c 1 -W 1 "$T" &>/dev/null; then
+            echo "      Machine détectée : $T"
+            NEXT_MACHINE="$T"
+        fi
+    done
+fi
 
 echo ""
 echo "===================================================="
-echo "  Installation terminée !"
-echo "  Machine enregistrée : ${NODE_IP}:9001"
-echo "  Retournez sur le portail pour vérifier la connexion."
-echo "  Portail : ${SAAS_URL}/tenants/bienvenue/"
-echo "===================================================="
+echo "  Installation terminée ! ({{ tenant.name }} — ${NODE_ROLE})"
 echo ""
+echo "  PostgreSQL  : ${MY_IP}:5432"
+echo "  Interface   : http://${MY_IP}:9001"
+echo "  pgAdmin     : http://${MY_IP}:5050"
+echo "    Login pgAdmin : admin@pme.local"
+echo "    Mot de passe  : ${PGADMIN_PASSWORD}"
+if [ -n "$NEXT_MACHINE" ]; then
+    echo ""
+    echo "  >> Sur ${NEXT_MACHINE}, téléchargez et lancez :"
+    echo "     sudo bash installer-pme.sh"
+    echo "     (il détectera ce nœud comme primaire automatiquement)"
+fi
+echo ""
+echo "  Portail éditeur : ${SAAS_URL}/tenants/bienvenue/"
+echo "===================================================="
