@@ -25,6 +25,7 @@ services:
       RELAY_PORT: "8080"
       BLOBS_DIR: "/data/blobs"
       RELAY_AUTH_TOKEN: "${RELAY_AUTH_TOKEN:-}"
+      RELAY_NETWORKS: "${RELAY_NETWORKS:-}"
       RUST_LOG: "info"
     restart: unless-stopped
     healthcheck:

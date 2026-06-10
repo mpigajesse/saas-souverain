@@ -29,15 +29,42 @@ def _time_ago(iso: str) -> str:
         return "?"
 
 
+def _format_uptime(secs: int) -> str:
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}min {secs % 60}s"
+    h = secs // 3600
+    m = (secs % 3600) // 60
+    return f"{h}h {m}min"
+
+
 @staff_member_required
 def relay_monitor(request):
     relay_url = getattr(settings, "RELAY_URL", "http://localhost:8080").rstrip("/")
 
     # ── Health ────────────────────────────────────────────────
-    health = {"reachable": False, "status": "unreachable", "version": "—"}
+    health = {
+        "reachable": False,
+        "status": "unreachable",
+        "version": "—",
+        "hostname": "—",
+        "uptime_secs": 0,
+        "uptime_fmt": "—",
+        "port": "8080",
+        "blobs_dir": "—",
+        "blob_tenants": 0,
+        "networks": [],
+        "zero_knowledge": True,
+    }
     try:
         data = _fetch_json(f"{relay_url}/health")
-        health = {**data, "reachable": True}
+        uptime = data.get("uptime_secs", 0)
+        health = {
+            **data,
+            "reachable": True,
+            "uptime_fmt": _format_uptime(uptime),
+        }
     except Exception as e:
         health["error"] = str(e)
 
@@ -49,14 +76,13 @@ def relay_monitor(request):
         nodes = []
         try:
             result = _fetch_json(f"{relay_url}/api/nodes?tenant_id={tenant.id}")
-            raw = result.get("nodes", [])
             nodes = [
                 {
                     **n,
                     "time_ago": _time_ago(n.get("last_seen", "")),
                     "short_id": n.get("node_id", "")[:8],
                 }
-                for n in raw
+                for n in result.get("nodes", [])
             ]
         except Exception:
             pass
@@ -69,5 +95,4 @@ def relay_monitor(request):
         "health": health,
         "tenants_data": tenants_data,
         "total_nodes": total_nodes,
-        "total_tenants": len(tenants_data),
     })

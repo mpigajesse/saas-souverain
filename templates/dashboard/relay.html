@@ -4,52 +4,264 @@
 
 <meta http-equiv="refresh" content="30">
 
-<div class="page-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-  <div>
-    <h1 class="page-title">Relais zero-knowledge</h1>
-    <p class="page-subtitle" style="font-family:monospace; font-size:0.82rem;">{{ relay_url }}</p>
+<style>
+  .relay-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .relay-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 50%, rgba(99,102,241,.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .relay-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .relay-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; }
+  .relay-url   { font-family: monospace; font-size: 0.8rem; color: rgba(255,255,255,.5); }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    border-radius: 20px; padding: 6px 16px;
+    font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  }
+  .status-pill--ok  { background: rgba(16,185,129,.15); color: #6EE7B7; border: 1px solid rgba(16,185,129,.3); }
+  .status-pill--err { background: rgba(239,68,68,.15);  color: #FCA5A5; border: 1px solid rgba(239,68,68,.3); }
+  .pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  .pulse--ok  { background: #10B981; box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
+  .pulse--err { background: #EF4444; box-shadow: 0 0 0 0 rgba(239,68,68,.6); animation: none; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.6); }
+    70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  }
+
+  /* Caractéristiques serveur */
+  .server-chars {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding-top: 20px;
+  }
+  .char-item {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    padding: 10px 16px;
+    min-width: 130px;
+  }
+  .char-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.4); margin-bottom: 4px; }
+  .char-value { font-size: 0.9rem; font-weight: 700; color: #fff; font-family: monospace; }
+
+  /* Interfaces réseau */
+  .net-ifaces { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .net-iface {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(99,102,241,.12);
+    border: 1px solid rgba(99,102,241,.3);
+    border-radius: 8px; padding: 7px 14px;
+  }
+  .net-dot { width: 7px; height: 7px; border-radius: 50%; background: #818CF8; }
+  .net-name { font-family: monospace; font-size: 0.78rem; color: rgba(255,255,255,.6); }
+  .net-ip   { font-family: monospace; font-size: 0.85rem; font-weight: 700; color: #A5B4FC; }
+  .net-role { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+              background: rgba(99,102,241,.2); border-radius: 4px; padding: 2px 6px; color: #C7D2FE; }
+
+  /* ZK badge */
+  .zk-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3);
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 0.75rem; font-weight: 700; color: #FCD34D;
+    margin-top: 16px;
+  }
+
+  /* Topo diagramme */
+  .topo {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: nowrap; margin: 24px 0 28px;
+    overflow-x: auto; padding: 4px 0;
+  }
+  .topo-node {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; min-width: 120px; text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+  .topo-node--relay {
+    background: #1e1b4b; border-color: #4338CA; color: #fff;
+    box-shadow: 0 0 20px rgba(99,102,241,.25);
+  }
+  .topo-icon { font-size: 1.5rem; }
+  .topo-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .topo-sub   { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; }
+  .topo-sub--light { color: rgba(255,255,255,.5); }
+  .topo-arrow {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 4px; color: var(--text-muted);
+  }
+  .topo-arrow-line {
+    width: 40px; height: 2px;
+    background: linear-gradient(90deg, var(--border), #6366F1, var(--border));
+  }
+  .topo-arrow-label { font-size: 0.6rem; color: #6366F1; margin-top: 4px; font-weight: 600; white-space: nowrap; }
+
+  /* Nœuds table */
+  .node-role-active   { background: #D1FAE5; color: #065F46; border-radius: 12px; padding: 2px 10px; font-size: .75rem; font-weight: 700; }
+  .node-role-standby  { background: #FEF3C7; color: #92400E; border-radius: 12px; padding: 2px 10px; font-size: .75rem; font-weight: 700; }
+</style>
+
+<!-- En-tête hero -->
+<div class="relay-hero">
+  <div class="relay-hero-top">
+    <div>
+      <div class="relay-title">Relais zero-knowledge</div>
+      <div class="relay-url">{{ relay_url }}</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      {% if health.reachable %}
+        <span class="status-pill status-pill--ok">
+          <span class="pulse pulse--ok"></span>
+          En ligne · v{{ health.version }}
+        </span>
+      {% else %}
+        <span class="status-pill status-pill--err">
+          <span class="pulse pulse--err"></span>
+          Hors ligne
+        </span>
+      {% endif %}
+      <a href="{% url 'relay-monitor' %}" style="background:rgba(255,255,255,.08); color:rgba(255,255,255,.7); border-radius:8px; padding:6px 14px; font-size:0.8rem; text-decoration:none; border:1px solid rgba(255,255,255,.12);">
+        ↺ Rafraîchir
+      </a>
+    </div>
   </div>
-  <div style="display:flex; align-items:center; gap:10px;">
-    {% if health.reachable %}
-      <span style="display:inline-flex; align-items:center; gap:6px; background:#D1FAE5; color:#065F46; border-radius:20px; padding:5px 14px; font-size:0.8rem; font-weight:600;">
-        <span style="width:8px; height:8px; background:#10B981; border-radius:50%; display:inline-block;"></span>
-        En ligne · v{{ health.version }}
-      </span>
-    {% else %}
-      <span style="display:inline-flex; align-items:center; gap:6px; background:#FEE2E2; color:#991B1B; border-radius:20px; padding:5px 14px; font-size:0.8rem; font-weight:600;">
-        <span style="width:8px; height:8px; background:#EF4444; border-radius:50%; display:inline-block;"></span>
-        Hors ligne
-      </span>
-    {% endif %}
-    <a href="{% url 'relay-monitor' %}" style="background:var(--border); color:var(--text-secondary); border-radius:8px; padding:6px 14px; font-size:0.8rem; text-decoration:none;">
-      ↺ Rafraîchir
-    </a>
+
+  {% if not health.reachable %}
+  <div style="background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); border-radius:8px; padding:12px 16px; color:#FCA5A5; font-size:0.82rem; margin-bottom:16px;">
+    <strong>Relais inaccessible :</strong> {{ health.error }}
+  </div>
+  {% endif %}
+
+  <!-- Caractéristiques serveur -->
+  <div class="server-chars">
+    <div class="char-item">
+      <div class="char-label">Hostname</div>
+      <div class="char-value">{{ health.hostname }}</div>
+    </div>
+    <div class="char-item">
+      <div class="char-label">Port</div>
+      <div class="char-value">:{{ health.port }}</div>
+    </div>
+    <div class="char-item">
+      <div class="char-label">Uptime</div>
+      <div class="char-value">{{ health.uptime_fmt }}</div>
+    </div>
+    <div class="char-item">
+      <div class="char-label">Stockage blobs</div>
+      <div class="char-value">{{ health.blob_tenants }} tenant{% if health.blob_tenants != 1 %}s{% endif %}</div>
+    </div>
+    <div class="char-item">
+      <div class="char-label">Répertoire</div>
+      <div class="char-value" style="font-size:.75rem;">{{ health.blobs_dir }}</div>
+    </div>
+  </div>
+
+  <!-- Interfaces réseau -->
+  {% if health.networks %}
+  <div style="margin-top:20px;">
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.35); margin-bottom:10px;">Interfaces réseau</div>
+    <div class="net-ifaces">
+      {% for net in health.networks %}
+      <div class="net-iface">
+        <span class="net-dot"></span>
+        <span class="net-name">{{ net.iface }}</span>
+        <span class="net-ip">{{ net.ip }}</span>
+        {% if net.role %}<span class="net-role">{{ net.role }}</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Zero-knowledge badge -->
+  <div class="zk-badge">
+    🔒 Zero-knowledge — le relais ne voit jamais la DEK ni les données métier. Même saisi, il ne peut rien déchiffrer.
   </div>
 </div>
 
-{% if not health.reachable %}
-<div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:16px 20px; margin-bottom:24px; color:#991B1B; font-size:0.875rem;">
-  <strong>Relais inaccessible</strong> — {{ health.error }}<br>
-  <span style="font-size:0.8rem; opacity:.8;">Vérifier que le conteneur ss-relay tourne sur le serveur relay : <code>docker ps</code></span>
+<!-- Diagramme de position dans l'architecture -->
+<div class="card" style="margin-bottom:28px;">
+  <div class="card-header">Position dans l'architecture</div>
+  <div class="card-body">
+    <div class="topo">
+      <!-- SaaS éditeur -->
+      <div class="topo-node">
+        <div class="topo-icon">🖥️</div>
+        <div class="topo-label" style="color:var(--crimson);">SaaS éditeur</div>
+        <div class="topo-sub">Serveur 1</div>
+        <div class="topo-sub">Comptes · Licences</div>
+      </div>
+
+      <div class="topo-arrow">
+        <div class="topo-arrow-line"></div>
+        <div class="topo-arrow-label">même réseau</div>
+      </div>
+
+      <!-- Relais -->
+      <div class="topo-node topo-node--relay">
+        <div class="topo-icon">📡</div>
+        <div class="topo-label" style="color:#A5B4FC;">Relais</div>
+        <div class="topo-sub topo-sub--light">Serveur 2</div>
+        {% for net in health.networks %}
+        <div class="topo-sub topo-sub--light">{{ net.ip }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="topo-arrow">
+        <div class="topo-arrow-line"></div>
+        <div class="topo-arrow-label">blobs chiffrés</div>
+      </div>
+
+      <!-- Cluster PME -->
+      <div class="topo-node">
+        <div class="topo-icon">🏭</div>
+        <div class="topo-label" style="color:#059669;">Cluster PME</div>
+        <div class="topo-sub">{{ total_nodes }} nœud{% if total_nodes != 1 %}s{% endif %} actifs</div>
+        <div class="topo-sub">Données en clair</div>
+      </div>
+    </div>
+  </div>
 </div>
-{% endif %}
 
 <!-- Stats -->
 <div class="stats-grid" style="margin-bottom:28px;">
   <div class="stat-card stat-card--crimson">
-    <div class="stat-label">Nœuds actifs</div>
+    <div class="stat-label">Nœuds PME connectés</div>
     <div class="stat-value stat-value--crimson">{{ total_nodes }}</div>
-    <div class="stat-sublabel">machines PME connectées</div>
+    <div class="stat-sublabel">machines enregistrées au relais</div>
   </div>
   <div class="stat-card stat-card--gold">
-    <div class="stat-label">Tenants avec nœuds</div>
+    <div class="stat-label">Tenants actifs</div>
     <div class="stat-value stat-value--gold">{{ tenants_data|length }}</div>
-    <div class="stat-sublabel">clusters enregistrés</div>
+    <div class="stat-sublabel">clusters déclarés</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Service</div>
-    <div class="stat-value" style="color:var(--text-primary); font-size:1rem; font-weight:700; font-family:monospace;">{{ health.service|default:"—" }}</div>
-    <div class="stat-sublabel">rafraîchissement auto 30s</div>
+    <div class="stat-label">Blobs stockés</div>
+    <div class="stat-value" style="color:var(--text-primary);">{{ health.blob_tenants }}</div>
+    <div class="stat-sublabel">tenants avec données chiffrées</div>
   </div>
 </div>
 
@@ -59,7 +271,7 @@
   <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
     <div style="display:flex; align-items:center; gap:10px;">
       <span style="font-weight:700;">{{ entry.tenant.name }}</span>
-      <span style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">{{ entry.tenant.id }}</span>
+      <span style="font-family:monospace; font-size:0.72rem; color:var(--text-muted); background:#F3F4F6; padding:2px 8px; border-radius:4px;">{{ entry.tenant.id }}</span>
     </div>
     <span style="
       background:{% if entry.nodes %}#D1FAE5{% else %}#F3F4F6{% endif %};
@@ -74,8 +286,8 @@
     <table>
       <thead>
         <tr>
-          <th>ID nœud</th>
-          <th>Adresse</th>
+          <th>Nœud</th>
+          <th>Adresse IP</th>
           <th>Rôle</th>
           <th>Époque</th>
           <th>Dernier contact</th>
@@ -84,20 +296,20 @@
       <tbody>
         {% for node in entry.nodes %}
         <tr>
-          <td style="font-family:monospace; font-size:0.82rem; color:var(--text-secondary);">{{ node.short_id }}…</td>
+          <td style="font-family:monospace; font-size:0.82rem;">{{ node.short_id }}…</td>
           <td>
-            <span style="background:#F8F8F8; border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-family:monospace; font-size:0.82rem;">
+            <span style="background:#F8F8F8; border:1px solid var(--border); border-radius:6px; padding:3px 10px; font-family:monospace; font-size:0.82rem;">
               {{ node.addr }}
             </span>
           </td>
           <td>
             {% if node.role == "active" %}
-              <span class="badge badge-active">actif</span>
+              <span class="node-role-active">actif</span>
             {% else %}
-              <span class="badge badge-inactive">{{ node.role }}</span>
+              <span class="node-role-standby">{{ node.role }}</span>
             {% endif %}
           </td>
-          <td style="font-family:monospace; text-align:center;">{{ node.epoch }}</td>
+          <td style="font-family:monospace; text-align:center; color:var(--text-secondary);">{{ node.epoch }}</td>
           <td style="color:var(--text-muted); font-size:0.82rem;">il y a {{ node.time_ago }}</td>
         </tr>
         {% endfor %}
@@ -109,10 +321,6 @@
     Aucun nœud annoncé pour ce tenant.
   </div>
   {% endif %}
-</div>
-{% empty %}
-<div style="text-align:center; padding:48px; color:var(--text-muted);">
-  Aucun tenant enregistré.
 </div>
 {% endfor %}
 

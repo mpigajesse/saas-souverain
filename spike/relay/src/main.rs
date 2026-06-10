@@ -10,9 +10,22 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::net::TcpListener;
 use tracing::info;
 use uuid::Uuid;
+
+// ---------------------------------------------------------------------------
+// État partagé
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct AppState {
+    registry: Registry,
+    started_at: Instant,
+}
+
+type Registry = Arc<Mutex<HashMap<Uuid, Vec<NodeEntry>>>>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,8 +40,6 @@ pub struct NodeEntry {
     pub epoch: u64,
     pub last_seen: DateTime<Utc>,
 }
-
-type Registry = Arc<Mutex<HashMap<Uuid, Vec<NodeEntry>>>>;
 
 // ---------------------------------------------------------------------------
 // POST /api/nodes/announce
@@ -50,12 +61,12 @@ pub struct AnnounceResponse {
 }
 
 async fn announce(
-    State(registry): State<Registry>,
+    State(state): State<AppState>,
     Json(req): Json<AnnounceRequest>,
 ) -> Result<Json<AnnounceResponse>, (StatusCode, Json<AnnounceResponse>)> {
     let now = Utc::now();
 
-    let mut reg = registry.lock().map_err(|_| {
+    let mut reg = state.registry.lock().map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(AnnounceResponse {
@@ -72,11 +83,7 @@ async fn announce(
         existing.role = req.role.clone();
         existing.epoch = req.epoch;
         existing.last_seen = now;
-        info!(
-            node_id = %req.node_id, tenant_id = %req.tenant_id,
-            addr = %req.addr, role = %req.role, epoch = req.epoch,
-            "Nœud mis à jour"
-        );
+        info!(node_id = %req.node_id, addr = %req.addr, "Nœud mis à jour");
     } else {
         nodes.push(NodeEntry {
             node_id: req.node_id,
@@ -86,11 +93,7 @@ async fn announce(
             epoch: req.epoch,
             last_seen: now,
         });
-        info!(
-            node_id = %req.node_id, tenant_id = %req.tenant_id,
-            addr = %req.addr, role = %req.role, epoch = req.epoch,
-            "Nouveau nœud enregistré"
-        );
+        info!(node_id = %req.node_id, addr = %req.addr, "Nouveau nœud enregistré");
     }
 
     Ok(Json(AnnounceResponse {
@@ -115,10 +118,10 @@ pub struct NodesResponse {
 }
 
 async fn get_nodes(
-    State(registry): State<Registry>,
+    State(state): State<AppState>,
     Query(params): Query<NodesQuery>,
 ) -> Result<Json<NodesResponse>, (StatusCode, Json<NodesResponse>)> {
-    let reg = registry.lock().map_err(|_| {
+    let reg = state.registry.lock().map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(NodesResponse {
@@ -129,7 +132,6 @@ async fn get_nodes(
     })?;
 
     let nodes = reg.get(&params.tenant_id).cloned().unwrap_or_default();
-
     info!(tenant_id = %params.tenant_id, count = nodes.len(), "Requête topologie");
 
     Ok(Json(NodesResponse {
@@ -140,33 +142,21 @@ async fn get_nodes(
 
 // ---------------------------------------------------------------------------
 // Blob storage zero-knowledge
-//
-// PUT    /api/blobs/{tenant_id}/{key}   — stocker un blob chiffré
-// GET    /api/blobs/{tenant_id}/{key}   — récupérer un blob chiffré
-// DELETE /api/blobs/{tenant_id}/{key}   — supprimer un blob chiffré
-//
-// Le relais ne voit jamais la clé de chiffrement (DEK).
-// Il stocke et restitue des bytes opaques.
-// Auth : en-tête X-Relay-Token doit correspondre à RELAY_AUTH_TOKEN env var.
 // ---------------------------------------------------------------------------
 
 fn blob_path(blobs_dir: &str, tenant_id: &str, key: &str) -> Option<std::path::PathBuf> {
-    // Validation simple : tenant_id = UUID, key = alphanum + tirets/points
     let tenant_uuid = tenant_id.parse::<Uuid>().ok()?;
     let safe_key = key.replace(['/', '\\'], "_").replace("..", "_");
     if safe_key.is_empty() || safe_key.len() > 128 {
         return None;
     }
-    let path = std::path::Path::new(blobs_dir)
-        .join(tenant_uuid.to_string())
-        .join(&safe_key);
-    Some(path)
+    Some(std::path::Path::new(blobs_dir).join(tenant_uuid.to_string()).join(&safe_key))
 }
 
 fn check_blob_auth(headers: &HeaderMap) -> bool {
     let expected = std::env::var("RELAY_AUTH_TOKEN").unwrap_or_default();
     if expected.is_empty() {
-        return true; // pas de token configuré → accès libre (spike)
+        return true;
     }
     headers
         .get("x-relay-token")
@@ -175,7 +165,6 @@ fn check_blob_auth(headers: &HeaderMap) -> bool {
         .unwrap_or(false)
 }
 
-/// PUT /api/blobs/{tenant_id}/{key}
 async fn blob_put(
     Path((tenant_id, key)): Path<(String, String)>,
     headers: HeaderMap,
@@ -184,29 +173,23 @@ async fn blob_put(
     if !check_blob_auth(&headers) {
         return (StatusCode::UNAUTHORIZED, "Token manquant ou invalide").into_response();
     }
-
     let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
-
     let path = match blob_path(&blobs_dir, &tenant_id, &key) {
         Some(p) => p,
-        None => return (StatusCode::BAD_REQUEST, "tenant_id ou clé invalide").into_response(),
+        None => return (StatusCode::BAD_REQUEST, "Parametres invalides").into_response(),
     };
-
     if let Some(parent) = path.parent() {
         if let Err(e) = tokio::fs::create_dir_all(parent).await {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("mkdir: {}", e)).into_response();
         }
     }
-
     if let Err(e) = tokio::fs::write(&path, &body).await {
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("write: {}", e)).into_response();
     }
-
-    info!(tenant_id = %tenant_id, key = %key, bytes = body.len(), "Blob stocké");
+    info!(tenant_id = %tenant_id, key = %key, bytes = body.len(), "Blob stocke");
     (StatusCode::OK, "ok").into_response()
 }
 
-/// GET /api/blobs/{tenant_id}/{key}
 async fn blob_get(
     Path((tenant_id, key)): Path<(String, String)>,
     headers: HeaderMap,
@@ -214,29 +197,22 @@ async fn blob_get(
     if !check_blob_auth(&headers) {
         return (StatusCode::UNAUTHORIZED, "Token manquant ou invalide").into_response();
     }
-
     let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
-
     let path = match blob_path(&blobs_dir, &tenant_id, &key) {
         Some(p) => p,
-        None => return (StatusCode::BAD_REQUEST, "tenant_id ou cle invalide").into_response(),
+        None => return (StatusCode::BAD_REQUEST, "Parametres invalides").into_response(),
     };
-
     match tokio::fs::read(&path).await {
-        Ok(data) => {
-            info!(tenant_id = %tenant_id, key = %key, bytes = data.len(), "Blob recupere");
-            (
-                StatusCode::OK,
-                [(axum::http::header::CONTENT_TYPE, "application/octet-stream")],
-                data,
-            )
-                .into_response()
-        }
+        Ok(data) => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "application/octet-stream")],
+            data,
+        )
+            .into_response(),
         Err(_) => (StatusCode::NOT_FOUND, "Blob introuvable").into_response(),
     }
 }
 
-/// DELETE /api/blobs/{tenant_id}/{key}
 async fn blob_delete(
     Path((tenant_id, key)): Path<(String, String)>,
     headers: HeaderMap,
@@ -244,49 +220,83 @@ async fn blob_delete(
     if !check_blob_auth(&headers) {
         return (StatusCode::UNAUTHORIZED, "Token manquant ou invalide").into_response();
     }
-
     let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
-
     let path = match blob_path(&blobs_dir, &tenant_id, &key) {
         Some(p) => p,
-        None => return (StatusCode::BAD_REQUEST, "tenant_id ou clé invalide").into_response(),
+        None => return (StatusCode::BAD_REQUEST, "Parametres invalides").into_response(),
     };
-
     match tokio::fs::remove_file(&path).await {
-        Ok(_) => {
-            info!(tenant_id = %tenant_id, key = %key, "Blob supprimé");
-            (StatusCode::OK, "supprimé").into_response()
-        }
+        Ok(_) => (StatusCode::OK, "supprime").into_response(),
         Err(_) => (StatusCode::NOT_FOUND, "Blob introuvable").into_response(),
     }
 }
 
 // ---------------------------------------------------------------------------
-// GET /health
+// GET /health  — retourne hostname, uptime, interfaces réseau, stockage blobs
 // ---------------------------------------------------------------------------
 
-async fn health() -> Json<serde_json::Value> {
+async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let uptime_secs = state.started_at.elapsed().as_secs();
+
+    let hostname = std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("COMPUTERNAME"))
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let port = std::env::var("RELAY_PORT").unwrap_or_else(|_| "8080".to_string());
+
+    let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
+
+    // Compter les tenants qui ont des blobs stockés
+    let blob_tenants = std::fs::read_dir(&blobs_dir)
+        .map(|rd| rd.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).count())
+        .unwrap_or(0);
+
+    // Interfaces réseau depuis RELAY_NETWORKS=iface:ip:role,iface:ip:role
+    // ex: RELAY_NETWORKS=ens33:192.168.1.54:editeur,ens34:192.168.100.100:interne
+    let networks: Vec<serde_json::Value> = std::env::var("RELAY_NETWORKS")
+        .unwrap_or_default()
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|entry| {
+            let parts: Vec<&str> = entry.trim().splitn(3, ':').collect();
+            serde_json::json!({
+                "iface": parts.first().unwrap_or(&"?"),
+                "ip":    parts.get(1).unwrap_or(&"?"),
+                "role":  parts.get(2).unwrap_or(&""),
+            })
+        })
+        .collect();
+
     Json(serde_json::json!({
-        "status": "ok",
-        "service": "ss-relay",
-        "version": env!("CARGO_PKG_VERSION")
+        "status":        "ok",
+        "service":       "ss-relay",
+        "version":       env!("CARGO_PKG_VERSION"),
+        "hostname":      hostname,
+        "port":          port,
+        "uptime_secs":   uptime_secs,
+        "blobs_dir":     blobs_dir,
+        "blob_tenants":  blob_tenants,
+        "networks":      networks,
+        "zero_knowledge": true
     }))
 }
 
 // ---------------------------------------------------------------------------
-// Point d'entrée
+// Main
 // ---------------------------------------------------------------------------
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let registry: Registry = Arc::new(Mutex::new(HashMap::new()));
     let port = std::env::var("RELAY_PORT").unwrap_or_else(|_| "8080".to_string());
-
     let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
     tokio::fs::create_dir_all(&blobs_dir).await.ok();
-    info!("Stockage blobs : {}", blobs_dir);
+
+    let state = AppState {
+        registry: Arc::new(Mutex::new(HashMap::new())),
+        started_at: Instant::now(),
+    };
 
     let app = Router::new()
         .route("/health", get(health))
@@ -296,10 +306,10 @@ async fn main() {
             "/api/blobs/{tenant_id}/{key}",
             get(blob_get).put(blob_put).delete(blob_delete),
         )
-        .with_state(registry);
+        .with_state(state);
 
     let addr = format!("0.0.0.0:{}", port);
-    info!("ss-relay démarré sur {}", addr);
+    info!("ss-relay sur {}", addr);
 
     let listener = TcpListener::bind(&addr).await.expect("Impossible de lier l'adresse");
     axum::serve(listener, app).await.expect("Erreur serveur");
