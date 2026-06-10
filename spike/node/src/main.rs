@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 mod cmd;
 mod config;
 mod relay_client;
+mod web;
 
 #[derive(Parser)]
 #[command(name = "ss-node", about = "SaaS Souverain — noeud PME")]

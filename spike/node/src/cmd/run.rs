@@ -57,6 +57,14 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     println!("=== Noeud {} démarré en mode {:?} ===", config.node_id, mode);
     println!("  Journal : {} entrée(s)", journal.len());
 
+    // Serveur web métier (interface PME) — port 3000 par défaut
+    let web_port: u16 = std::env::var("WEB_PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3000);
+    let web_node_id = config.node_id;
+    tokio::spawn(crate::web::serve(web_port, web_node_id));
+
     // Vérification du fencing (spike : époque fixe pour démonstration)
     let my_epoch = EpochToken(1);
 
@@ -280,6 +288,13 @@ async fn register_with_saas(config: &NodeConfig) {
     let url = format!("{}/api/devices/register/", saas_url.trim_end_matches('/'));
 
     let node_addr = std::env::var("NODE_ADDR").unwrap_or_default();
+    // web_addr = même IP que node_addr mais sur le port 3000 (interface PME)
+    let web_addr = if let Some(ip) = node_addr.split(':').next() {
+        let web_port = std::env::var("WEB_PORT").unwrap_or_else(|_| "3000".to_string());
+        format!("{}:{}", ip, web_port)
+    } else {
+        String::new()
+    };
 
     let body = serde_json::json!({
         "tenant_token": reg_token,
@@ -287,7 +302,8 @@ async fn register_with_saas(config: &NodeConfig) {
         "hostname": hostname,
         "os": std::env::consts::OS,
         "mac_address": "",
-        "node_addr": node_addr
+        "node_addr": node_addr,
+        "web_addr": web_addr
     });
 
     match reqwest::Client::new()
