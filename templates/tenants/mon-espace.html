@@ -130,6 +130,43 @@
     }
     .btn-launch-disabled:hover { background: var(--border); color: var(--text-muted); }
 
+    /* ── Credentials card ── */
+    .creds-card {
+      background: #F0FDF4;
+      border: 1px solid #86EFAC;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      font-size: 0.875rem;
+    }
+    .creds-card h3 {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #166534;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .creds-table { width: 100%; border-collapse: collapse; }
+    .creds-table td { padding: 4px 0; vertical-align: top; }
+    .creds-table td:first-child { color: #166534; font-weight: 600; width: 130px; }
+    .creds-value {
+      font-family: monospace;
+      background: #DCFCE7;
+      border: 1px solid #86EFAC;
+      border-radius: 4px;
+      padding: 2px 8px;
+      letter-spacing: 0.03em;
+      user-select: all;
+    }
+    .creds-warning {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #166534;
+      opacity: .8;
+    }
+
     /* ── Phase banner ── */
     .phase-banner {
       background: #FFFBEB;
@@ -200,6 +237,47 @@
       </div>
     </div>
     {% endif %}
+
+    <!-- Credentials pgAdmin -->
+    <div class="creds-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Accès à votre base de données (pgAdmin)
+      </h3>
+      <table class="creds-table">
+        <tr>
+          <td>URL pgAdmin</td>
+          <td>
+            {% for device in devices %}
+            {% if forloop.first %}
+            <span class="creds-value">http://{{ device.node_addr|cut:":9001" }}:5050</span>{% if not forloop.last %}&nbsp;&nbsp;{% endif %}
+            {% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+        <tr>
+          <td>Login pgAdmin</td>
+          <td><span class="creds-value">{{ pgadmin.pgadmin_email }}</span></td>
+        </tr>
+        <tr>
+          <td>Mot de passe pgAdmin</td>
+          <td><span class="creds-value">{{ pgadmin.pgadmin_password }}</span></td>
+        </tr>
+        <tr><td colspan="2" style="padding-top:8px; border-top:1px solid #86EFAC; font-size:.78rem; color:#166534; font-weight:600;">Connexion base de données PostgreSQL</td></tr>
+        <tr>
+          <td>Utilisateur DB</td>
+          <td><span class="creds-value">metier</span></td>
+        </tr>
+        <tr>
+          <td>Mot de passe DB</td>
+          <td><span class="creds-value">{{ pgadmin.db_password }}</span></td>
+        </tr>
+      </table>
+      <p class="creds-warning">
+        Conservez ces identifiants en lieu sûr. Cliquez sur une valeur pour la sélectionner.
+        Le mot de passe DB est celui à saisir dans pgAdmin quand il vous le demande — cochez "Save Password".
+      </p>
+    </div>
 
     <!-- Machines -->
     <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">

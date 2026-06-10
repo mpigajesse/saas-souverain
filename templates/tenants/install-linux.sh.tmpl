@@ -138,7 +138,8 @@ NODE_ADDR=${MY_IP}:9001
 RELAY_URL=${RELAY_URL}
 SAAS_URL=${SAAS_URL}
 REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
-PGADMIN_EMAIL=admin@pmempj.com
+TENANT_ID={{ tenant.id }}
+PGADMIN_EMAIL=admin@pme{{ tenant.name|slugify }}.com
 PGADMIN_PASSWORD=${PGADMIN_PASSWORD}
 ENV_EOF
 
@@ -256,9 +257,11 @@ cat >> "${INSTALL_DIR}/docker-compose.yml" << SSNODE_EOF
       SS_NODE_DIR: /data
       WEB_PORT: "9001"
       NODE_ADDR: "\${NODE_ADDR}"
+      NODE_MODE: "\${NODE_MODE:-passive}"
       RELAY_URL: "\${RELAY_URL}"
       SAAS_URL: "\${SAAS_URL:-}"
       REGISTRATION_TOKEN: "\${REGISTRATION_TOKEN:-}"
+      TENANT_ID: "{{ tenant.id }}"
       PG_URL: "postgres://\${PG_USER:-metier}:\${PG_PASSWORD}@postgres:5432/\${PG_DB:-metier}"
       RUST_LOG: info
     volumes: [node-data:/data]
@@ -365,7 +368,7 @@ echo ""
 echo "  PostgreSQL  : ${MY_IP}:5432"
 echo "  Interface   : http://${MY_IP}:9001"
 echo "  pgAdmin     : http://${MY_IP}:5050"
-echo "    Login pgAdmin : admin@pmempj.com"
+echo "    Login pgAdmin : admin@pme{{ tenant.name|slugify }}.com"
 echo "    Mot de passe  : ${PGADMIN_PASSWORD}"
 if [ -n "$NEXT_MACHINE" ]; then
     echo ""

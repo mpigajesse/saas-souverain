@@ -2,6 +2,7 @@ import io
 from datetime import date, timedelta
 
 from django.conf import settings
+from django.utils.text import slugify
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -215,10 +216,10 @@ def telecharger_installeur(request, os_type):
     if os_type == 'windows':
         content = render(request, 'tenants/install-windows.bat.tmpl', ctx).content.decode('utf-8')
         response = HttpResponse(content, content_type='application/octet-stream')
-        response['Content-Disposition'] = 'attachment; filename="installer-pme.bat"'
+        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}.bat"'
     else:
         content = render(request, 'tenants/install-linux.sh.tmpl', ctx).content.decode('utf-8')
         response = HttpResponse(content, content_type='application/octet-stream')
-        response['Content-Disposition'] = 'attachment; filename="installer-pme.sh"'
+        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}.sh"'
 
     return response

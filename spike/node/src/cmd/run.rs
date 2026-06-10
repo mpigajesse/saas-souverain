@@ -24,6 +24,10 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     let mut config = NodeConfig::load(config_path)?;
     config.apply_env_overrides();
 
+    // Enregistrement SaaS en premier — fonctionne même si le nœud n'est pas encore enrôlé
+    // (le standby n'a pas encore de DEK mais doit quand même apparaître dans le portail).
+    register_with_saas(&config).await;
+
     // Vérifier que le nœud est enrôlé
     let sealed_hex = config
         .sealed_dek_hex
@@ -94,9 +98,6 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                 e
             ),
         }
-
-        // Enregistrement auprès du SaaS éditeur (portail "Vérification du parc")
-        register_with_saas(&config).await;
 
         // Découverte des pairs
         match relay.get_peers(tenant_id).await {
@@ -184,7 +185,6 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     Ok(_) => {}
                     Err(e) => println!("  Relais injoignable : {}", e),
                 }
-                register_with_saas(&config).await;
             }
         }
     }
