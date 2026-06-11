@@ -29,6 +29,9 @@ pub struct NodeConfig {
     /// Époque courante de ce nœud (jeton de fencing monotone)
     #[serde(default = "default_epoch")]
     pub epoch: u64,
+    /// Nom du tenant PME — rempli lors du premier enregistrement SaaS
+    #[serde(default)]
+    pub tenant_name: Option<String>,
 }
 
 fn default_epoch() -> u64 {

@@ -52,6 +52,7 @@ pub async fn run(first_node: bool, config_path: &Path) -> Result<()> {
             relay_url,
             pg_url: None,
             epoch: 1,
+            tenant_name: None,
         };
         config.save(config_path)?;
         println!("Config sauvegardée : {}", config_path.display());
@@ -117,6 +118,7 @@ pub async fn run(first_node: bool, config_path: &Path) -> Result<()> {
         relay_url: "http://localhost:8080".to_string(),
         pg_url: None,
         epoch: 1,
+        tenant_name: None,
     };
 
     config.save(config_path)?;

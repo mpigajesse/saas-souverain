@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 mod cmd;
 mod config;
 mod relay_client;
+mod stock;
 mod web;
 
 #[derive(Parser)]
@@ -29,8 +30,6 @@ enum Commands {
         #[arg(long)]
         first: bool,
     },
-    /// Affiche le QR code pour recevoir la DEK d'un nœud autorisé
-    Enroll,
     /// Démarre le nœud en mode actif ou passif
     Run {
         /// Mode d'exécution : "active" ou "passive"
@@ -64,9 +63,6 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Init { first } => {
             cmd::init::run(first, &config_path).await?;
-        }
-        Commands::Enroll => {
-            cmd::enroll::run(&config_path).await?;
         }
         Commands::Run { mode } => {
             let run_mode = match mode.as_str() {

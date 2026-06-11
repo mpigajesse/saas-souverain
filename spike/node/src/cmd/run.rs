@@ -26,7 +26,12 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
 
     // Enregistrement SaaS en premier — fonctionne même si le nœud n'est pas encore enrôlé
     // (le standby n'a pas encore de DEK mais doit quand même apparaître dans le portail).
-    register_with_saas(&config).await;
+    if let Some(name) = register_with_saas(&config).await {
+        if config.tenant_name.as_deref() != Some(name.as_str()) {
+            config.tenant_name = Some(name);
+            let _ = config.save(config_path);
+        }
+    }
 
     // Vérifier que le nœud est enrôlé
     let sealed_hex = config
@@ -61,13 +66,39 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     println!("=== Noeud {} démarré en mode {:?} ===", config.node_id, mode);
     println!("  Journal : {} entrée(s)", journal.len());
 
-    // Serveur web métier (interface PME) — port 3000 par défaut
+    // Connexion PostgreSQL anticipée — nécessaire pour le module stock
     let web_port: u16 = std::env::var("WEB_PORT")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(3000);
-    let web_node_id = config.node_id;
-    tokio::spawn(crate::web::serve(web_port, web_node_id));
+
+    if let Some(pg_url) = &config.pg_url.clone() {
+        match PgPool::connect(pg_url).await {
+            Ok(pool) => {
+                println!("  PostgreSQL : connecté ({})", pg_url);
+
+                // Migrations tables métier
+                if let Err(e) = crate::stock::run_migrations(&pool).await {
+                    println!("  Stock    : migration échouée — {}", e);
+                }
+
+                // Serveur web métier
+                let web_pool = pool.clone();
+                let web_node_id = config.node_id;
+                let web_tenant = config.tenant_name.clone()
+                    .unwrap_or_else(|| "PME".to_string());
+                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant));
+
+                // Boucle de supervision
+                run_supervision_loop(mode, pool, &config, config_path).await?;
+            }
+            Err(e) => {
+                println!("  PostgreSQL : impossible de se connecter — {} (spike: boucle ignorée)", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
+        return Ok(());
+    }
 
     // Vérification du fencing (spike : époque fixe pour démonstration)
     let my_epoch = EpochToken(1);
@@ -150,46 +181,28 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
 
     println!("  Noeud opérationnel. Ctrl+C pour arrêter.");
 
-    // Supervision loop — vérifie PostgreSQL toutes les 5 secondes.
-    // En mode passif : déclenche le failover automatique si quorum est atteint ET primaire mort.
-    // En mode actif  : détecte si PostgreSQL est toujours primaire (sanity check).
-    if let Some(pg_url) = &config.pg_url.clone() {
-        match PgPool::connect(pg_url).await {
-            Ok(pool) => {
-                println!("  PostgreSQL : connecté ({})", pg_url);
-                run_supervision_loop(mode, pool, &config, config_path).await?;
-            }
-            Err(e) => {
-                println!("  PostgreSQL : impossible de se connecter — {} (spike: boucle ignorée)", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            }
-        }
-    } else {
-        // Pas de PG configuré — annonce périodique au relais toutes les 30s
-        println!("  PostgreSQL non configuré — boucle d'annonce (30s).");
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-            if let Some(tid) = config.tenant_id {
-                let announce_req = crate::relay_client::AnnounceRequest {
-                    node_id: config.node_id,
-                    tenant_id: tid,
-                    addr: node_addr(&config),
-                    role: if mode == RunMode::Active {
-                        "active".to_string()
-                    } else {
-                        "passive".to_string()
-                    },
-                    epoch: my_epoch.value(),
-                };
-                match relay.announce(&announce_req).await {
-                    Ok(_) => {}
-                    Err(e) => println!("  Relais injoignable : {}", e),
-                }
+    // Sans PostgreSQL — boucle d'annonce au relais toutes les 30 s
+    println!("  PostgreSQL non configuré — boucle d'annonce (30s).");
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+        if let Some(tid) = config.tenant_id {
+            let announce_req = crate::relay_client::AnnounceRequest {
+                node_id: config.node_id,
+                tenant_id: tid,
+                addr: node_addr(&config),
+                role: if mode == RunMode::Active {
+                    "active".to_string()
+                } else {
+                    "passive".to_string()
+                },
+                epoch: my_epoch.value(),
+            };
+            match relay.announce(&announce_req).await {
+                Ok(_) => {}
+                Err(e) => println!("  Relais injoignable : {}", e),
             }
         }
     }
-
-    Ok(())
 }
 
 /// Boucle de supervision PostgreSQL — tourne indéfiniment.
@@ -290,24 +303,25 @@ fn node_addr(config: &NodeConfig) -> String {
 }
 
 /// Enregistre le nœud avec le rôle détecté depuis NODE_MODE.
-async fn register_with_saas(config: &NodeConfig) {
+/// Retourne le nom du tenant si le SaaS le fournit.
+async fn register_with_saas(config: &NodeConfig) -> Option<String> {
     let role = match std::env::var("NODE_MODE").as_deref() {
         Ok("active") => "primary",
         _ => "standby",
     };
-    register_with_saas_role(config, role).await;
+    register_with_saas_role(config, role).await
 }
 
 /// Enregistre le nœud avec un rôle explicite — utilisé après failover automatique.
-/// Non bloquant — les erreurs sont loguées mais n'arrêtent pas le nœud.
-async fn register_with_saas_role(config: &NodeConfig, node_role: &str) {
+/// Retourne le nom du tenant fourni par le SaaS. Non bloquant — erreurs loguées.
+async fn register_with_saas_role(config: &NodeConfig, node_role: &str) -> Option<String> {
     let saas_url = match std::env::var("SAAS_URL") {
         Ok(u) if !u.is_empty() => u,
-        _ => return,
+        _ => return None,
     };
     let reg_token = match std::env::var("REGISTRATION_TOKEN") {
         Ok(t) if !t.is_empty() => t,
-        _ => return,
+        _ => return None,
     };
 
     let hostname = std::env::var("HOSTNAME")
@@ -346,7 +360,14 @@ async fn register_with_saas_role(config: &NodeConfig, node_role: &str) {
         Ok(resp) => {
             let status = resp.status();
             if status.is_success() {
-                println!("  SaaS     : appareil enregistré dans le portail");
+                let json: serde_json::Value = resp.json().await.unwrap_or_default();
+                let tenant_name = json["tenant_name"].as_str().map(str::to_string);
+                if let Some(ref name) = tenant_name {
+                    println!("  SaaS     : appareil enregistré — tenant : {}", name);
+                } else {
+                    println!("  SaaS     : appareil enregistré dans le portail");
+                }
+                return tenant_name;
             } else {
                 let text = resp.text().await.unwrap_or_default();
                 println!("  SaaS     : enregistrement — {} {}", status, text.trim());
@@ -354,4 +375,5 @@ async fn register_with_saas_role(config: &NodeConfig, node_role: &str) {
         }
         Err(e) => println!("  SaaS     : injoignable — {} (non bloquant)", e),
     }
+    None
 }
