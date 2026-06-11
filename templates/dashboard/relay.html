@@ -288,28 +288,6 @@
     </div>
   </div>
 
-  <!-- Zone PME -->
-  <div class="net-zone net-zone--pme">
-    <div class="net-zone-title">Cluster PME (souverain)</div>
-    <span class="net-badge-subnet subnet--pme">{% if pme_subnet %}{{ pme_subnet }}{% else %}LAN PME{% endif %}</span>
-    {% for entry in tenants_data %}
-      {% for node in entry.nodes %}
-      <div class="net-server">
-        <span class="net-server-icon">🐧</span>
-        <div>
-          <div class="net-server-name" style="font-size:.8rem;">{{ node.short_id }}…</div>
-          <div class="net-server-ip">{{ node.addr }}</div>
-        </div>
-      </div>
-      {% endfor %}
-    {% endfor %}
-    {% if total_nodes == 0 %}
-    <div style="font-size:.78rem; color:var(--text-muted); padding:8px;">Aucun nœud actif</div>
-    {% endif %}
-    <div style="font-size:.68rem; color:#059669; margin-top:6px;">
-      Données en clair dans le périmètre PME uniquement
-    </div>
-  </div>
 </div>
 
 <!-- ── Stats ── -->
