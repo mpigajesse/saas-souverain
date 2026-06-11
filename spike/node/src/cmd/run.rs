@@ -267,6 +267,9 @@ async fn run_supervision_loop(
                         let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
                         if tick % 12 == 1 {
                             println!("  [tick {tick}] PG primaire OK — {} standby(s) connecté(s)", standbys);
+                            // Re-registration périodique : corrige les cas où le SaaS a rétrogradé
+                            // ce nœud en "standby" suite à un split-brain détecté ailleurs.
+                            register_with_saas_role(config, "primary").await;
                         }
                         wal_miss = 0;
                     }
@@ -277,6 +280,7 @@ async fn run_supervision_loop(
                         // Déjà promu (failover précédent dans cette session)
                         if tick % 12 == 1 {
                             println!("  [tick {tick}] Ce nœud est désormais primaire.");
+                            register_with_saas_role(config, "primary").await;
                         }
                         wal_miss = 0;
                     }
@@ -287,6 +291,7 @@ async fn run_supervision_loop(
                             wal_miss = 0;
                             if tick % 12 == 1 {
                                 println!("  [tick {tick}] PG standby : réplication active");
+                                register_with_saas_role(config, "standby").await;
                             }
                         } else {
                             wal_miss += 1;
