@@ -44,12 +44,21 @@
         </svg>
         Licences
       </a>
-      <a href="{% url 'device-list' %}" class="nav-link {% if 'device' in request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'device-list' %}" class="nav-link {% if request.resolver_match.url_name == 'device-list' %}active{% endif %}">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
           <rect x="1" y="4" width="14" height="9" rx="1"/>
           <path d="M5 13v2M11 13v2M3 15h10"/>
         </svg>
         Parc machines
+      </a>
+      <a href="{% url 'cluster-overview' %}" class="nav-link {% if request.resolver_match.url_name == 'cluster-overview' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <circle cx="8" cy="4" r="2"/>
+          <circle cx="3" cy="12" r="2"/>
+          <circle cx="13" cy="12" r="2"/>
+          <path d="M8 6v2M8 8l-3.5 2.2M8 8l3.5 2.2"/>
+        </svg>
+        Clusters
       </a>
       <a href="{% url 'relay-monitor' %}" class="nav-link {% if request.resolver_match.url_name == 'relay-monitor' %}active{% endif %}">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">

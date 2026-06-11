@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}Supervision clusters{% endblock %}
+{% block content %}
+
+<style>
+.clusters-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap}
+.clusters-title{font-size:1.35rem;font-weight:800;color:var(--text)}
+.clusters-sub{font-size:.875rem;color:var(--text-muted);margin-top:2px}
+
+.summary-bar{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.summary-chip{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;font-weight:600}
+.summary-chip .chip-val{font-size:1.4rem;font-weight:800;line-height:1}
+.chip-ok .chip-val{color:#059669}
+.chip-alert .chip-val{color:#DC2626}
+.chip-total .chip-val{color:var(--text)}
+
+.cluster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+
+.cluster-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .15s}
+.cluster-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.cluster-card.alert{border-color:#FECACA;box-shadow:0 0 0 2px rgba(220,38,38,.08)}
+
+.cc-head{padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cc-tenant{font-weight:700;font-size:.95rem}
+.cc-tenant a{color:var(--crimson);text-decoration:none}
+.cc-tenant a:hover{text-decoration:underline}
+.health-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700}
+.hb-ok{background:#D1FAE5;color:#065F46}
+.hb-warn{background:#FEF3C7;color:#92400E}
+.hb-danger{background:#FEE2E2;color:#991B1B}
+.hb-empty{background:#F3F4F6;color:#6B7280}
+
+.cc-body{padding:14px 18px}
+
+.topo{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.topo-node{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#F9FAFB;border:1px solid var(--border)}
+.topo-node.primary-node{background:#F0FDF4;border-color:#6EE7B7}
+.topo-node.standby-node{background:#FFFBEB;border-color:#FCD34D}
+.topo-node.offline-node{background:#FEF2F2;border-color:#FECACA;opacity:.75}
+
+.node-role-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-primary{background:#10B981}
+.dot-standby{background:#F59E0B}
+.dot-offline{background:#EF4444}
+
+.node-info{flex:1;min-width:0}
+.node-addr{font-family:monospace;font-size:.8rem;color:var(--crimson);font-weight:600}
+.node-addr a{color:inherit;text-decoration:none}
+.node-addr a:hover{text-decoration:underline}
+.node-meta{font-size:.72rem;color:var(--text-muted);margin-top:1px}
+
+.node-badge{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.nb-primary{background:#D1FAE5;color:#065F46}
+.nb-standby{background:#FEF3C7;color:#92400E}
+.nb-offline{background:#FEE2E2;color:#991B1B}
+
+.topo-connector{display:flex;align-items:center;gap:6px;padding:0 12px;font-size:.72rem;color:var(--text-muted)}
+.topo-connector::before{content:'';display:block;width:1px;height:14px;background:var(--border);margin-left:3px}
+
+.no-nodes{text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem}
+
+.cc-foot{padding:10px 18px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.lic-info{font-size:.78rem;color:var(--text-muted)}
+.lic-info strong{color:var(--text)}
+.lic-bar-wrap{width:80px;height:5px;background:#E5E7EB;border-radius:3px;display:inline-block;vertical-align:middle;margin:0 6px}
+.lic-bar{height:100%;border-radius:3px;background:#10B981}
+.lic-bar.over{background:#EF4444}
+
+.alert-msg{display:flex;align-items:center;gap:6px;font-size:.76rem;color:#991B1B;background:#FEF2F2;border-radius:7px;padding:5px 10px;margin-top:10px}
+
+.failover-tag{font-size:.68rem;background:#FEE2E2;color:#991B1B;border-radius:8px;padding:2px 7px;font-weight:700}
+
+.online-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.online-dot.on{background:#10B981;box-shadow:0 0 0 2px rgba(16,185,129,.2)}
+.online-dot.off{background:#EF4444}
+</style>
+
+<div class="clusters-header">
+  <div>
+    <div class="clusters-title">Supervision des clusters</div>
+    <div class="clusters-sub">État en temps réel des clusters PostgreSQL — mis à jour à chaque heartbeat (~60 s)</div>
+  </div>
+  <a href="{% url 'device-list' %}" class="btn btn-secondary btn-sm">Vue liste →</a>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-chip chip-total">
+    <div>
+      <div class="chip-val">{{ total_tenants }}</div>
+      <div>entreprises</div>
+    </div>
+  </div>
+  <div class="summary-chip {% if alerts_total > 0 %}chip-alert{% else %}chip-ok{% endif %}">
+    <div>
+      <div class="chip-val">{{ alerts_total }}</div>
+      <div>alerte{% if alerts_total != 1 %}s{% endif %}</div>
+    </div>
+  </div>
+  <div class="summary-chip chip-ok">
+    <div>
+      <div class="chip-val">{{ total_tenants|add:"-"|add:alerts_total|default:0 }}</div>
+      <div>clusters OK</div>
+    </div>
+  </div>
+</div>
+
+{% if not clusters %}
+<div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+  <p style="font-size:1rem;font-weight:600;margin-bottom:6px">Aucun cluster enregistré</p>
+  <p style="font-size:.875rem">Les nœuds PME s'enregistrent automatiquement au démarrage.</p>
+</div>
+{% else %}
+<div class="cluster-grid">
+  {% for c in clusters %}
+  <div class="cluster-card {% if c.is_alert %}alert{% endif %}">
+
+    {# ── En-tête : nom tenant + santé #}
+    <div class="cc-head">
+      <div class="cc-tenant">
+        <a href="{% url 'tenant-detail' c.tenant.pk %}">{{ c.tenant.name }}</a>
+      </div>
+      {% if c.health == 'ok' %}
+        <span class="health-badge hb-ok">✓ Cluster sain</span>
+      {% elif c.health == 'no_standby' %}
+        <span class="health-badge hb-warn">⚠ Bascule manuelle</span>
+      {% elif c.health == 'no_primary' %}
+        <span class="health-badge hb-danger">✗ Pas de primaire</span>
+      {% elif c.health == 'primary_offline' %}
+        <span class="health-badge hb-danger">✗ Primaire hors ligne</span>
+      {% elif c.health == 'over_license' %}
+        <span class="health-badge hb-warn">⚠ Hors licence</span>
+      {% else %}
+        <span class="health-badge hb-empty">Aucun nœud</span>
+      {% endif %}
+    </div>
+
+    {# ── Topologie cluster #}
+    <div class="cc-body">
+      {% if c.total == 0 %}
+        <div class="no-nodes">Aucune machine enregistrée pour ce tenant</div>
+      {% else %}
+        <div class="topo">
+
+          {# Nœud primaire #}
+          {% if c.primary %}
+            {% with n=c.primary %}
+            <div class="topo-node {% if n.online %}primary-node{% else %}offline-node{% endif %}">
+              <span class="node-role-dot {% if n.online %}dot-primary{% else %}dot-offline{% endif %}"></span>
+              <div class="node-info">
+                <div class="node-addr">
+                  {% if n.device.node_addr %}
+                    <a href="http://{{ n.device.node_addr }}" target="_blank">{{ n.device.node_addr }}</a>
+                  {% else %}
+                    {{ n.device.hostname|default:"Inconnu" }}
+                  {% endif %}
+                </div>
+                <div class="node-meta">
+                  <span class="online-dot {% if n.online %}on{% else %}off{% endif %}"></span>
+                  {% if n.online %}En ligne{% else %}Hors ligne{% endif %}
+                  · {{ n.device.last_seen|date:"d/m H:i" }}
+                  {% if n.device.failover_count > 0 %}
+                    · <span class="failover-tag">F×{{ n.device.failover_count }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              <span class="node-badge {% if n.online %}nb-primary{% else %}nb-offline{% endif %}">
+                {% if n.online %}Primaire{% else %}Hors ligne{% endif %}
+              </span>
+            </div>
+            {% endwith %}
+
+            {# Connecteur visuel #}
+            {% if c.standbys %}
+            <div class="topo-connector">Réplication streaming →</div>
+            {% endif %}
+          {% endif %}
+
+          {# Nœuds standby #}
+          {% for n in c.standbys %}
+          <div class="topo-node {% if n.online %}standby-node{% else %}offline-node{% endif %}">
+            <span class="node-role-dot {% if n.online %}dot-standby{% else %}dot-offline{% endif %}"></span>
+            <div class="node-info">
+              <div class="node-addr">
+                {% if n.device.node_addr %}
+                  <a href="http://{{ n.device.node_addr }}" target="_blank">{{ n.device.node_addr }}</a>
+                {% else %}
+                  {{ n.device.hostname|default:"Inconnu" }}
+                {% endif %}
+              </div>
+              <div class="node-meta">
+                <span class="online-dot {% if n.online %}on{% else %}off{% endif %}"></span>
+                {% if n.online %}En ligne{% else %}Hors ligne{% endif %}
+                · {{ n.device.last_seen|date:"d/m H:i" }}
+              </div>
+            </div>
+            <span class="node-badge {% if n.online %}nb-standby{% else %}nb-offline{% endif %}">
+              {% if n.online %}Standby{% else %}Hors ligne{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+
+          {% if not c.primary and not c.standbys %}
+          <div class="no-nodes">Rôles non encore assignés</div>
+          {% endif %}
+
+        </div>
+
+        {# Alertes contextuelles #}
+        {% if c.health == 'no_standby' %}
+        <div class="alert-msg">⚠ Un seul nœud — bascule manuelle uniquement si panne</div>
+        {% elif c.health == 'primary_offline' %}
+        <div class="alert-msg">✗ Le nœud primaire ne répond plus — intervention requise</div>
+        {% elif c.health == 'no_primary' %}
+        <div class="alert-msg">✗ Aucun primaire détecté — le cluster ne peut pas accepter d'écritures</div>
+        {% elif c.health == 'over_license' %}
+        <div class="alert-msg">⚠ {{ c.license.used }} nœuds actifs pour {{ c.license.total }} autorisés</div>
+        {% endif %}
+
+      {% endif %}
+    </div>
+
+    {# ── Pied de carte : licence #}
+    <div class="cc-foot">
+      <div class="lic-info">
+        {% if c.license.plan %}
+          <strong>{{ c.license.plan }}</strong> ·
+          {{ c.license.used }}/{{ c.license.total }} postes
+          <span class="lic-bar-wrap">
+            {% if c.license.total > 0 %}
+              {% widthratio c.license.used c.license.total 100 as pct %}
+              <span class="lic-bar {% if not c.license.ok %}over{% endif %}"
+                    style="width:{{ pct|default:0 }}%"></span>
+            {% endif %}
+          </span>
+        {% else %}
+          <span style="color:#DC2626">Aucune licence active</span>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:6px">
+        <a href="{% url 'tenant-detail' c.tenant.pk %}" class="btn btn-secondary btn-sm">Détail</a>
+        {% if c.primary and c.primary.device %}
+        <form method="post" action="{% url 'device-toggle' c.primary.device.pk %}" style="display:inline">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'cluster-overview' %}">
+          <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('Désactiver ce nœud ?')">
+            Désactiver
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
