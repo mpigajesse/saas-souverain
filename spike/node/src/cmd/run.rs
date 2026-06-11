@@ -101,15 +101,18 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     register_with_saas_role(&config, actual_role).await;
                 }
 
-                // Migrations tables métier
-                if let Err(e) = crate::auth::run_migrations(&pool).await {
-                    println!("  Auth     : migration échouée — {}", e);
-                }
-                if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
-                    println!("  Auth     : création admin échouée — {}", e);
-                }
-                if let Err(e) = crate::stock::run_migrations(&pool).await {
-                    println!("  Stock    : migration échouée — {}", e);
+                // Migrations uniquement sur le primaire — le standby est en lecture
+                // seule, il reçoit les tables via la réplication PostgreSQL.
+                if mode == RunMode::Active {
+                    if let Err(e) = crate::auth::run_migrations(&pool).await {
+                        println!("  Auth     : migration échouée — {}", e);
+                    }
+                    if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
+                        println!("  Auth     : création admin échouée — {}", e);
+                    }
+                    if let Err(e) = crate::stock::run_migrations(&pool).await {
+                        println!("  Stock    : migration échouée — {}", e);
+                    }
                 }
 
                 // Serveur web métier
