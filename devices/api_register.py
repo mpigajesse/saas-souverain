@@ -91,6 +91,14 @@ def device_register(request):
                 device.failover_count += 1
                 device.last_failover_at = timezone.now()
             device.node_role = node_role
+            # Un seul primaire par tenant : rétrograder les autres nœuds primary → standby.
+            # Couvre le split-brain après redémarrage du serveur SaaS.
+            if node_role == 'primary':
+                Device.objects.filter(
+                    tenant=tenant,
+                    node_role='primary',
+                    is_active=True,
+                ).exclude(installation_id=installation_id).update(node_role='standby')
         device.save()
 
         if not device.is_active:

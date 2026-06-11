@@ -77,6 +77,30 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
             Ok(pool) => {
                 println!("  PostgreSQL : connecté ({})", pg_url);
 
+                // Vérifier le rôle réel PostgreSQL et corriger l'enregistrement SaaS si besoin.
+                // Après un redémarrage du serveur SaaS, un nœud promu peut se re-déclarer avec
+                // le mauvais NODE_MODE → on laisse PostgreSQL faire autorité.
+                let pg_role = sqlx::query_scalar::<_, bool>("SELECT pg_is_in_recovery()")
+                    .fetch_one(&pool)
+                    .await
+                    .ok();
+                let actual_role = match pg_role {
+                    Some(true)  => "standby",
+                    Some(false) => "primary",
+                    None        => "",
+                };
+                let declared_role = match std::env::var("NODE_MODE").as_deref() {
+                    Ok("active") => "primary",
+                    _            => "standby",
+                };
+                if !actual_role.is_empty() && actual_role != declared_role {
+                    println!(
+                        "  Rôle PG réel ({}) ≠ NODE_MODE ({}) — re-déclaration au portail",
+                        actual_role, declared_role
+                    );
+                    register_with_saas_role(&config, actual_role).await;
+                }
+
                 // Migrations tables métier
                 if let Err(e) = crate::stock::run_migrations(&pool).await {
                     println!("  Stock    : migration échouée — {}", e);
