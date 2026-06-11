@@ -161,21 +161,29 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let da = if active == "dashboard" { "active" } else { "" };
     let aa = if active == "articles" { "active" } else { "" };
     let ma = if active == "mouvements" { "active" } else { "" };
-    let ua = if active == "admin" || active == "utilisateurs" { "active" } else { "" };
+    let ca = if active == "cluster" { "active" } else { "" };
+    let ua = if active == "utilisateurs" { "active" } else { "" };
 
     let admin_section = if is_admin {
         format!(
             r#"
   <div class="sb-section">Administration</div>
   <nav class="sb-nav">
-    <a href="/admin" class="{ua}">
+    <a href="/admin" class="{ca}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
-      Cluster &amp; Utilisateurs
+      Cluster
+    </a>
+    <a href="/admin/utilisateurs" class="{ua}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Utilisateurs
     </a>
   </nav>"#,
-            ua = ua
+            ca = ca,
+            ua = ua,
         )
     } else {
         String::new()
@@ -251,9 +259,74 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     )
 }
 
+// ── Standby detection ─────────────────────────────────────────────────────────
+
+async fn primary_web_url(state: &Arc<AppState>) -> Option<String> {
+    let host: Option<String> = sqlx::query_scalar(
+        "SELECT sender_host FROM pg_stat_wal_receiver LIMIT 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .ok()
+    .flatten();
+    host.map(|h| format!("http://{}:{}/login", h, state.web_port))
+}
+
+fn standby_html(tenant: &str, primary_url: Option<&str>) -> String {
+    let tenant_esc = esc(tenant);
+    let initial = tenant_esc.chars().next().unwrap_or('P').to_uppercase().to_string();
+    let btn = match primary_url {
+        Some(url) => format!(
+            r#"<a href="{url}" class="btn btn-p" style="width:100%;justify-content:center;margin-top:8px">
+              Accéder au nœud primaire →
+            </a>"#,
+            url = esc(url)
+        ),
+        None => String::new(),
+    };
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Nœud secondaire — {tenant_esc}</title>
+<style>{CSS}</style>
+</head>
+<body class="login-body">
+<div class="login-card" style="max-width:420px;text-align:center">
+  <div class="login-logo" style="justify-content:center;margin-bottom:20px">
+    <div class="sb-sq">{initial}</div>
+    <div>
+      <div class="login-name">{tenant_esc}</div>
+      <div class="login-sub">Nœud secondaire</div>
+    </div>
+  </div>
+  <div class="alert-bar" style="text-align:left;margin-bottom:16px">
+    ⚠️ Ce nœud est en mode <strong>standby</strong> (lecture seule).
+  </div>
+  <p style="font-size:.875rem;color:#4B5563;line-height:1.6;margin-bottom:4px">
+    La connexion et les opérations d'écriture sont réservées au nœud primaire.
+    Ce nœud prend le relais automatiquement en cas de panne.
+  </p>
+  {btn}
+</div>
+</body>
+</html>"#
+    )
+}
+
 // ── Login ─────────────────────────────────────────────────────────────────────
 
 pub async fn login_page(State(state): State<Arc<AppState>>) -> Html<String> {
+    let is_standby = sqlx::query_scalar::<_, bool>("SELECT pg_is_in_recovery()")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(false);
+    if is_standby {
+        let url = primary_web_url(&state).await;
+        return Html(standby_html(&state.tenant_name, url.as_deref()));
+    }
     Html(login_html(&state.tenant_name, None))
 }
 
@@ -312,6 +385,15 @@ pub async fn login_post(
     State(state): State<Arc<AppState>>,
     Form(f): Form<LoginForm>,
 ) -> Response {
+    let is_standby = sqlx::query_scalar::<_, bool>("SELECT pg_is_in_recovery()")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(false);
+    if is_standby {
+        let url = primary_web_url(&state).await;
+        return Html(standby_html(&state.tenant_name, url.as_deref())).into_response();
+    }
+
     let username = f.username.trim();
     let password = f.password.as_str();
 
@@ -364,14 +446,7 @@ pub async fn admin_dashboard(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
 ) -> Html<String> {
-    let (cluster, users) = tokio::join!(
-        super::get_cluster_info(&state.pool),
-        super::list_users(&state.pool),
-    );
-
-    let users = users.unwrap_or_default();
-    let active_count = users.iter().filter(|u| u.is_active).count();
-    let employee_count = users.iter().filter(|u| u.role == "employee" && u.is_active).count();
+    let cluster = super::get_cluster_info(&state.pool).await;
 
     let (role_label, role_class, replication_info) = if cluster.is_primary {
         let sb_count = cluster.standbys.len();
@@ -388,7 +463,7 @@ pub async fn admin_dashboard(
         let lag = cluster.replication_lag.as_deref().unwrap_or("inconnue");
         let host = esc_opt(&cluster.primary_host);
         let repl = format!(
-            r#"Réplique du nœud <strong>{}</strong> — état: <strong>{}</strong>"#,
+            r#"Réplique du nœud <strong>{}</strong> — état : <strong>{}</strong>"#,
             if host.is_empty() { "inconnu".to_string() } else { host },
             lag
         );
@@ -397,24 +472,34 @@ pub async fn admin_dashboard(
 
     let standbys_table = if cluster.is_primary && !cluster.standbys.is_empty() {
         let rows: String = cluster.standbys.iter().map(|s| {
+            let addr = match &s.client_addr {
+                Some(ip) => format!(r#"<span class="mono">{}</span>"#, esc(ip)),
+                None => r#"<span style="color:var(--mu)">—</span>"#.to_string(),
+            };
             format!(
-                r#"<tr><td class="mono">{name}</td><td>{state}</td></tr>"#,
+                r#"<tr>
+  <td>{addr}</td>
+  <td class="mono" style="color:var(--mu);font-size:.78rem">{name}</td>
+  <td><span class="badge ok">{state}</span></td>
+</tr>"#,
                 name = esc(&s.name),
                 state = esc(&s.state),
             )
         }).collect();
         format!(
-            r#"<table style="margin-top:10px">
-<thead><tr><th>Nœud secondaire</th><th>État</th></tr></thead>
+            r#"<table style="margin-top:14px">
+<thead><tr><th>Adresse IP</th><th>Application</th><th>État réplication</th></tr></thead>
 <tbody>{rows}</tbody></table>"#
         )
+    } else if cluster.is_primary {
+        r#"<p style="margin-top:10px;font-size:.83rem;color:#92400E">⚠ Aucun nœud secondaire connecté — bascule manuelle uniquement.</p>"#.to_string()
     } else {
         String::new()
     };
 
     let content = format!(
-        r#"<div class="page-title">Administration</div>
-<div class="page-sub">Tableau de bord administrateur — cluster et utilisateurs</div>
+        r#"<div class="page-title">Cluster</div>
+<div class="page-sub">État du cluster PostgreSQL de ce nœud</div>
 
 <div class="cluster-card">
   <div class="cluster-role">
@@ -425,31 +510,10 @@ pub async fn admin_dashboard(
     {replication_info}
     {standbys_table}
   </div>
-</div>
-
-<div class="stats stats-2" style="margin-bottom:24px">
-  <div class="sc">
-    <div class="sl">Utilisateurs actifs</div>
-    <div class="sv">{active_count}</div>
-  </div>
-  <div class="sc">
-    <div class="sl">Employés</div>
-    <div class="sv">{employee_count}</div>
-  </div>
-</div>
-
-<div class="panel">
-  <div class="ph">
-    <span class="pt">Gestion des utilisateurs</span>
-    <a href="/admin/utilisateurs/nouveau" class="btn btn-p btn-sm">+ Nouvel utilisateur</a>
-  </div>
-  <div style="padding:20px">
-    <a href="/admin/utilisateurs" class="btn btn-g">Voir tous les utilisateurs →</a>
-  </div>
 </div>"#,
     );
 
-    Html(layout("Administration", "admin", &user, &state.tenant_name, &content))
+    Html(layout("Cluster", "cluster", &user, &state.tenant_name, &content))
 }
 
 // ── Admin — utilisateurs ──────────────────────────────────────────────────────
@@ -467,7 +531,8 @@ pub async fn users_list(
                 &user,
                 &state.tenant_name,
                 &format!(r#"<div class="err-bar">Erreur : {}</div>"#, esc(&e.to_string())),
-            ))
+            ));
+
         }
     };
 
@@ -519,14 +584,34 @@ pub async fn users_list(
         })
         .collect();
 
+    let active_count = users.iter().filter(|u| u.is_active).count();
+    let admin_count  = users.iter().filter(|u| u.role == "admin" && u.is_active).count();
+    let emp_count    = users.iter().filter(|u| u.role == "employee" && u.is_active).count();
+
     let content = format!(
         r#"<div class="row-split">
   <div>
     <div class="page-title">Utilisateurs</div>
-    <div class="page-sub">{n} compte(s) au total</div>
+    <div class="page-sub">{n} compte(s) enregistré(s)</div>
   </div>
   <a href="/admin/utilisateurs/nouveau" class="btn btn-p">+ Nouvel utilisateur</a>
 </div>
+
+<div class="stats" style="margin-bottom:24px">
+  <div class="sc">
+    <div class="sl">Comptes actifs</div>
+    <div class="sv">{active_count}</div>
+  </div>
+  <div class="sc">
+    <div class="sl">Administrateurs</div>
+    <div class="sv">{admin_count}</div>
+  </div>
+  <div class="sc">
+    <div class="sl">Employés</div>
+    <div class="sv">{emp_count}</div>
+  </div>
+</div>
+
 <div class="panel">
   <table>
     <thead><tr>

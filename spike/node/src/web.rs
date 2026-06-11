@@ -61,7 +61,7 @@ async fn resolve_user(
 // ── Router ────────────────────────────────────────────────────────────────────
 
 pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) {
-    let state = Arc::new(AppState { pool, node_id, tenant_name });
+    let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port });
 
     // Public routes — no auth required
     let public_routes = Router::new()

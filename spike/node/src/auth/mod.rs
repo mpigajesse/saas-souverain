@@ -14,6 +14,7 @@ pub struct AppState {
     pub pool: PgPool,
     pub node_id: Uuid,
     pub tenant_name: String,
+    pub web_port: u16,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ pub struct ClusterInfo {
 pub struct StandbyInfo {
     pub name: String,
     pub state: String,
+    pub client_addr: Option<String>,
 }
 
 pub async fn get_cluster_info(pool: &PgPool) -> ClusterInfo {
@@ -50,14 +52,15 @@ pub async fn get_cluster_info(pool: &PgPool) -> ClusterInfo {
         .unwrap_or(false);
 
     if is_primary {
-        let standbys = sqlx::query_as::<_, (String, String)>(
-            "SELECT application_name, state FROM pg_stat_replication ORDER BY application_name",
+        let standbys = sqlx::query_as::<_, (String, String, Option<String>)>(
+            "SELECT application_name, state, client_addr::text
+             FROM pg_stat_replication ORDER BY client_addr",
         )
         .fetch_all(pool)
         .await
         .unwrap_or_default()
         .into_iter()
-        .map(|(name, state)| StandbyInfo { name, state })
+        .map(|(name, state, client_addr)| StandbyInfo { name, state, client_addr })
         .collect();
 
         ClusterInfo {

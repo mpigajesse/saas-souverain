@@ -47,6 +47,17 @@ enum Commands {
         #[arg(long)]
         device_id: String,
     },
+    /// Créer ou mettre à jour un utilisateur dans la base de données
+    Adduser {
+        #[arg(long)]
+        username: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long, default_value = "employee")]
+        role: String,
+        #[arg(long)]
+        password: String,
+    },
 }
 
 #[tokio::main]
@@ -84,6 +95,9 @@ async fn main() -> Result<()> {
         }
         Commands::Delist { device_id } => {
             cmd::delist::run(&device_id, &config_path).await?;
+        }
+        Commands::Adduser { username, name, role, password } => {
+            cmd::adduser::run(&username, &name, &role, &password, &config_path).await?;
         }
     }
 
