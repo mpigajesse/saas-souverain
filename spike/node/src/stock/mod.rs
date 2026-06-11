@@ -5,13 +5,6 @@ use uuid::Uuid;
 
 pub mod routes;
 
-#[derive(Clone)]
-pub struct AppState {
-    pub pool: PgPool,
-    pub node_id: Uuid,
-    pub tenant_name: String,
-}
-
 #[derive(Debug, sqlx::FromRow)]
 pub struct Article {
     pub id: Uuid,

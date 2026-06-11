@@ -1292,6 +1292,7 @@ name = "node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "argon2",
  "axum",
  "base64",
  "chrono",

@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
+mod auth;
 mod cmd;
 mod config;
 mod relay_client;

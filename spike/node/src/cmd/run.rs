@@ -102,6 +102,12 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                 }
 
                 // Migrations tables métier
+                if let Err(e) = crate::auth::run_migrations(&pool).await {
+                    println!("  Auth     : migration échouée — {}", e);
+                }
+                if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
+                    println!("  Auth     : création admin échouée — {}", e);
+                }
                 if let Err(e) = crate::stock::run_migrations(&pool).await {
                     println!("  Stock    : migration échouée — {}", e);
                 }

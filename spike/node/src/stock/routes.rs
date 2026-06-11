@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     response::{Html, IntoResponse, Redirect},
     Form,
 };
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::{AppState, Mouvement, StockItem};
+use crate::auth::{AppState, User};
+use super::{Mouvement, StockItem};
 
-// ── HTML escaping ────────────────────────────────────────────────────────────
+// ── HTML escaping ─────────────────────────────────────────────────────────────
 
 fn esc(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -23,198 +24,18 @@ fn esc_opt(s: &Option<String>) -> String {
     s.as_deref().map(esc).unwrap_or_default()
 }
 
-// ── CSS ──────────────────────────────────────────────────────────────────────
-
-const CSS: &str = r#"
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--cr:#A01520;--go:#C9A84C;--bg:#F4F4F6;--card:#fff;--tx:#1A1A1A;--mu:#6B7280;--bd:#E5E7EB;--sb:#161618;--sb2:#222224}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);display:flex;min-height:100vh}
-
-/* ── Sidebar ── */
-.sidebar{width:240px;min-height:100vh;background:var(--sb);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:200}
-.sb-brand{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
-.sb-sq{width:34px;height:34px;background:var(--cr);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.95rem;flex-shrink:0}
-.sb-name{color:#fff;font-weight:700;font-size:.9rem;line-height:1.2}
-.sb-sub{color:var(--go);font-size:.68rem;margin-top:1px}
-.sb-section{padding:18px 12px 6px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3)}
-.sb-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px}
-.sb-nav a{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);text-decoration:none;font-size:.85rem;padding:9px 10px;border-radius:8px;transition:all .15s;font-weight:500}
-.sb-nav a:hover{color:#fff;background:rgba(255,255,255,.07)}
-.sb-nav a.active{color:#fff;background:var(--cr)}
-.sb-nav a svg{flex-shrink:0;opacity:.8}
-.sb-nav a.active svg{opacity:1}
-.sb-footer{margin-top:auto;padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)}
-.sb-node{font-size:.72rem;color:rgba(255,255,255,.3);line-height:1.6}
-.sb-node strong{color:rgba(255,255,255,.55)}
-.sb-dot{display:inline-block;width:6px;height:6px;background:#22C55E;border-radius:50%;margin-right:5px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* ── Main ── */
-.main{margin-left:240px;flex:1;min-height:100vh;display:flex;flex-direction:column}
-.topbar{background:var(--card);border-bottom:1px solid var(--bd);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.topbar-title{font-size:1rem;font-weight:700}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.container{padding:28px 32px;flex:1}
-
-/* ── Typography ── */
-.page-title{font-size:1.35rem;font-weight:800;margin-bottom:4px}
-.page-sub{color:var(--mu);font-size:.875rem;margin-bottom:24px}
-.row-split{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-
-/* ── Stats ── */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
-.sc{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px 22px}
-.sl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mu);margin-bottom:8px}
-.sv{font-size:1.9rem;font-weight:800}
-.sv.danger{color:var(--cr)}
-
-/* ── Panel ── */
-.panel{background:var(--card);border:1px solid var(--bd);border-radius:12px;margin-bottom:20px;overflow:hidden}
-.ph{padding:14px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
-.pt{font-weight:700;font-size:.9rem}
-
-/* ── Table ── */
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:9px 16px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);background:#F9FAFB;border-bottom:1px solid var(--bd)}
-td{padding:11px 16px;font-size:.855rem;border-bottom:1px solid var(--bd);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tbody tr:hover td{background:#F9FAFB}
-.mono{font-family:monospace;font-size:.8rem}
-
-/* ── Badges ── */
-.badge{display:inline-flex;align-items:center;border-radius:20px;padding:2px 10px;font-size:.7rem;font-weight:700}
-.ok{background:#D1FAE5;color:#065F46}
-.alerte{background:#FEE2E2;color:#991B1B}
-.entree{background:#D1FAE5;color:#065F46}
-.sortie{background:#FEE2E2;color:#991B1B}
-.ajust{background:#FEF3C7;color:#92400E}
-
-/* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;padding:8px 16px;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all .15s;font-family:inherit}
-.btn-p{background:var(--cr);color:#fff}
-.btn-p:hover{background:#8B1119;color:#fff}
-.btn-sm{padding:4px 10px;font-size:.76rem}
-.btn-g{background:transparent;border:1px solid var(--bd);color:var(--mu)}
-.btn-g:hover{border-color:var(--tx);color:var(--tx)}
-.btn-d{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA}
-.btn-d:hover{background:#FECACA}
-
-/* ── Forms ── */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.fg{display:flex;flex-direction:column;gap:6px}
-.full{grid-column:1/-1}
-label{font-size:.81rem;font-weight:600}
-input,select,textarea{border:1px solid var(--bd);border-radius:8px;padding:8px 12px;font-size:.875rem;font-family:inherit;width:100%;background:#fff;transition:border-color .15s}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cr);box-shadow:0 0 0 3px rgba(160,21,32,.1)}
-textarea{min-height:72px;resize:vertical}
-.fa{display:flex;gap:10px;margin-top:8px}
-
-/* ── Misc ── */
-.empty{text-align:center;padding:36px 24px;color:var(--mu);font-size:.875rem}
-.alert-bar{background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:11px 16px;font-size:.84rem;color:#92400E;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-
-/* ── Responsive ── */
-@media(max-width:900px){
-  .sidebar{width:200px}
-  .main{margin-left:200px}
-  .container{padding:20px 18px}
-}
-@media(max-width:640px){
-  .sidebar{display:none}
-  .main{margin-left:0}
-  .stats{grid-template-columns:1fr}
-  .form-grid{grid-template-columns:1fr}
-}
-"#;
-
-// ── Layout ───────────────────────────────────────────────────────────────────
-
-fn layout(title: &str, active: &str, tenant: &str, content: &str) -> String {
-    let da = if active == "dashboard" { "active" } else { "" };
-    let aa = if active == "articles" { "active" } else { "" };
-    let ma = if active == "mouvements" { "active" } else { "" };
-    let tenant = esc(tenant);
-    let initial = tenant.chars().next().unwrap_or('P').to_uppercase().to_string();
-    format!(
-        r#"<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{title} — {tenant}</title>
-<style>{CSS}</style>
-</head>
-<body>
-
-<!-- ── Sidebar ── -->
-<aside class="sidebar">
-  <div class="sb-brand">
-    <div class="sb-sq">{initial}</div>
-    <div>
-      <div class="sb-name">{tenant}</div>
-      <div class="sb-sub">Gestion PME</div>
-    </div>
-  </div>
-
-  <div class="sb-section">Navigation</div>
-  <nav class="sb-nav">
-    <a href="/" class="{da}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-      </svg>
-      Tableau de bord
-    </a>
-    <a href="/articles" class="{aa}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 8V21H3V8"/><path d="M23 3H1v5h22V3z"/>
-        <path d="M10 12h4"/>
-      </svg>
-      Articles
-    </a>
-    <a href="/mouvements" class="{ma}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-        <polyline points="17 6 23 6 23 12"/>
-      </svg>
-      Mouvements
-    </a>
-  </nav>
-
-  <div class="sb-footer">
-    <div class="sb-node">
-      <span class="sb-dot"></span><strong>Nœud actif</strong><br>
-      Données sécurisées sur site<br>
-      XChaCha20-Poly1305
-    </div>
-  </div>
-</aside>
-
-<!-- ── Main ── -->
-<div class="main">
-  <div class="topbar">
-    <span class="topbar-title">{title}</span>
-    <div class="topbar-right">
-      <span style="font-size:.78rem;color:var(--mu)">{tenant}</span>
-    </div>
-  </div>
-  <div class="container">
-{content}
-  </div>
-</div>
-
-</body>
-</html>"#
-    )
+fn layout(title: &str, active: &str, user: &User, state: &AppState, content: &str) -> String {
+    crate::auth::routes::layout(title, active, user, &state.tenant_name, content)
 }
 
-fn error_html(tenant: &str, msg: &str) -> Html<String> {
+fn err(user: &User, state: &AppState, msg: &str) -> Html<String> {
     Html(layout(
         "Erreur",
         "",
-        tenant,
+        user,
+        state,
         &format!(
-            r#"<div class="alert-bar">⚠️ <strong>Erreur :</strong> {}</div>"#,
+            r#"<div class="err-bar">⚠️ <strong>Erreur :</strong> {}</div>"#,
             esc(msg)
         ),
     ))
@@ -222,18 +43,21 @@ fn error_html(tenant: &str, msg: &str) -> Html<String> {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
-pub async fn dashboard(State(state): State<Arc<AppState>>) -> Html<String> {
+pub async fn dashboard(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
     let (items, mvts) = tokio::join!(
         super::get_stock_actuel(&state.pool),
         super::get_mouvements(&state.pool, 8),
     );
     let items = match items {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
     let mvts = match mvts {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
 
     let total = items.len();
@@ -298,7 +122,7 @@ pub async fn dashboard(State(state): State<Arc<AppState>>) -> Html<String> {
 </div>"#
     );
 
-    Html(layout("Tableau de bord", "dashboard", &state.tenant_name, &content))
+    Html(layout("Tableau de bord", "dashboard", &user, &state, &content))
 }
 
 fn stock_row(i: &StockItem) -> String {
@@ -355,18 +179,21 @@ fn mvt_row_small(m: &Mouvement) -> String {
 
 // ── Articles ─────────────────────────────────────────────────────────────────
 
-pub async fn articles_list(State(state): State<Arc<AppState>>) -> Html<String> {
+pub async fn articles_list(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
     let (items, articles) = tokio::join!(
         super::get_stock_actuel(&state.pool),
         super::get_articles(&state.pool),
     );
     let items = match items {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
     let articles = match articles {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
 
     let stock_map: std::collections::HashMap<Uuid, i64> =
@@ -423,11 +250,14 @@ pub async fn articles_list(State(state): State<Arc<AppState>>) -> Html<String> {
 </div>"#,
         n = articles.len(),
     );
-    Html(layout("Articles", "articles", &state.tenant_name, &content))
+    Html(layout("Articles", "articles", &user, &state, &content))
 }
 
-pub async fn article_form(State(state): State<Arc<AppState>>) -> Html<String> {
-    Html(layout("Nouvel article", "articles", &state.tenant_name, ARTICLE_FORM))
+pub async fn article_form(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
+    Html(layout("Nouvel article", "articles", &user, &state, ARTICLE_FORM))
 }
 
 const ARTICLE_FORM: &str = r#"
@@ -498,12 +328,13 @@ pub struct ArticleForm {
 
 pub async fn article_create(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
     Form(f): Form<ArticleForm>,
 ) -> impl IntoResponse {
     let code = f.code.trim().to_string();
     let nom = f.nom.trim().to_string();
     if code.is_empty() || nom.is_empty() {
-        return error_html(&state.tenant_name, "Code et désignation sont obligatoires.").into_response();
+        return err(&user, &state, "Code et désignation sont obligatoires.").into_response();
     }
     let prix = f
         .prix_unitaire
@@ -520,34 +351,38 @@ pub async fn article_create(
 
     match super::create_article(&state.pool, &code, &nom, desc, cat, &f.unite, prix, seuil).await {
         Ok(_) => Redirect::to("/articles").into_response(),
-        Err(e) => error_html(&state.tenant_name, &e.to_string()).into_response(),
+        Err(e) => err(&user, &state, &e.to_string()).into_response(),
     }
 }
 
 pub async fn article_delete(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match super::delete_article(&state.pool, id).await {
         Ok(_) => Redirect::to("/articles").into_response(),
-        Err(e) => error_html(&state.tenant_name, &e.to_string()).into_response(),
+        Err(e) => err(&user, &state, &e.to_string()).into_response(),
     }
 }
 
 // ── Mouvements ───────────────────────────────────────────────────────────────
 
-pub async fn mouvements_page(State(state): State<Arc<AppState>>) -> Html<String> {
+pub async fn mouvements_page(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
     let (articles, mvts) = tokio::join!(
         super::get_articles(&state.pool),
         super::get_mouvements(&state.pool, 50),
     );
     let articles = match articles {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
     let mvts = match mvts {
         Ok(v) => v,
-        Err(e) => return error_html(&state.tenant_name, &e.to_string()),
+        Err(e) => return err(&user, &state, &e.to_string()),
     };
 
     let options: String = articles
@@ -631,7 +466,7 @@ pub async fn mouvements_page(State(state): State<Arc<AppState>>) -> Html<String>
 </div>"#
     );
 
-    Html(layout("Mouvements", "mouvements", &state.tenant_name, &content))
+    Html(layout("Mouvements", "mouvements", &user, &state, &content))
 }
 
 fn mvt_row_full(m: &Mouvement) -> String {
@@ -673,21 +508,21 @@ pub struct MouvementForm {
 
 pub async fn mouvement_create(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
     Form(f): Form<MouvementForm>,
 ) -> impl IntoResponse {
     let article_id = match f.article_id.trim().parse::<Uuid>() {
         Ok(id) => id,
-        Err(_) => return error_html(&state.tenant_name, "Article invalide.").into_response(),
+        Err(_) => return err(&user, &state, "Article invalide.").into_response(),
     };
     let mut qty: i32 = match f.quantite.trim().parse() {
         Ok(q) if q != 0 => q,
-        _ => return error_html(&state.tenant_name, "La quantité doit être un entier non nul.").into_response(),
+        _ => return err(&user, &state, "La quantité doit être un entier non nul.").into_response(),
     };
     let type_mvt = f.type_mvt.trim();
     if !["entree", "sortie", "ajustement"].contains(&type_mvt) {
-        return error_html(&state.tenant_name, "Type de mouvement invalide.").into_response();
+        return err(&user, &state, "Type de mouvement invalide.").into_response();
     }
-    // Pour une sortie, on stocke la quantité en négatif
     if type_mvt == "sortie" && qty > 0 {
         qty = -qty;
     }
@@ -696,6 +531,6 @@ pub async fn mouvement_create(
 
     match super::create_mouvement(&state.pool, article_id, type_mvt, qty, reference, notes).await {
         Ok(_) => Redirect::to("/mouvements").into_response(),
-        Err(e) => error_html(&state.tenant_name, &e.to_string()).into_response(),
+        Err(e) => err(&user, &state, &e.to_string()).into_response(),
     }
 }
