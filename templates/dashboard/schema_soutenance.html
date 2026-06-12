@@ -602,128 +602,147 @@ svg text{font-family:'Segoe UI',Arial,sans-serif}
 </div>
 
 <!-- ═══════════════════════════════════════════════
-     SLIDE 5 — Enrôlement d'un nouveau nœud
+     SLIDE 5 — Installation & Enrôlement depuis la licence
 ═══════════════════════════════════════════════ -->
 <div class="slide" id="s4">
   <div class="sh">
-    <div class="sh-tag">Slide 5/8 — Enrôlement</div>
-    <div class="sh-title">Enrôlement d'une nouvelle machine — QR Code + sealed_box</div>
-    <div class="sh-sub">5 étapes · Jeton usage unique · La DEK transite chiffrée asymétriquement</div>
+    <div class="sh-tag">Slide 5/8 — Installation & Enrôlement</div>
+    <div class="sh-title">De la souscription de licence à la première machine active</div>
+    <div class="sh-sub">Tout part de la licence souscrite chez l'éditeur · Déploiement via image Docker · Token d'installation unique</div>
   </div>
   <div class="ca">
     <div class="sp">
-      <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 660 370" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="ea" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6EE7B7"/></marker>
           <marker id="eb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#93C5FD"/></marker>
-          <path id="e1" d="M124 96 Q180 96 238 96"/>
-          <path id="e2" d="M380 96 Q420 96 460 96"/>
-          <path id="e3" d="M600 148 Q600 190 600 230"/>
-          <path id="e4" d="M600 270 Q520 270 460 240"/>
-          <path id="e5" d="M238 310 Q178 310 118 290"/>
+          <marker id="ec" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#A78BFA"/></marker>
+          <marker id="ed" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#FCA5A5"/></marker>
+          <path id="e1" d="M196 58 Q230 58 264 58"/>
+          <path id="e2" d="M372 58 Q406 58 440 58"/>
+          <path id="e3" d="M548 78 Q548 116 548 144"/>
+          <path id="e4" d="M480 200 Q420 200 372 200"/>
+          <path id="e5" d="M264 220 Q230 220 196 220"/>
         </defs>
 
-        <!-- Step nodes (horizontal: steps 1-3, then vertical down, then back) -->
-
-        <!-- Step 1: Nouveau nœud génère paire X25519 -->
-        <circle cx="60" cy="96" r="34" fill="#081808" stroke="#059669" stroke-width="2"/>
-        <text x="60" y="88" text-anchor="middle" font-size="10" font-weight="800" fill="#6EE7B7">NOUVEAU</text>
-        <text x="60" y="101" text-anchor="middle" font-size="9" fill="#9CA3AF">NŒUD</text>
-        <text x="60" y="114" text-anchor="middle" font-size="9" fill="#9CA3AF">C</text>
-
-        <rect x="18" y="144" width="84" height="56" rx="5" fill="#0A1410" stroke="#064E3B" stroke-width="1"/>
-        <text x="60" y="160" text-anchor="middle" font-size="9" font-weight="700" fill="#34D399">① Génère</text>
-        <text x="60" y="174" text-anchor="middle" font-size="8.5" fill="#9CA3AF">(privkey_C, pubkey_C)</text>
-        <text x="60" y="186" text-anchor="middle" font-size="8" fill="#9CA3AF">X25519</text>
-        <text x="60" y="197" text-anchor="middle" font-size="8" fill="#9CA3AF">QR → pubkey_C</text>
+        <!-- STEP 1: Portail SaaS éditeur -->
+        <rect x="4" y="20" width="192" height="76" rx="7" fill="#130808" stroke="#DC2626" stroke-width="1.8"/>
+        <rect x="4" y="20" width="192" height="22" rx="7" fill="#991B1B"/>
+        <rect x="4" y="32" width="192" height="10" fill="#991B1B"/>
+        <text x="100" y="36" text-anchor="middle" font-size="9.5" font-weight="800" fill="white">① PORTAIL SaaS ÉDITEUR</text>
+        <text x="100" y="57" text-anchor="middle" font-size="9" fill="#FCA5A5">PME souscrit une licence</text>
+        <text x="100" y="70" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Compte tenant créé</text>
+        <text x="100" y="83" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Nb postes · Durée</text>
 
         <!-- Arrow 1→2 -->
-        <path d="M94 96 Q160 96 232 96" fill="none" stroke="#6EE7B7" stroke-width="1.4" marker-end="url(#ea)"/>
-        <rect x="110" y="78" width="104" height="32" rx="4" fill="#0D1117" stroke="#1E2837"/>
-        <text x="162" y="91" text-anchor="middle" font-size="8" font-weight="700" fill="#6EE7B7">QR Code scanné</text>
-        <text x="162" y="102" text-anchor="middle" font-size="7.5" fill="#6B7280">pubkey_C transmis</text>
-        <circle r="3.5" fill="#6EE7B7" opacity=".9">
-          <animateMotion dur="2s" repeatCount="indefinite" begin=".3s"><mpath href="#e1"/></animateMotion>
+        <path d="M196 58 Q230 58 264 58" fill="none" stroke="#FCA5A5" stroke-width="1.4" marker-end="url(#ed)"/>
+        <rect x="200" y="42" width="62" height="30" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="231" y="55" text-anchor="middle" font-size="7.5" fill="#FCA5A5" font-weight="700">UUID inst.</text>
+        <text x="231" y="66" text-anchor="middle" font-size="7" fill="#6B7280">+ token</text>
+        <circle r="3" fill="#FCA5A5" opacity=".9">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0s"><mpath href="#e1"/></animateMotion>
         </circle>
 
-        <!-- Step 2: Nœud autorisé -->
-        <circle cx="300" cy="96" r="34" fill="#1A0E30" stroke="#A78BFA" stroke-width="2"/>
-        <text x="300" y="88" text-anchor="middle" font-size="10" font-weight="800" fill="#C4B5FD">NŒUD</text>
-        <text x="300" y="101" text-anchor="middle" font-size="9" fill="#9CA3AF">AUTORISÉ</text>
-        <text x="300" y="114" text-anchor="middle" font-size="9" fill="#9CA3AF">A ou B</text>
-
-        <rect x="238" y="144" width="124" height="66" rx="5" fill="#0A0820" stroke="#4C1D95" stroke-width="1"/>
-        <text x="300" y="160" text-anchor="middle" font-size="9" font-weight="700" fill="#A78BFA">② Reçoit pubkey_C</text>
-        <text x="300" y="174" text-anchor="middle" font-size="8.5" fill="#9CA3AF">③ Chiffre la DEK :</text>
-        <text x="300" y="188" text-anchor="middle" font-size="8.5" fill="#C4B5FD">sealed_box(DEK, pubkey_C)</text>
-        <text x="300" y="200" text-anchor="middle" font-size="8" fill="#9CA3AF">→ blob chiffré</text>
+        <!-- STEP 2: PME télécharge -->
+        <rect x="264" y="20" width="176" height="76" rx="7" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.5"/>
+        <rect x="264" y="20" width="176" height="22" rx="7" fill="#3730A3"/>
+        <rect x="264" y="32" width="176" height="10" fill="#3730A3"/>
+        <text x="352" y="36" text-anchor="middle" font-size="9.5" font-weight="800" fill="white">② PME TÉLÉCHARGE</text>
+        <text x="352" y="57" text-anchor="middle" font-size="8.5" fill="#A5B4FC">Image Docker multi-arch</text>
+        <text x="352" y="70" text-anchor="middle" font-size="8.5" fill="#A5B4FC">docker-compose.yml</text>
+        <text x="352" y="83" text-anchor="middle" font-size="8" fill="#6B7280">Token intégré · UUID nœud</text>
 
         <!-- Arrow 2→3 -->
-        <path d="M334 96 Q400 96 456 96" fill="none" stroke="#93C5FD" stroke-width="1.4" marker-end="url(#eb)"/>
-        <rect x="352" y="78" width="98" height="32" rx="4" fill="#0D1117" stroke="#1E2837"/>
-        <text x="401" y="91" text-anchor="middle" font-size="8" font-weight="700" fill="#93C5FD">Blob envoyé</text>
-        <text x="401" y="102" text-anchor="middle" font-size="7.5" fill="#6B7280">via relais HTTPS</text>
-        <circle r="3.5" fill="#93C5FD" opacity=".9">
-          <animateMotion dur="1.8s" repeatCount="indefinite" begin=".7s"><mpath href="#e2"/></animateMotion>
+        <path d="M440 58 Q486 58 540 58" fill="none" stroke="#93C5FD" stroke-width="1.4" marker-end="url(#eb)"/>
+        <rect x="444" y="42" width="76" height="30" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="482" y="55" text-anchor="middle" font-size="7.5" fill="#93C5FD" font-weight="700">docker run</text>
+        <text x="482" y="66" text-anchor="middle" font-size="7" fill="#6B7280">ss-node init</text>
+        <circle r="3" fill="#93C5FD" opacity=".9">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin=".5s"><mpath href="#e2"/></animateMotion>
         </circle>
 
-        <!-- Step 3: Relais transit -->
-        <rect x="466" y="62" width="136" height="68" rx="7" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.5"/>
-        <text x="534" y="84" text-anchor="middle" font-size="9.5" font-weight="700" fill="#A5B4FC">④ Relais</text>
-        <text x="534" y="99" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Transit opaque</text>
-        <text x="534" y="113" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Ne déchiffre pas</text>
-        <text x="534" y="124" text-anchor="middle" font-size="8" fill="#6B7280">Jeton usage unique validé</text>
+        <!-- STEP 3: ss-node init -->
+        <rect x="476" y="20" width="180" height="122" rx="7" fill="#081808" stroke="#059669" stroke-width="2"/>
+        <rect x="476" y="20" width="180" height="22" rx="7" fill="#059669"/>
+        <rect x="476" y="32" width="180" height="10" fill="#059669"/>
+        <text x="566" y="36" text-anchor="middle" font-size="9.5" font-weight="800" fill="white">③ ss-node INIT</text>
+        <text x="566" y="57" text-anchor="middle" font-size="8.5" fill="#6EE7B7">Génère paire X25519</text>
+        <text x="566" y="71" text-anchor="middle" font-size="8.5" fill="#6EE7B7">(privkey, pubkey) nœud</text>
+        <text x="566" y="85" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Génère DEK (1er nœud)</text>
+        <text x="566" y="99" text-anchor="middle" font-size="8.5" fill="#9CA3AF">sealed_box(DEK, pubkey)</text>
+        <text x="566" y="113" text-anchor="middle" font-size="8.5" fill="#9CA3AF">→ blob envoyé relais</text>
+        <text x="566" y="130" text-anchor="middle" font-size="8" fill="#34D399">Token validé → nœud actif</text>
 
-        <!-- Arrow transit down -->
-        <path d="M534 130 L534 174" fill="none" stroke="#4F46E5" stroke-width="1.3" stroke-dasharray="4,2" marker-end="url(#ea)"/>
-
-        <rect x="466" y="174" width="136" height="58" rx="7" fill="#081808" stroke="#059669" stroke-width="1.5"/>
-        <text x="534" y="196" text-anchor="middle" font-size="9.5" font-weight="700" fill="#6EE7B7">⑤ Nouveau nœud C</text>
-        <text x="534" y="211" text-anchor="middle" font-size="8.5" fill="#9CA3AF">open_box(blob, privkey_C)</text>
-        <text x="534" y="225" text-anchor="middle" font-size="8.5" fill="#6EE7B7">→ DEK retrouvée ✓</text>
-
-        <!-- Token invalidation -->
-        <rect x="380" y="260" width="270" height="44" rx="5" fill="#130808" stroke="#DC2626" stroke-width="1" stroke-dasharray="4,2"/>
-        <text x="515" y="278" text-anchor="middle" font-size="9" fill="#F87171">⑥ Jeton d'invitation invalidé (usage unique)</text>
-        <text x="515" y="292" text-anchor="middle" font-size="8.5" fill="#6B7280">Courte durée de vie · Replay impossible</text>
-
-        <!-- Cluster after enrolment -->
-        <rect x="18" y="248" width="352" height="48" rx="6" fill="#081808" stroke="#059669" stroke-width="1.5"/>
-        <text x="194" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#6EE7B7">Cluster PME après enrôlement</text>
-        <text x="194" y="284" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœuds A, B, C — tous ont accès à la DEK via leur blob personnel</text>
-
-        <!-- Animated flow step 3-4 -->
-        <circle r="3" fill="#6EE7B7" opacity=".85">
-          <animateMotion dur="2.2s" repeatCount="indefinite" begin="1.2s">
-            <mpath href="#e3"/>
-          </animateMotion>
+        <!-- Arrow 3→Relais -->
+        <path d="M548 142 L548 170" fill="none" stroke="#4F46E5" stroke-width="1.4" stroke-dasharray="4,2" marker-end="url(#ec)"/>
+        <circle r="3" fill="#4F46E5" opacity=".9">
+          <animateMotion dur="1.6s" repeatCount="indefinite" begin=".8s"><mpath href="#e3"/></animateMotion>
         </circle>
+
+        <!-- STEP 4: Relais valide -->
+        <rect x="440" y="170" width="252" height="68" rx="7" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.5"/>
+        <rect x="440" y="170" width="252" height="20" rx="7" fill="#312E81"/>
+        <rect x="440" y="180" width="252" height="10" fill="#312E81"/>
+        <text x="566" y="185" text-anchor="middle" font-size="9.5" font-weight="800" fill="white">④ RELAIS — Validation token</text>
+        <text x="566" y="204" text-anchor="middle" font-size="8.5" fill="#A5B4FC">Présente token à l'éditeur → licence OK</text>
+        <text x="566" y="218" text-anchor="middle" font-size="8.5" fill="#A5B4FC">Stocke blob sealed_box → MinIO</text>
+        <text x="566" y="231" text-anchor="middle" font-size="8" fill="#6B7280">UUID nœud enregistré · ne lit pas le blob</text>
+
+        <!-- Arrow Relais→PME -->
+        <path d="M440 204 Q406 204 372 204" fill="none" stroke="#6EE7B7" stroke-width="1.4" marker-end="url(#ea)"/>
+        <rect x="378" y="188" width="60" height="30" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="408" y="201" text-anchor="middle" font-size="7.5" fill="#6EE7B7" font-weight="700">Confirmé</text>
+        <text x="408" y="213" text-anchor="middle" font-size="7" fill="#6B7280">Token OK</text>
+        <circle r="3" fill="#6EE7B7" opacity=".9">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="1.2s"><mpath href="#e4"/></animateMotion>
+        </circle>
+
+        <!-- STEP 5: Nœud actif -->
+        <rect x="4" y="170" width="364" height="68" rx="7" fill="#0A1408" stroke="#059669" stroke-width="1.8"/>
+        <rect x="4" y="170" width="364" height="20" rx="7" fill="#064E3B"/>
+        <rect x="4" y="180" width="364" height="10" fill="#064E3B"/>
+        <text x="186" y="185" text-anchor="middle" font-size="9.5" font-weight="800" fill="white">⑤ NŒUD ACTIF — Cluster PME opérationnel</text>
+        <text x="186" y="204" text-anchor="middle" font-size="8.5" fill="#6EE7B7">DEK accessible via blob relais + privkey locale</text>
+        <text x="186" y="218" text-anchor="middle" font-size="8.5" fill="#9CA3AF">PostgreSQL démarré · WAL actif · Données accessibles</text>
+        <text x="186" y="231" text-anchor="middle" font-size="8" fill="#34D399">Portail éditeur : UUID visible, heartbeat reçu</text>
+
+        <!-- Ajout nœud suivant -->
+        <rect x="4" y="256" width="652" height="100" rx="7" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <rect x="4" y="256" width="652" height="20" rx="7" fill="#161B22"/>
+        <rect x="4" y="266" width="652" height="10" fill="#161B22"/>
+        <text x="330" y="271" text-anchor="middle" font-size="9" font-weight="700" fill="#6B7280">AJOUT D'UN 2ᵉ OU 3ᵉ NŒUD (même procédure, licence déjà active)</text>
+        <text x="330" y="293" text-anchor="middle" font-size="9" fill="#9CA3AF">Télécharger image Docker · token de cluster (différent du token initial) · ss-node init --join</text>
+        <text x="330" y="309" text-anchor="middle" font-size="9" fill="#9CA3AF">Le nouveau nœud génère sa paire X25519 · envoie pubkey au relais</text>
+        <text x="330" y="325" text-anchor="middle" font-size="9" fill="#A5B4FC">Le nœud primaire existant crée sealed_box(DEK, pubkey_nouveau) → blob stocké MinIO</text>
+        <text x="330" y="341" text-anchor="middle" font-size="9" fill="#34D399">Nouveau nœud récupère son blob → ouvre avec sa privkey → DEK disponible → cluster ≥ 2</text>
       </svg>
     </div>
     <div class="ip">
       <div class="ic">
-        <h4 style="color:#6EE7B7">Propriétés de sécurité</h4>
+        <h4 style="color:#FCA5A5">Déclencheur : la Licence</h4>
         <ul>
-          <li class="g"><span>La DEK ne transite jamais en clair sur le réseau</span></li>
-          <li class="g"><span>Jeton à usage unique — replay impossible</span></li>
-          <li class="g"><span>Courte durée de vie (minutes)</span></li>
-          <li class="g"><span>Révocation possible : supprimer le blob du nœud</span></li>
+          <li class="b"><span>La PME souscrit sur le portail SaaS éditeur</span></li>
+          <li class="b"><span>L'éditeur génère UUID installation + token d'accès</span></li>
+          <li class="b"><span>Image Docker + docker-compose.yml téléchargés</span></li>
+          <li class="b"><span>Token embarqué dans le compose → premier démarrage</span></li>
         </ul>
       </div>
       <div class="ic">
-        <h4 style="color:#93C5FD">Protocole sealed_box</h4>
+        <h4 style="color:#6EE7B7">Premier nœud (ss-node init)</h4>
         <ul>
-          <li class="b"><span>Nonce éphémère aléatoire (32 bytes)</span></li>
-          <li class="b"><span>ECDH X25519 + XSalsa20-Poly1305</span></li>
-          <li class="b"><span>Authentification intégrée : intégrité garantie</span></li>
+          <li class="b"><span>Génère la DEK (unique pour cette PME)</span></li>
+          <li class="b"><span>Génère paire X25519 (identité du nœud)</span></li>
+          <li class="b"><span>sealed_box(DEK, pubkey) → blob → MinIO relais</span></li>
+          <li class="g"><span>Token validé → UUID enregistré chez l'éditeur</span></li>
         </ul>
       </div>
       <div class="ic">
-        <h4 style="color:#F87171">Dé-enrôlement</h4>
+        <h4 style="color:#A5B4FC">Ajout de nœuds suivants</h4>
         <ul>
-          <li class="b"><span>Suppression du blob MinIO du nœud</span></li>
-          <li class="b"><span>Rotation DEK optionnelle si nœud compromis</span></li>
-          <li class="b"><span>Recalcul du quorum · Alerte si 3→2 nœuds</span></li>
+          <li class="b"><span>Même licence · token de cluster distinct</span></li>
+          <li class="b"><span>Nouveau nœud envoie sa pubkey au relais</span></li>
+          <li class="b"><span>Primaire existant wraps DEK → sealed_box nouveau</span></li>
+          <li class="g"><span>≥ 3 nœuds → failover automatique disponible</span></li>
         </ul>
       </div>
     </div>
