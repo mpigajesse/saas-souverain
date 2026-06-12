@@ -5,315 +5,1125 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Schéma — SaaS Souverain</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #fff; font-family: Arial, "Helvetica Neue", sans-serif; padding: 18px 20px 40px; color: #333; }
-.topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; }
-.topbar-title { font-size:12px; font-weight:600; color:#6b7280; }
-.topbar-actions { display:flex; gap:8px; }
-.btn { padding:5px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; border:1px solid; transition:background .15s; }
-.btn-back { background:#f9fafb; border-color:#d1d5db; color:#374151; }
-.btn-back:hover { background:#f3f4f6; }
-.btn-fs { background:#EFF6FF; border-color:#BFDBFE; color:#1D4ED8; }
-.btn-fs:hover { background:#DBEAFE; }
-.hdr { text-align:center; margin-bottom:16px; }
-.hdr h1 { font-size:20px; font-weight:700; color:#111827; margin-bottom:4px; }
-.hdr p { font-size:12px; color:#6b7280; }
-.diag-wrap { border:1px solid #e5e7eb; border-radius:10px; background:#fafafa; overflow:hidden; }
-svg text { font-family: Arial, "Helvetica Neue", sans-serif; }
-.panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
-.panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:15px 18px; }
-.panel h3 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f3f4f6; }
-.ktree { font-family:'Courier New',monospace; font-size:12px; line-height:1.95; color:#374151; }
-.kr { color:#4F46E5; font-weight:700; }
-.kh { color:#059669; font-weight:700; }
-.ka { color:#7C3AED; }
-.kn { color:#9CA3AF; font-size:11px; }
-.fo-row { display:flex; align-items:flex-start; gap:9px; padding:6px 0; border-bottom:1px solid #f9fafb; font-size:12px; }
-.fo-row:last-child { border-bottom:none; }
-.fo-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:4px; }
-.dr { background:#EF4444; }
-.dg { background:#10B981; }
-.dy { background:#F59E0B; }
-.fo-main { color:#111827; font-weight:600; line-height:1.4; }
-.fo-sub { color:#6b7280; font-size:11px; margin-top:1px; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#080C14;font-family:'Segoe UI',Arial,sans-serif;color:#E2E8F0}
+
+.tb{position:fixed;top:0;left:0;right:0;height:44px;background:#0D1117;border-bottom:1px solid #1E2837;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:200}
+.tb-brand{font-size:13px;font-weight:700;color:#58A6FF}
+.tb-slide{font-size:11px;color:#6B7280;margin-left:8px}
+.tb-r{display:flex;gap:8px}
+.btn{padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid;text-decoration:none;transition:all .15s;background:transparent}
+.btn-back{background:#161B22;border-color:#21262D;color:#C9D1D9}
+.btn-back:hover{background:#21262D}
+.btn-fs{background:#1F3A5F33;border-color:#1F6FEB;color:#58A6FF}
+.btn-fs:hover{background:#1F6FEB22}
+
+.stage{position:fixed;top:44px;left:0;right:0;bottom:34px;overflow:hidden}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:12px 50px 8px}
+.slide.on{display:flex}
+
+.sh{flex-shrink:0;margin-bottom:10px}
+.sh-tag{font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#58A6FF;margin-bottom:2px}
+.sh-title{font-size:19px;font-weight:800;color:#F0F6FC;line-height:1.15}
+.sh-sub{font-size:11px;color:#6B7280;margin-top:2px}
+
+.ca{flex:1;min-height:0;display:flex;gap:14px}
+.sp{flex:3;display:flex;align-items:center;justify-content:center;min-width:0}
+.sp svg{max-width:100%;max-height:100%}
+.ip{flex:1.4;display:flex;flex-direction:column;gap:8px;justify-content:center;overflow-y:auto}
+.sp-full{flex:1;display:flex;align-items:center;justify-content:center}
+.sp-full svg{max-width:100%;max-height:100%}
+
+.ic{background:#0D1117;border:1px solid #1E2837;border-radius:8px;padding:10px 13px}
+.ic h4{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #1E2837}
+.ic ul{list-style:none}
+.ic li{font-size:11px;color:#8B949E;padding:2px 0;display:flex;gap:5px;align-items:flex-start;line-height:1.4}
+.g::before{content:'✓';color:#3FB950;flex-shrink:0}
+.r::before{content:'✗';color:#F85149;flex-shrink:0}
+.b::before{content:'→';color:#58A6FF;flex-shrink:0}
+.y::before{content:'⚡';color:#E3B341;flex-shrink:0}
+.ic li span{color:#C9D1D9}
+
+.dots{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:200}
+.d{width:7px;height:7px;border-radius:50%;background:#1E2837;cursor:pointer;transition:all .2s}
+.d.on{background:#58A6FF;transform:scale(1.3)}
+.d:hover{background:#374151}
+
+.an{position:fixed;top:50%;transform:translateY(-50%);z-index:150;background:rgba(13,17,23,.8);border:1px solid #1E2837;color:#C9D1D9;width:34px;height:50px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .15s}
+.an:hover{background:rgba(31,111,235,.15);border-color:#1F6FEB}
+.al{left:8px}.ar{right:8px}
+
+@keyframes dash-anim{to{stroke-dashoffset:-16}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes blink-r{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes row-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+@keyframes grow-badge{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+svg text{font-family:'Segoe UI',Arial,sans-serif}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-title">SaaS Souverain &nbsp;·&nbsp; Schéma d'architecture — style draw.io</div>
-  <div class="topbar-actions">
+<div class="tb">
+  <div style="display:flex;align-items:center">
+    <span class="tb-brand">SaaS Souverain</span>
+    <span class="tb-slide" id="sc"></span>
+  </div>
+  <div class="tb-r">
     <a href="/architecture/" class="btn btn-back">← Retour</a>
-    <button class="btn btn-fs" onclick="document.documentElement.requestFullscreen?.() ?? document.documentElement.webkitRequestFullscreen?.()">⛶ Plein écran</button>
+    <button class="btn btn-fs" onclick="toggleFS()">⛶ Plein écran</button>
   </div>
 </div>
 
-<div class="hdr">
-  <h1>Architecture SaaS Souverain</h1>
-  <p>Flux zero-knowledge &nbsp;·&nbsp; Données souveraines sur cluster PME &nbsp;·&nbsp; Réplication PostgreSQL distribuée</p>
-</div>
+<button class="an al" onclick="go(-1)">‹</button>
+<button class="an ar" onclick="go(1)">›</button>
 
-<div class="diag-wrap">
-<svg viewBox="0 0 1260 700" xmlns="http://www.w3.org/2000/svg">
-<defs>
-  <filter id="sh">
-    <feDropShadow dx="1.5" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,.13)"/>
-  </filter>
-  <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
-    <polygon points="0 0,9 3.5,0 7" fill="#555"/>
-  </marker>
-  <marker id="arrG" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
-    <polygon points="0 0,9 3.5,0 7" fill="#059669"/>
-  </marker>
-  <marker id="arrV" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
-    <polygon points="0 0,9 3.5,0 7" fill="#4F46E5"/>
-  </marker>
-  <marker id="arrR" markerWidth="9" markerHeight="7" refX="1" refY="3.5" orient="auto">
-    <polygon points="9 0,0 3.5,9 7" fill="#555"/>
-  </marker>
-  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-    <path d="M20 0L0 0 0 20" fill="none" stroke="#E5E7EB" stroke-width=".5"/>
-  </pattern>
-</defs>
+<div class="stage">
 
-<!-- BG -->
-<rect width="1260" height="700" fill="url(#grid)"/>
-<rect width="1260" height="700" fill="rgba(250,250,250,.7)"/>
-
-<!-- ════════════════════ ZONE 1 — ÉDITEUR ════════════════════ -->
-<rect x="14" y="14" width="294" height="672" rx="8" fill="#FFF5F5" stroke="#DC2626" stroke-width="1.5"/>
-<rect x="14" y="14" width="294" height="34" rx="8" fill="#DC2626"/>
-<rect x="14" y="30" width="294" height="18" fill="#DC2626"/>
-<text x="34" y="36" font-size="13" font-weight="800" fill="white">①</text>
-<text x="161" y="36" text-anchor="middle" font-size="11" font-weight="800" fill="white" letter-spacing=".05em">ÉDITEUR SaaS</text>
-
-<!-- IP -->
-<rect x="50" y="57" width="202" height="19" rx="4" fill="rgba(220,38,38,.1)" stroke="rgba(220,38,38,.28)" stroke-width="1"/>
-<text x="151" y="70" text-anchor="middle" font-size="9.5" fill="#B91C1C" font-family="'Courier New',monospace" font-weight="600">192.168.200.1 · :8000</text>
-
-<!-- Django box -->
-<rect x="28" y="88" width="266" height="80" rx="5" fill="white" stroke="#6C8EBF" stroke-width="1.5" filter="url(#sh)"/>
-<rect x="28" y="88" width="266" height="24" rx="5" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
-<rect x="28" y="100" width="266" height="12" fill="#DAE8FC"/>
-<text x="161" y="105" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1e3a5f">Django + React / TypeScript</text>
-<text x="161" y="125" text-anchor="middle" font-size="9.5" fill="#444">Portail SaaS · Gestion tenants &amp; licences</text>
-<text x="161" y="140" text-anchor="middle" font-size="9.5" fill="#444">Supervision clusters PME</text>
-<text x="161" y="157" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">✓ Voit : comptes &amp; licences uniquement</text>
-
-<!-- Arrow Django → PG -->
-<line x1="161" y1="168" x2="161" y2="194" stroke="#777" stroke-width="1.4" marker-end="url(#arr)"/>
-
-<!-- PG Éditeur cylinder -->
-<rect x="42" y="207" width="238" height="56" fill="white" stroke="#82B366" stroke-width="1.5" filter="url(#sh)"/>
-<ellipse cx="161" cy="207" rx="119" ry="13" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
-<ellipse cx="161" cy="263" rx="119" ry="13" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
-<text x="161" y="231" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a4d25">PostgreSQL (éditeur)</text>
-<text x="161" y="248" text-anchor="middle" font-size="9.5" fill="#555">Tenants · Devices · Sessions</text>
-<text x="161" y="264" text-anchor="middle" font-size="9" fill="#991B1B" font-weight="600">✗ Jamais les données métier PME</text>
-
-<!-- Note box -->
-<rect x="24" y="292" width="274" height="124" rx="5" fill="rgba(220,38,38,.04)" stroke="rgba(220,38,38,.22)" stroke-dasharray="5,3" stroke-width="1.2"/>
-<text x="161" y="312" text-anchor="middle" font-size="10" font-weight="700" fill="#DC2626">Visibilité de l'éditeur</text>
-<text x="38" y="332" font-size="9.5" fill="#333">✓  UUID nœuds &amp; rôle cluster</text>
-<text x="38" y="349" font-size="9.5" fill="#333">✓  Dernier heartbeat reçu</text>
-<text x="38" y="366" font-size="9.5" fill="#333">✓  Compteur de failovers</text>
-<text x="38" y="383" font-size="9.5" fill="#999">✗  Données stock / paie / facturation</text>
-<text x="38" y="400" font-size="9.5" fill="#999">✗  Clés DEK ou clés privées X25519</text>
-
-
-<!-- ════════════════════ ZONE 2 — RELAIS ════════════════════ -->
-<rect x="410" y="14" width="262" height="672" rx="8" fill="#EEF2FF" stroke="#4F46E5" stroke-width="1.5"/>
-<rect x="410" y="14" width="262" height="34" rx="8" fill="#4F46E5"/>
-<rect x="410" y="30" width="262" height="18" fill="#4F46E5"/>
-<text x="430" y="36" font-size="13" font-weight="800" fill="white">②</text>
-<text x="541" y="36" text-anchor="middle" font-size="11" font-weight="800" fill="white" letter-spacing=".05em">RELAIS ZERO-KNOWLEDGE</text>
-
-<!-- IP -->
-<rect x="442" y="57" width="198" height="19" rx="4" fill="rgba(99,102,241,.12)" stroke="rgba(99,102,241,.3)" stroke-width="1"/>
-<text x="541" y="70" text-anchor="middle" font-size="9.5" fill="#4338CA" font-family="'Courier New',monospace" font-weight="600">192.168.100.100 · :8080</text>
-
-<!-- Rust box -->
-<rect x="424" y="88" width="236" height="80" rx="5" fill="white" stroke="#6C8EBF" stroke-width="1.5" filter="url(#sh)"/>
-<rect x="424" y="88" width="236" height="24" rx="5" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
-<rect x="424" y="100" width="236" height="12" fill="#DAE8FC"/>
-<text x="542" y="105" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1e3a5f">Service Rust Stateless</text>
-<text x="542" y="125" text-anchor="middle" font-size="9.5" fill="#444">Point de rendez-vous multi-sites</text>
-<text x="542" y="140" text-anchor="middle" font-size="9.5" fill="#444">Enregistrement nœuds PME</text>
-<text x="542" y="157" text-anchor="middle" font-size="9" fill="#991B1B" font-weight="600">✗ Ne lit jamais le contenu</text>
-
-<!-- Arrow Rust → MinIO -->
-<line x1="542" y1="168" x2="542" y2="198" stroke="#777" stroke-width="1.4" marker-end="url(#arr)"/>
-
-<!-- MinIO box -->
-<rect x="424" y="198" width="236" height="80" rx="5" fill="white" stroke="#6C8EBF" stroke-width="1.5" filter="url(#sh)"/>
-<rect x="424" y="198" width="236" height="24" rx="5" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
-<rect x="424" y="210" width="236" height="12" fill="#DAE8FC"/>
-<text x="542" y="215" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1e3a5f">MinIO · Stockage Objet (S3)</text>
-<text x="542" y="235" text-anchor="middle" font-size="9.5" fill="#444">Blobs DEK chiffrés XChaCha20</text>
-<text x="542" y="250" text-anchor="middle" font-size="9.5" fill="#444">Blob récupération Argon2id</text>
-<text x="542" y="267" text-anchor="middle" font-size="9" fill="#1D4ED8" font-weight="600">🔒 Blobs opaques — jamais déchiffrés</text>
-
-<!-- ZK note -->
-<rect x="420" y="296" width="244" height="130" rx="5" fill="rgba(99,102,241,.05)" stroke="rgba(99,102,241,.22)" stroke-dasharray="5,3" stroke-width="1.2"/>
-<text x="542" y="316" text-anchor="middle" font-size="10" font-weight="700" fill="#4F46E5">Garantie Zero-Knowledge</text>
-<text x="436" y="337" font-size="9.5" fill="#333">✓  UUID nœuds (metadata seulement)</text>
-<text x="436" y="354" font-size="9.5" fill="#333">✓  Blobs chiffrés (opaques)</text>
-<text x="436" y="371" font-size="9.5" fill="#999">✗  DEK — jamais en clair</text>
-<text x="436" y="388" font-size="9.5" fill="#999">✗  Clés privées X25519</text>
-<text x="436" y="405" font-size="9.5" fill="#999">✗  Données métier</text>
-
-
-<!-- ════════════════════ ZONE 3 — PME ════════════════════ -->
-<rect x="774" y="14" width="472" height="672" rx="8" fill="#F0FDF4" stroke="#059669" stroke-width="1.5"/>
-<rect x="774" y="14" width="472" height="34" rx="8" fill="#059669"/>
-<rect x="774" y="30" width="472" height="18" fill="#059669"/>
-<text x="794" y="36" font-size="13" font-weight="800" fill="white">③</text>
-<text x="1010" y="36" text-anchor="middle" font-size="11" font-weight="800" fill="white" letter-spacing=".05em">CLUSTER PME — PÉRIMÈTRE SOUVERAIN</text>
-
-<!-- IP badges -->
-<rect x="790" y="57" width="192" height="19" rx="4" fill="rgba(5,150,105,.12)" stroke="rgba(5,150,105,.3)" stroke-width="1"/>
-<text x="886" y="70" text-anchor="middle" font-size="9.5" fill="#065F46" font-family="'Courier New',monospace" font-weight="600">Kali · 192.168.200.128</text>
-<rect x="1008" y="57" width="224" height="19" rx="4" fill="rgba(245,158,11,.12)" stroke="rgba(245,158,11,.3)" stroke-width="1"/>
-<text x="1120" y="70" text-anchor="middle" font-size="9.5" fill="#92400E" font-family="'Courier New',monospace" font-weight="600">Ubuntu · 192.168.200.130</text>
-
-<!-- ss-node Primary (gold = important) -->
-<rect x="788" y="88" width="448" height="80" rx="5" fill="white" stroke="#D6B656" stroke-width="2" filter="url(#sh)"/>
-<rect x="788" y="88" width="448" height="24" rx="5" fill="#FFE6CC" stroke="#D6B656" stroke-width="2"/>
-<rect x="788" y="100" width="448" height="12" fill="#FFE6CC"/>
-<text x="800" y="106" font-size="9.5" font-weight="800" fill="#92400E">★ PRIMAIRE</text>
-<text x="1012" y="106" text-anchor="middle" font-size="10.5" font-weight="700" fill="#78350F">ss-node Rust — NODE_MODE=active</text>
-<text x="1012" y="125" text-anchor="middle" font-size="9.5" fill="#444">PostgreSQL 16 maître · Interface web :9001</text>
-<text x="1012" y="140" text-anchor="middle" font-size="9.5" fill="#444">DEK déchiffrée en RAM uniquement</text>
-<text x="1012" y="157" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">✓ Données en clair — périmètre souverain uniquement</text>
-
-<!-- Arrow Primary → PG Primary -->
-<line x1="1012" y1="168" x2="1012" y2="194" stroke="#777" stroke-width="1.4" marker-end="url(#arr)"/>
-
-<!-- PG Primary cylinder -->
-<rect x="847" y="207" width="330" height="56" fill="white" stroke="#82B366" stroke-width="1.5" filter="url(#sh)"/>
-<ellipse cx="1012" cy="207" rx="165" ry="13" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
-<ellipse cx="1012" cy="263" rx="165" ry="13" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
-<text x="1012" y="231" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a4d25">PostgreSQL 16 — Nœud Primaire</text>
-<text x="1012" y="248" text-anchor="middle" font-size="9.5" fill="#555">Données métier en clair · WAL maître</text>
-<text x="1012" y="264" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">Réplication streaming active →</text>
-
-<!-- WAL stream arrow (vertical dashed green) -->
-<line x1="1012" y1="277" x2="1012" y2="338" stroke="#059669" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrG)"/>
-
-<!-- WAL label box -->
-<rect x="908" y="288" width="208" height="38" rx="4" fill="white" stroke="#059669" stroke-width="1.3"/>
-<text x="1012" y="303" text-anchor="middle" font-size="10" font-weight="700" fill="#059669">WAL Streaming TCP (synchrone)</text>
-<text x="1012" y="318" text-anchor="middle" font-size="9" fill="#555">Réplication continue · latence &lt; 1 s</text>
-
-<!-- ss-node Standby -->
-<rect x="788" y="346" width="448" height="80" rx="5" fill="white" stroke="#F59E0B" stroke-width="1.5" filter="url(#sh)"/>
-<rect x="788" y="346" width="448" height="24" rx="5" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
-<rect x="788" y="358" width="448" height="12" fill="#FEF3C7"/>
-<text x="800" y="364" font-size="9.5" font-weight="800" fill="#92400E">◎ STANDBY</text>
-<text x="1012" y="364" text-anchor="middle" font-size="10.5" font-weight="700" fill="#78350F">ss-node Rust — NODE_MODE=passive</text>
-<text x="1012" y="383" text-anchor="middle" font-size="9.5" fill="#444">PostgreSQL 16 standby · Réplication streaming active</text>
-<text x="1012" y="398" text-anchor="middle" font-size="9.5" fill="#444">Prêt au failover · Redirige login vers le primaire</text>
-<text x="1012" y="415" text-anchor="middle" font-size="9" fill="#D97706" font-weight="600">◎ Réplique synchrone — prend le relais si le primaire tombe</text>
-
-<!-- Arrow Standby → PG Standby -->
-<line x1="1012" y1="426" x2="1012" y2="452" stroke="#777" stroke-width="1.4" marker-end="url(#arr)"/>
-
-<!-- PG Standby cylinder -->
-<rect x="847" y="465" width="330" height="56" fill="white" stroke="#F59E0B" stroke-width="1.5" filter="url(#sh)"/>
-<ellipse cx="1012" cy="465" rx="165" ry="13" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
-<ellipse cx="1012" cy="521" rx="165" ry="13" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5"/>
-<text x="1012" y="489" text-anchor="middle" font-size="10.5" font-weight="700" fill="#78350F">PostgreSQL 16 — Nœud Standby</text>
-<text x="1012" y="506" text-anchor="middle" font-size="9.5" fill="#555">Lecture seule · Réplique fidèle du primaire</text>
-<text x="1012" y="521" text-anchor="middle" font-size="9" fill="#D97706" font-weight="600">Données cohérentes avec le primaire</text>
-
-<!-- Sovereign note -->
-<rect x="788" y="546" width="448" height="110" rx="5" fill="rgba(5,150,105,.05)" stroke="rgba(5,150,105,.22)" stroke-dasharray="5,3" stroke-width="1.2"/>
-<text x="1012" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="#059669">Périmètre souverain</text>
-<text x="803" y="586" font-size="9.5" fill="#333">✓  Données métier (stock, paie, facturation…)</text>
-<text x="803" y="602" font-size="9.5" fill="#333">✓  Journal CBOR chiffré (DEK déchiffrée en RAM)</text>
-<text x="803" y="618" font-size="9.5" fill="#333">✓  Failover auto ≥ 3 nœuds · Fencing époque monotone</text>
-<text x="803" y="634" font-size="9.5" fill="#333">✓  Récupération sinistre : blob relais + code Argon2id → DEK</text>
-
-
-<!-- ════════════════════ CONNECTEURS ENTRE ZONES ════════════════════ -->
-
-<!-- Connector Zone1 ↔ Zone2 (at y=128, mid of Django/Rust boxes) -->
-<!-- Forward: Django → Rust  -->
-<line x1="294" y1="124" x2="410" y2="124" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
-<!-- Backward: Rust → Django -->
-<line x1="410" y1="136" x2="294" y2="136" stroke="#555" stroke-width="1.4" marker-end="url(#arrR)"/>
-<!-- Label box connector 1 -->
-<rect x="308" y="103" width="90" height="50" rx="4" fill="white" stroke="#D1D5DB" stroke-width="1" filter="url(#sh)"/>
-<text x="353" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="#374151">HTTPS ↔</text>
-<text x="353" y="130" text-anchor="middle" font-size="8.5" fill="#6B7280">Heartbeat / UUID</text>
-<text x="353" y="143" text-anchor="middle" font-size="8.5" fill="#6B7280">Token licence</text>
-
-<!-- Connector Zone2 ↔ Zone3 (at y=128, Rust/ss-node Primary) -->
-<line x1="672" y1="124" x2="774" y2="124" stroke="#555" stroke-width="1.4" marker-end="url(#arrR)"/>
-<line x1="774" y1="136" x2="672" y2="136" stroke="#555" stroke-width="1.4" marker-end="url(#arr)"/>
-<!-- Label box connector 2 -->
-<rect x="686" y="103" width="76" height="50" rx="4" fill="white" stroke="#D1D5DB" stroke-width="1" filter="url(#sh)"/>
-<text x="724" y="117" text-anchor="middle" font-size="9" font-weight="700" fill="#374151">HTTPS ↔</text>
-<text x="724" y="130" text-anchor="middle" font-size="8.5" fill="#6B7280">Heartbeat</text>
-<text x="724" y="143" text-anchor="middle" font-size="8.5" fill="#6B7280">DEK chiffrée</text>
-
-<!-- DEK blob arrow: PME → MinIO (oblique, indigo dashed) -->
-<line x1="774" y1="390" x2="660" y2="280" stroke="#4F46E5" stroke-width="1.4" stroke-dasharray="6,3" marker-end="url(#arrV)"/>
-<!-- DEK label -->
-<rect x="666" y="308" width="94" height="36" rx="4" fill="white" stroke="#C7D2FE" stroke-width="1"/>
-<text x="713" y="322" text-anchor="middle" font-size="8.5" fill="#4F46E5" font-weight="700">DEK chiffrée</text>
-<text x="713" y="335" text-anchor="middle" font-size="8" fill="#6b7280">sealed_box X25519</text>
-
-</svg>
-</div>
-
-<div class="panels">
-  <div class="panel">
-    <h3 style="color:#4F46E5">🔑 Hiérarchie des clés cryptographiques</h3>
-    <div class="ktree">
-      <div><span class="kr">DEK</span> <span class="kn">XChaCha20-Poly1305 · unique par PME</span></div>
-      <div><span class="ka"> ├▶</span> Chiffre données métier + journal CBOR</div>
-      <div><span class="ka"> ├▶</span> <span class="kh">sealed_box X25519</span> <span class="kn">→ 1 blob / appareil autorisé</span></div>
-      <div><span class="ka"> └▶</span> <span class="kh">Argon2id</span> <span class="kn">→ blob récup. sur relais (opaque)</span></div>
-      <div>&nbsp;</div>
-      <div><span class="kr">Enrôlement nouveau nœud</span></div>
-      <div><span class="ka"> 1.</span> Génère paire X25519 → QR code clé publique</div>
-      <div><span class="ka"> 2.</span> Nœud autorisé → sealed_box(DEK, pub_key)</div>
-      <div><span class="ka"> 3.</span> Nouveau nœud ouvre le blob → récupère DEK</div>
-      <div><span class="ka"> 4.</span> <span class="kn">Jeton usage unique invalidé</span></div>
-    </div>
+<!-- ═══════════════════════════════════════════════
+     SLIDE 1 — Vue d'ensemble : 3 acteurs
+═══════════════════════════════════════════════ -->
+<div class="slide on" id="s0">
+  <div class="sh">
+    <div class="sh-tag">Slide 1/8 — Architecture globale</div>
+    <div class="sh-title">Trois acteurs, une seule promesse : zéro-knowledge</div>
+    <div class="sh-sub">L'éditeur ne voit jamais les données métier · Le relais stocke des blobs opaques · La PME détient la souveraineté</div>
   </div>
-  <div class="panel">
-    <h3 style="color:#059669">⚡ Règles de bascule (Failover)</h3>
-    <div class="fo-row">
-      <div class="fo-dot dg"></div>
-      <div><div class="fo-main">≥ 3 nœuds — bascule automatique par quorum</div><div class="fo-sub">Supervision Patroni · promotion standby sans intervention</div></div>
-    </div>
-    <div class="fo-row">
-      <div class="fo-dot dr"></div>
-      <div><div class="fo-main">2 nœuds — bascule manuelle uniquement</div><div class="fo-sub">Commande ss-node failover · intervention PME</div></div>
-    </div>
-    <div class="fo-row">
-      <div class="fo-dot dy"></div>
-      <div><div class="fo-main">Fencing — jeton d'époque monotone</div><div class="fo-sub">Ancien primaire bloqué · split-brain impossible</div></div>
-    </div>
-    <div class="fo-row">
-      <div class="fo-dot dy"></div>
-      <div><div class="fo-main">Alerte 3 → 2 nœuds — signalée au portail SaaS</div><div class="fo-sub">PME informée : bascule manuelle seulement</div></div>
-    </div>
-    <div class="fo-row">
-      <div class="fo-dot dr"></div>
-      <div><div class="fo-main">Sinistre total — récupération PME</div><div class="fo-sub">Blob relais + code Argon2id → DEK retrouvée</div></div>
+  <div class="ca">
+    <div class="sp-full">
+      <svg viewBox="0 0 1020 410" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4B5563"/></marker>
+          <marker id="ar" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0,0 3,8 6" fill="#4B5563"/></marker>
+          <marker id="ag" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#3FB950"/></marker>
+          <marker id="ab" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#58A6FF"/></marker>
+          <marker id="av" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#A78BFA"/></marker>
+          <path id="f12" d="M280 115 Q320 115 370 115"/>
+          <path id="b12" d="M370 128 Q320 128 280 128"/>
+          <path id="f23" d="M650 115 Q690 115 740 115"/>
+          <path id="b23" d="M740 128 Q690 128 650 128"/>
+          <path id="dek" d="M740 280 Q695 280 650 245"/>
+        </defs>
+
+        <!-- ZONE ÉDITEUR -->
+        <rect x="8" y="20" width="262" height="370" rx="8" fill="#130808" stroke="#DC2626" stroke-width="1.5"/>
+        <rect x="8" y="20" width="262" height="30" rx="8" fill="#DC2626"/>
+        <rect x="8" y="36" width="262" height="14" fill="#DC2626"/>
+        <text x="139" y="41" text-anchor="middle" font-size="11.5" font-weight="800" fill="white">① ÉDITEUR SaaS</text>
+
+        <rect x="22" y="62" width="234" height="72" rx="5" fill="#1A0A0A" stroke="#7F1D1D" stroke-width="1"/>
+        <rect x="22" y="62" width="234" height="20" rx="5" fill="#7F1D1D" stroke="#7F1D1D"/>
+        <rect x="22" y="72" width="234" height="10" fill="#7F1D1D"/>
+        <text x="139" y="77" text-anchor="middle" font-size="9.5" font-weight="700" fill="#FCA5A5">Django + React / TypeScript</text>
+        <text x="139" y="97" text-anchor="middle" font-size="9" fill="#9CA3AF">Portail SaaS · Tenants · Licences</text>
+        <text x="139" y="112" text-anchor="middle" font-size="9" fill="#9CA3AF">Supervision clusters PME</text>
+
+        <line x1="139" y1="134" x2="139" y2="152" stroke="#374151" stroke-width="1.2" marker-end="url(#a)"/>
+
+        <rect x="42" y="164" width="194" height="52" fill="#130808" stroke="#374151" stroke-width="1"/>
+        <ellipse cx="139" cy="164" rx="97" ry="12" fill="#1F2937" stroke="#374151" stroke-width="1"/>
+        <ellipse cx="139" cy="216" rx="97" ry="12" fill="#1F2937" stroke="#374151" stroke-width="1"/>
+        <text x="139" y="186" text-anchor="middle" font-size="9.5" font-weight="700" fill="#9CA3AF">PostgreSQL (éditeur)</text>
+        <text x="139" y="202" text-anchor="middle" font-size="9" fill="#6B7280">Tenants · Licences · Sessions</text>
+
+        <rect x="16" y="240" width="246" height="136" rx="5" fill="none" stroke="#DC2626" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="139" y="257" text-anchor="middle" font-size="9" font-weight="700" fill="#DC2626">Ce que voit l'éditeur</text>
+        <text x="26" y="276" font-size="9" fill="#6EE7B7">✓  UUID nœuds &amp; rôle cluster</text>
+        <text x="26" y="292" font-size="9" fill="#6EE7B7">✓  Dernier heartbeat · licences actives</text>
+        <text x="26" y="308" font-size="9" fill="#F87171">✗  Données stock / paie / facturation</text>
+        <text x="26" y="324" font-size="9" fill="#F87171">✗  Clés DEK ou privées X25519</text>
+        <text x="26" y="340" font-size="9" fill="#F87171">✗  Contenu des blobs relais</text>
+        <text x="26" y="356" font-size="9" fill="#F87171">✗  Journal CBOR métier</text>
+
+        <!-- ZONE RELAIS -->
+        <rect x="370" y="20" width="270" height="370" rx="8" fill="#0A0A18" stroke="#6366F1" stroke-width="1.5"/>
+        <rect x="370" y="20" width="270" height="30" rx="8" fill="#4F46E5"/>
+        <rect x="370" y="36" width="270" height="14" fill="#4F46E5"/>
+        <text x="505" y="41" text-anchor="middle" font-size="11.5" font-weight="800" fill="white">② RELAIS ZERO-KNOWLEDGE</text>
+
+        <rect x="384" y="62" width="242" height="72" rx="5" fill="#0A0A1E" stroke="#312E81" stroke-width="1"/>
+        <rect x="384" y="62" width="242" height="20" rx="5" fill="#312E81" stroke="#312E81"/>
+        <rect x="384" y="72" width="242" height="10" fill="#312E81"/>
+        <text x="505" y="77" text-anchor="middle" font-size="9.5" font-weight="700" fill="#A5B4FC">Service Rust Stateless</text>
+        <text x="505" y="97" text-anchor="middle" font-size="9" fill="#9CA3AF">Point de rendez-vous multi-sites</text>
+        <text x="505" y="112" text-anchor="middle" font-size="9" fill="#F87171">✗ Ne déchiffre jamais</text>
+
+        <line x1="505" y1="134" x2="505" y2="152" stroke="#374151" stroke-width="1.2" marker-end="url(#a)"/>
+
+        <rect x="384" y="164" width="242" height="72" rx="5" fill="#0A0A1E" stroke="#312E81" stroke-width="1"/>
+        <rect x="384" y="164" width="242" height="20" rx="5" fill="#312E81" stroke="#312E81"/>
+        <rect x="384" y="174" width="242" height="10" fill="#312E81"/>
+        <text x="505" y="179" text-anchor="middle" font-size="9.5" font-weight="700" fill="#A5B4FC">MinIO · Stockage Objet S3</text>
+        <text x="505" y="200" text-anchor="middle" font-size="9" fill="#9CA3AF">Blobs DEK chiffrés (XChaCha20)</text>
+        <text x="505" y="214" text-anchor="middle" font-size="9" fill="#9CA3AF">Blob récupération Argon2id</text>
+
+        <rect x="378" y="252" width="254" height="124" rx="5" fill="none" stroke="#6366F1" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="505" y="269" text-anchor="middle" font-size="9" font-weight="700" fill="#818CF8">Garantie Zero-Knowledge</text>
+        <text x="388" y="288" font-size="9" fill="#6EE7B7">✓  UUID nœuds (metadata uniquement)</text>
+        <text x="388" y="304" font-size="9" fill="#6EE7B7">✓  Blobs chiffrés — opaques</text>
+        <text x="388" y="320" font-size="9" fill="#F87171">✗  DEK en clair</text>
+        <text x="388" y="336" font-size="9" fill="#F87171">✗  Données métier</text>
+        <text x="388" y="352" font-size="9" fill="#F87171">✗  Clés privées</text>
+
+        <!-- ZONE PME -->
+        <rect x="740" y="20" width="272" height="370" rx="8" fill="#081308" stroke="#059669" stroke-width="1.5"/>
+        <rect x="740" y="20" width="272" height="30" rx="8" fill="#059669"/>
+        <rect x="740" y="36" width="272" height="14" fill="#059669"/>
+        <text x="876" y="41" text-anchor="middle" font-size="11.5" font-weight="800" fill="white">③ CLUSTER PME</text>
+
+        <rect x="754" y="62" width="244" height="72" rx="5" fill="#081808" stroke="#064E3B" stroke-width="1"/>
+        <rect x="754" y="62" width="244" height="20" rx="5" fill="#064E3B" stroke="#064E3B"/>
+        <rect x="754" y="72" width="244" height="10" fill="#064E3B"/>
+        <text x="876" y="77" text-anchor="middle" font-size="9.5" font-weight="700" fill="#6EE7B7">ss-node PRIMARY · NODE_MODE=active</text>
+        <text x="876" y="97" text-anchor="middle" font-size="9" fill="#9CA3AF">Rust · PostgreSQL 16 maître</text>
+        <text x="876" y="112" text-anchor="middle" font-size="9" fill="#9CA3AF">DEK déchiffrée en RAM uniquement</text>
+
+        <!-- WAL stream -->
+        <line x1="876" y1="134" x2="876" y2="152" stroke="#3FB950" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#ag)"/>
+        <text x="890" y="146" font-size="8" fill="#3FB950">WAL</text>
+
+        <rect x="754" y="164" width="244" height="72" rx="5" fill="#081808" stroke="#92400E" stroke-width="1"/>
+        <rect x="754" y="164" width="244" height="20" rx="5" fill="#78350F" stroke="#92400E"/>
+        <rect x="754" y="174" width="244" height="10" fill="#78350F"/>
+        <text x="876" y="179" text-anchor="middle" font-size="9.5" font-weight="700" fill="#FCD34D">ss-node STANDBY · NODE_MODE=passive</text>
+        <text x="876" y="200" text-anchor="middle" font-size="9" fill="#9CA3AF">PostgreSQL 16 standby · Réplique fidèle</text>
+        <text x="876" y="214" text-anchor="middle" font-size="9" fill="#FCD34D">Prêt au failover automatique</text>
+
+        <rect x="748" y="252" width="256" height="124" rx="5" fill="none" stroke="#059669" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="876" y="269" text-anchor="middle" font-size="9" font-weight="700" fill="#34D399">Périmètre souverain</text>
+        <text x="758" y="288" font-size="9" fill="#6EE7B7">✓  Données métier en clair</text>
+        <text x="758" y="304" font-size="9" fill="#6EE7B7">✓  Journal CBOR (DEK RAM uniquement)</text>
+        <text x="758" y="320" font-size="9" fill="#6EE7B7">✓  Failover auto si ≥ 3 nœuds</text>
+        <text x="758" y="336" font-size="9" fill="#6EE7B7">✓  Fencing époque monotone</text>
+        <text x="758" y="352" font-size="9" fill="#6EE7B7">✓  Récupération sinistre via blob relais</text>
+
+        <!-- Connectors 1↔2 -->
+        <path d="M270 115 Q320 115 370 115" fill="none" stroke="#4B5563" stroke-width="1.3" marker-end="url(#a)"/>
+        <path d="M370 128 Q320 128 270 128" fill="none" stroke="#4B5563" stroke-width="1.3" marker-end="url(#ar)"/>
+        <rect x="286" y="98" width="68" height="42" rx="4" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <text x="320" y="111" text-anchor="middle" font-size="8" font-weight="700" fill="#C9D1D9">HTTPS ↔</text>
+        <text x="320" y="123" text-anchor="middle" font-size="7.5" fill="#6B7280">Heartbeat</text>
+        <text x="320" y="133" text-anchor="middle" font-size="7.5" fill="#6B7280">Token licence</text>
+        <circle r="3.5" fill="#58A6FF" opacity=".85">
+          <animateMotion dur="2s" repeatCount="indefinite" begin="0s"><mpath href="#f12"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#A78BFA" opacity=".8">
+          <animateMotion dur="2.6s" repeatCount="indefinite" begin="1s"><mpath href="#b12"/></animateMotion>
+        </circle>
+
+        <!-- Connectors 2↔3 -->
+        <path d="M640 115 Q690 115 740 115" fill="none" stroke="#4B5563" stroke-width="1.3" marker-end="url(#ar)"/>
+        <path d="M740 128 Q690 128 640 128" fill="none" stroke="#4B5563" stroke-width="1.3" marker-end="url(#a)"/>
+        <rect x="656" y="98" width="68" height="42" rx="4" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <text x="690" y="111" text-anchor="middle" font-size="8" font-weight="700" fill="#C9D1D9">HTTPS ↔</text>
+        <text x="690" y="123" text-anchor="middle" font-size="7.5" fill="#6B7280">Heartbeat</text>
+        <text x="690" y="133" text-anchor="middle" font-size="7.5" fill="#6B7280">DEK chiffrée</text>
+        <circle r="3.5" fill="#3FB950" opacity=".85">
+          <animateMotion dur="2.3s" repeatCount="indefinite" begin=".4s"><mpath href="#b23"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#A78BFA" opacity=".8">
+          <animateMotion dur="2.8s" repeatCount="indefinite" begin="1.4s"><mpath href="#f23"/></animateMotion>
+        </circle>
+
+        <!-- DEK blob oblique -->
+        <path d="M740 240 Q695 240 640 210" fill="none" stroke="#6366F1" stroke-width="1.3" stroke-dasharray="5,3" marker-end="url(#av)"/>
+        <rect x="655" y="217" width="78" height="30" rx="3" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <text x="694" y="229" text-anchor="middle" font-size="7.5" fill="#A78BFA" font-weight="700">DEK chiffrée</text>
+        <text x="694" y="240" text-anchor="middle" font-size="7" fill="#6B7280">sealed_box X25519</text>
+      </svg>
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 2 — Flux de données
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s1">
+  <div class="sh">
+    <div class="sh-tag">Slide 2/8 — Flux de données</div>
+    <div class="sh-title">Ce qui transite entre les zones — et ce qui ne sort jamais</div>
+    <div class="sh-sub">Chaque flèche est étiquetée · Les données métier restent confinées dans le périmètre PME</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 680 380" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="fa" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#4B5563"/></marker>
+          <marker id="fg" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3FB950"/></marker>
+          <marker id="fb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58A6FF"/></marker>
+          <marker id="fv" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#A78BFA"/></marker>
+          <marker id="fr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#F87171"/></marker>
+          <path id="hb1" d="M490 80 Q540 80 560 80 Q600 80 610 100"/>
+          <path id="hb2" d="M610 118 Q600 130 560 130 Q520 130 490 116"/>
+          <path id="hb3" d="M610 100 Q630 100 650 100 Q670 100 670 130 Q670 160 650 170 Q630 175 610 168"/>
+          <path id="lic" d="M130 65 Q150 55 160 50 Q190 40 230 60 Q260 75 290 80"/>
+          <path id="dek1" d="M490 200 Q520 200 540 210 Q560 220 560 240"/>
+          <path id="mur" d="M490 300 Q495 290 495 280 Q495 270 490 265"/>
+        </defs>
+
+        <!-- Three zone headers -->
+        <rect x="4" y="4" width="170" height="372" rx="7" fill="#130808" stroke="#DC2626" stroke-width="1.2"/>
+        <rect x="4" y="4" width="170" height="24" rx="7" fill="#DC2626"/>
+        <rect x="4" y="16" width="170" height="12" fill="#DC2626"/>
+        <text x="89" y="21" text-anchor="middle" font-size="10" font-weight="800" fill="white">ÉDITEUR</text>
+
+        <rect x="256" y="4" width="168" height="372" rx="7" fill="#0A0A18" stroke="#6366F1" stroke-width="1.2"/>
+        <rect x="256" y="4" width="168" height="24" rx="7" fill="#4F46E5"/>
+        <rect x="256" y="16" width="168" height="12" fill="#4F46E5"/>
+        <text x="340" y="21" text-anchor="middle" font-size="10" font-weight="800" fill="white">RELAIS ZK</text>
+
+        <rect x="496" y="4" width="180" height="372" rx="7" fill="#081308" stroke="#059669" stroke-width="1.2"/>
+        <rect x="496" y="4" width="180" height="24" rx="7" fill="#059669"/>
+        <rect x="496" y="16" width="180" height="12" fill="#059669"/>
+        <text x="586" y="21" text-anchor="middle" font-size="10" font-weight="800" fill="white">CLUSTER PME</text>
+
+        <!-- ROW 1: Heartbeat -->
+        <text x="4" y="52" font-size="8.5" font-weight="700" fill="#6B7280" letter-spacing=".08em">  FLUX 1 — HEARTBEAT</text>
+        <!-- PME → Relais heartbeat -->
+        <path d="M496 68 Q430 68 424 68" fill="none" stroke="#3FB950" stroke-width="1.3" marker-end="url(#fg)"/>
+        <rect x="428" y="56" width="64" height="24" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="460" y="66" text-anchor="middle" font-size="8" fill="#6EE7B7" font-weight="700">UUID nœud</text>
+        <text x="460" y="76" text-anchor="middle" font-size="7.5" fill="#6B7280">Epoch · rôle</text>
+        <circle r="3" fill="#3FB950" opacity=".9">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin="0s">
+            <mpath href="#hb1"/>
+          </animateMotion>
+        </circle>
+        <!-- Relais → Éditeur heartbeat forwarded -->
+        <path d="M256 76 Q200 76 174 76" fill="none" stroke="#58A6FF" stroke-width="1.3" marker-end="url(#fb)"/>
+        <rect x="192" y="64" width="62" height="24" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="223" y="74" text-anchor="middle" font-size="8" fill="#93C5FD" font-weight="700">Heartbeat</text>
+        <text x="223" y="84" text-anchor="middle" font-size="7.5" fill="#6B7280">agrégé</text>
+        <circle r="3" fill="#58A6FF" opacity=".9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin=".6s">
+            <mpath href="#hb2"/>
+          </animateMotion>
+        </circle>
+        <!-- Éditeur → Relais → PME licence response -->
+        <path d="M174 88 Q215 88 256 100" fill="none" stroke="#A78BFA" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#fv)"/>
+        <text x="215" y="98" text-anchor="middle" font-size="7.5" fill="#A78BFA" font-style="italic">Licence valide</text>
+        <path d="M424 100 Q460 100 496 88" fill="none" stroke="#A78BFA" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#fv)"/>
+
+        <!-- ROW 2: DEK chiffrée -->
+        <line x1="4" y1="138" x2="680" y2="138" stroke="#1E2837" stroke-width=".5" stroke-dasharray="3,4"/>
+        <text x="4" y="158" font-size="8.5" font-weight="700" fill="#6B7280" letter-spacing=".08em">  FLUX 2 — DEK CHIFFRÉE (ENRÔLEMENT)</text>
+        <!-- PME → Relais DEK sealed_box -->
+        <path d="M496 180 Q460 180 424 180" fill="none" stroke="#A78BFA" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#fv)"/>
+        <rect x="428" y="166" width="64" height="28" rx="3" fill="#0D1117" stroke="#1E2837"/>
+        <text x="460" y="178" text-anchor="middle" font-size="8" fill="#A78BFA" font-weight="700">sealed_box</text>
+        <text x="460" y="189" text-anchor="middle" font-size="7" fill="#6B7280">X25519 · opaque</text>
+        <!-- Stocké MinIO -->
+        <path d="M340 195 L340 218" fill="none" stroke="#6366F1" stroke-width="1.3" marker-end="url(#fv)"/>
+        <rect x="270" y="218" width="140" height="32" rx="4" fill="#1E1E3E" stroke="#312E81"/>
+        <text x="340" y="231" text-anchor="middle" font-size="9" fill="#A5B4FC" font-weight="700">MinIO stockage</text>
+        <text x="340" y="244" text-anchor="middle" font-size="8" fill="#6B7280">Blob opaque — jamais déchiffré</text>
+        <!-- Récupération possible -->
+        <path d="M340 250 L340 270" fill="none" stroke="#6366F1" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#fv)"/>
+        <text x="340" y="285" text-anchor="middle" font-size="8" fill="#6B7280">Restitué sur demande PME</text>
+        <text x="340" y="298" text-anchor="middle" font-size="8" fill="#6B7280">(sinistre total)</text>
+
+        <!-- ROW 3: Données métier — CONFINÉES -->
+        <line x1="4" y1="316" x2="680" y2="316" stroke="#1E2837" stroke-width=".5" stroke-dasharray="3,4"/>
+        <text x="4" y="334" font-size="8.5" font-weight="700" fill="#6B7280" letter-spacing=".08em">  FLUX 3 — DONNÉES MÉTIER</text>
+
+        <!-- Mur rouge -->
+        <rect x="456" y="344" width="28" height="28" rx="3" fill="#7F1D1D" stroke="#DC2626" stroke-width="1.5"/>
+        <text x="470" y="362" text-anchor="middle" font-size="14" fill="#F87171">🚫</text>
+        <path d="M496 358 L485 358" fill="none" stroke="#F87171" stroke-width="1.3" stroke-dasharray="3,2"/>
+        <text x="586" y="360" text-anchor="middle" font-size="9" fill="#6EE7B7" font-weight="700">Restent dans PME</text>
+        <text x="586" y="373" text-anchor="middle" font-size="8" fill="#6B7280">Stock · Paie · Facturation</text>
+        <rect x="508" y="344" width="160" height="28" rx="4" fill="#081808" stroke="#059669" stroke-width="1"/>
+        <text x="588" y="362" text-anchor="middle" font-size="9" fill="#6EE7B7" font-weight="700">Données en clair — PME seulement</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#3FB950">Flux Heartbeat</h4>
+        <ul>
+          <li class="b"><span>PME → Relais : UUID nœud, epoch, rôle (actif/passif)</span></li>
+          <li class="b"><span>Relais → Éditeur : heartbeat agrégé (metadata seulement)</span></li>
+          <li class="b"><span>Éditeur → PME : statut licence, alertes cluster</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#A78BFA">Flux DEK chiffrée</h4>
+        <ul>
+          <li class="b"><span>sealed_box(DEK, pubkey_nœud) → blob opaque → MinIO</span></li>
+          <li class="b"><span>Le relais stocke sans jamais pouvoir lire</span></li>
+          <li class="b"><span>En cas de sinistre : blob restitué à la PME</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#F87171">Données métier — confinées</h4>
+        <ul>
+          <li class="r"><span>Stock, paie, facturation : ne sortent JAMAIS de la PME</span></li>
+          <li class="r"><span>Journal CBOR chiffré avec la DEK (RAM uniquement)</span></li>
+          <li class="g"><span>Même si relais et éditeur sont compromis : données protégées</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 3 — Zero-Knowledge : qui voit quoi
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="sh">
+    <div class="sh-tag">Slide 3/8 — Garantie Zero-Knowledge</div>
+    <div class="sh-title">Matrice de visibilité : qui peut lire quoi ?</div>
+    <div class="sh-sub">Preuve formelle que l'éditeur et le relais ne peuvent techniquement pas accéder aux données métier</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="glo"><feGaussianBlur stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+        </defs>
+
+        <!-- Header row -->
+        <rect x="0" y="0" width="660" height="360" rx="6" fill="#0D1117"/>
+
+        <!-- Column headers -->
+        <rect x="0" y="0" width="660" height="44" rx="6" fill="#161B22"/>
+        <rect x="0" y="30" width="660" height="14" fill="#161B22"/>
+        <text x="280" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#FCA5A5">ÉDITEUR</text>
+        <text x="420" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#A5B4FC">RELAIS ZK</text>
+        <text x="566" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#6EE7B7">CLUSTER PME</text>
+
+        <!-- Column separators -->
+        <line x1="224" y1="0" x2="224" y2="360" stroke="#1E2837" stroke-width="1"/>
+        <line x1="358" y1="0" x2="358" y2="360" stroke="#1E2837" stroke-width="1"/>
+        <line x1="492" y1="0" x2="492" y2="360" stroke="#1E2837" stroke-width="1"/>
+
+        <!-- Row data -->
+        <!-- Row 1: Données métier clair -->
+        <rect x="0" y="44" width="660" height="46" fill="#0D1117"/>
+        <rect x="0" y="44" width="660" height="46" fill="rgba(248,113,113,.04)"/>
+        <text x="16" y="64" font-size="10.5" font-weight="700" fill="#F0F6FC">Données métier (clair)</text>
+        <text x="16" y="79" font-size="9" fill="#6B7280">Stock · Paie · Facturation</text>
+        <text x="280" y="72" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="420" y="72" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="566" y="72" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+
+        <!-- Row 2: DEK clair -->
+        <rect x="0" y="90" width="660" height="46" fill="#161B22"/>
+        <text x="16" y="110" font-size="10.5" font-weight="700" fill="#F0F6FC">DEK en clair</text>
+        <text x="16" y="125" font-size="9" fill="#6B7280">Clé de chiffrement XChaCha20</text>
+        <text x="280" y="118" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="420" y="118" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="566" y="118" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+        <text x="566" y="132" text-anchor="middle" font-size="8" fill="#6B7280">(RAM uniquement)</text>
+
+        <!-- Row 3: DEK chiffrée -->
+        <rect x="0" y="136" width="660" height="46" fill="#0D1117"/>
+        <text x="16" y="156" font-size="10.5" font-weight="700" fill="#F0F6FC">DEK chiffrée (sealed_box)</text>
+        <text x="16" y="171" font-size="9" fill="#6B7280">Blob opaque X25519</text>
+        <text x="280" y="164" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="420" y="164" text-anchor="middle" font-size="22" fill="#E3B341">~</text>
+        <text x="420" y="178" text-anchor="middle" font-size="8" fill="#6B7280">stocke, ne lit pas</text>
+        <text x="566" y="164" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+
+        <!-- Row 4: Journal CBOR -->
+        <rect x="0" y="182" width="660" height="46" fill="#161B22"/>
+        <text x="16" y="202" font-size="10.5" font-weight="700" fill="#F0F6FC">Journal CBOR chiffré</text>
+        <text x="16" y="217" font-size="9" fill="#6B7280">Write-ahead log métier</text>
+        <text x="280" y="210" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="420" y="210" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="566" y="210" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+
+        <!-- Row 5: UUID nœuds -->
+        <rect x="0" y="228" width="660" height="46" fill="#0D1117"/>
+        <text x="16" y="248" font-size="10.5" font-weight="700" fill="#F0F6FC">UUID nœuds · Topologie</text>
+        <text x="16" y="263" font-size="9" fill="#6B7280">Identifiants cluster, rôles</text>
+        <text x="280" y="256" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+        <text x="280" y="270" text-anchor="middle" font-size="8" fill="#6B7280">(supervision)</text>
+        <text x="420" y="256" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+        <text x="566" y="256" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+
+        <!-- Row 6: Clés privées -->
+        <rect x="0" y="274" width="660" height="46" fill="#161B22"/>
+        <rect x="0" y="274" width="660" height="46" fill="rgba(248,113,113,.04)"/>
+        <text x="16" y="294" font-size="10.5" font-weight="700" fill="#F0F6FC">Clés privées X25519</text>
+        <text x="16" y="309" font-size="9" fill="#6B7280">Identité nœud · Déchiffrement DEK</text>
+        <text x="280" y="302" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="420" y="302" text-anchor="middle" font-size="22" fill="#F85149">✗</text>
+        <text x="566" y="302" text-anchor="middle" font-size="22" fill="#3FB950">✓</text>
+
+        <!-- Bottom legend -->
+        <rect x="0" y="320" width="660" height="40" rx="6" fill="#0A0E17"/>
+        <circle cx="44" cy="340" r="7" fill="#3FB95022" stroke="#3FB950" stroke-width="1"/>
+        <text x="44" y="344" text-anchor="middle" font-size="11" fill="#3FB950">✓</text>
+        <text x="60" y="344" font-size="9" fill="#6B7280">Peut lire</text>
+        <circle cx="140" cy="340" r="7" fill="#F8514922" stroke="#F85149" stroke-width="1"/>
+        <text x="140" y="344" text-anchor="middle" font-size="11" fill="#F85149">✗</text>
+        <text x="156" y="344" font-size="9" fill="#6B7280">Jamais</text>
+        <circle cx="236" cy="340" r="7" fill="#E3B34122" stroke="#E3B341" stroke-width="1"/>
+        <text x="236" y="344" text-anchor="middle" font-size="11" fill="#E3B341">~</text>
+        <text x="252" y="344" font-size="9" fill="#6B7280">Stocke uniquement (blob opaque)</text>
+        <text x="500" y="344" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">→ Compromis relais = données toujours protégées</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#A78BFA">Principe Zero-Knowledge</h4>
+        <ul>
+          <li class="g"><span>L'éditeur peut être compromis : données toujours protégées</span></li>
+          <li class="g"><span>Le relais peut être saisi : blobs chiffrés illisibles</span></li>
+          <li class="g"><span>Seule la PME peut déchiffrer ses propres données</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#F85149">Ce que garantit la crypto</h4>
+        <ul>
+          <li class="b"><span>XChaCha20-Poly1305 : chiffrement symétrique 256-bit</span></li>
+          <li class="b"><span>X25519 sealed_box : asymétrique, forward secrecy</span></li>
+          <li class="b"><span>Argon2id : dérivation de clé résistante brute-force</span></li>
+          <li class="r"><span>Aucune primitive réimplémentée — tout via libsodium</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 4 — Hiérarchie des clés DEK
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="sh">
+    <div class="sh-tag">Slide 4/8 — Cryptographie</div>
+    <div class="sh-title">Hiérarchie des clés — DEK, sealed_box, Argon2id</div>
+    <div class="sh-sub">Une seule clé maître (DEK) protège toutes les données · Distribuée de façon asymétrique à chaque nœud autorisé</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ka" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#A78BFA"/></marker>
+          <marker id="kg" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3FB950"/></marker>
+          <marker id="kb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58A6FF"/></marker>
+          <marker id="ky" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#E3B341"/></marker>
+        </defs>
+
+        <!-- DEK root -->
+        <rect x="230" y="10" width="200" height="56" rx="7" fill="#1A0E30" stroke="#A78BFA" stroke-width="2"/>
+        <text x="330" y="32" text-anchor="middle" font-size="12" font-weight="800" fill="#C4B5FD">DEK</text>
+        <text x="330" y="48" text-anchor="middle" font-size="9" fill="#A78BFA">XChaCha20-Poly1305 · 256-bit</text>
+        <text x="330" y="59" text-anchor="middle" font-size="8" fill="#6B7280">Unique par PME · Dérivée de la passphrase</text>
+
+        <!-- Trunk line -->
+        <line x1="330" y1="66" x2="330" y2="100" stroke="#A78BFA" stroke-width="1.5"/>
+        <line x1="110" y1="100" x2="550" y2="100" stroke="#A78BFA" stroke-width="1.5"/>
+
+        <!-- Branch 1: Données métier -->
+        <line x1="110" y1="100" x2="110" y2="128" stroke="#3FB950" stroke-width="1.3" marker-end="url(#kg)"/>
+        <rect x="20" y="128" width="180" height="72" rx="5" fill="#081808" stroke="#059669" stroke-width="1.2"/>
+        <text x="110" y="148" text-anchor="middle" font-size="9.5" font-weight="700" fill="#6EE7B7">Données métier chiffrées</text>
+        <text x="110" y="163" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Stock · Paie · Facturation</text>
+        <text x="110" y="177" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Journal CBOR append-only</text>
+        <text x="110" y="192" text-anchor="middle" font-size="8" fill="#6B7280">Stocké sur PG primaire</text>
+
+        <!-- Branch 2: sealed_box nœud A -->
+        <line x1="270" y1="100" x2="270" y2="128" stroke="#58A6FF" stroke-width="1.3" marker-end="url(#kb)"/>
+        <rect x="192" y="128" width="156" height="82" rx="5" fill="#0A1020" stroke="#1E3A6E" stroke-width="1.2"/>
+        <text x="270" y="148" text-anchor="middle" font-size="9.5" font-weight="700" fill="#93C5FD">sealed_box(DEK, pubkey_A)</text>
+        <text x="270" y="163" text-anchor="middle" font-size="8.5" fill="#9CA3AF">X25519 Diffie-Hellman éphémère</text>
+        <text x="270" y="178" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Seul le nœud A peut déchiffrer</text>
+        <text x="270" y="193" text-anchor="middle" font-size="8" fill="#58A6FF" font-weight="700">→ MinIO blob nœud A</text>
+        <text x="270" y="204" text-anchor="middle" font-size="8" fill="#6B7280">Kali 192.168.200.128</text>
+
+        <!-- Branch 3: sealed_box nœud B -->
+        <line x1="390" y1="100" x2="390" y2="128" stroke="#58A6FF" stroke-width="1.3" marker-end="url(#kb)"/>
+        <rect x="358" y="128" width="124" height="82" rx="5" fill="#0A1020" stroke="#1E3A6E" stroke-width="1.2"/>
+        <text x="420" y="148" text-anchor="middle" font-size="9" font-weight="700" fill="#93C5FD">sealed_box(DEK, pubkey_B)</text>
+        <text x="420" y="163" text-anchor="middle" font-size="8" fill="#9CA3AF">Même principe</text>
+        <text x="420" y="178" text-anchor="middle" font-size="8" fill="#9CA3AF">Indépendant de nœud A</text>
+        <text x="420" y="193" text-anchor="middle" font-size="8" fill="#58A6FF" font-weight="700">→ MinIO blob nœud B</text>
+        <text x="420" y="204" text-anchor="middle" font-size="8" fill="#6B7280">Ubuntu 192.168.200.130</text>
+
+        <!-- Branch 4: Argon2id récupération -->
+        <line x1="550" y1="100" x2="550" y2="128" stroke="#E3B341" stroke-width="1.3" marker-end="url(#ky)"/>
+        <rect x="490" y="128" width="150" height="82" rx="5" fill="#120E00" stroke="#6E4C1E" stroke-width="1.2"/>
+        <text x="565" y="148" text-anchor="middle" font-size="9.5" font-weight="700" fill="#FCD34D">Argon2id(DEK, code)</text>
+        <text x="565" y="163" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Code haute entropie PME</text>
+        <text x="565" y="178" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Résistant brute-force</text>
+        <text x="565" y="193" text-anchor="middle" font-size="8" fill="#E3B341" font-weight="700">→ MinIO blob récupération</text>
+        <text x="565" y="204" text-anchor="middle" font-size="8" fill="#6B7280">Sinistre total</text>
+
+        <!-- MinIO at bottom -->
+        <rect x="160" y="240" width="340" height="46" rx="7" fill="#0A0A1E" stroke="#4F46E5" stroke-width="1.5"/>
+        <text x="330" y="260" text-anchor="middle" font-size="11" font-weight="700" fill="#A5B4FC">MinIO — Stockage Objet (Relais)</text>
+        <text x="330" y="277" text-anchor="middle" font-size="9" fill="#6B7280">3 blobs distincts · Tous opaques · Relais ne peut déchiffrer aucun</text>
+
+        <!-- Lines to MinIO -->
+        <line x1="270" y1="210" x2="270" y2="240" stroke="#1E2837" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="390" y1="210" x2="390" y2="240" stroke="#1E2837" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="550" y1="210" x2="480" y2="240" stroke="#1E2837" stroke-width="1" stroke-dasharray="3,2"/>
+
+        <!-- Key icon at DEK -->
+        <text x="218" y="38" font-size="16">🔑</text>
+
+        <!-- Security annotations -->
+        <rect x="10" y="300" width="640" height="52" rx="5" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <text x="330" y="320" text-anchor="middle" font-size="9" font-weight="700" fill="#6B7280">PROPRIÉTÉ MATHÉMATIQUE CLEF :</text>
+        <text x="330" y="336" text-anchor="middle" font-size="9.5" fill="#C9D1D9">Connaître un blob sealed_box ne donne aucune information sur les autres blobs ni sur la DEK originale</text>
+        <text x="330" y="350" text-anchor="middle" font-size="9" fill="#6B7280">Courbe X25519 + nonce aléatoire éphémère · Chaque blob est cryptographiquement indépendant</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#A78BFA">DEK (Data Encryption Key)</h4>
+        <ul>
+          <li class="b"><span>Unique par entreprise PME</span></li>
+          <li class="b"><span>Générée à l'initialisation du cluster</span></li>
+          <li class="b"><span>Jamais stockée en clair sur disque</span></li>
+          <li class="b"><span>En mémoire RAM uniquement pendant l'utilisation</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#58A6FF">sealed_box X25519</h4>
+        <ul>
+          <li class="b"><span>Chiffrement asymétrique : n'importe qui peut chiffrer</span></li>
+          <li class="b"><span>Seul le détenteur de la clé privée peut déchiffrer</span></li>
+          <li class="b"><span>Nonce éphémère : pas de réutilisation</span></li>
+          <li class="g"><span>Compromis d'un nœud n'expose pas les autres</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#E3B341">Argon2id — Récupération</h4>
+        <ul>
+          <li class="b"><span>KDF résistant aux GPU et ASIC</span></li>
+          <li class="b"><span>Code haute entropie connu seulement de la PME</span></li>
+          <li class="r"><span>Perte du code = perte définitive des données</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 5 — Enrôlement d'un nouveau nœud
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="sh">
+    <div class="sh-tag">Slide 5/8 — Enrôlement</div>
+    <div class="sh-title">Enrôlement d'une nouvelle machine — QR Code + sealed_box</div>
+    <div class="sh-sub">5 étapes · Jeton usage unique · La DEK transite chiffrée asymétriquement</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ea" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6EE7B7"/></marker>
+          <marker id="eb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#93C5FD"/></marker>
+          <path id="e1" d="M124 96 Q180 96 238 96"/>
+          <path id="e2" d="M380 96 Q420 96 460 96"/>
+          <path id="e3" d="M600 148 Q600 190 600 230"/>
+          <path id="e4" d="M600 270 Q520 270 460 240"/>
+          <path id="e5" d="M238 310 Q178 310 118 290"/>
+        </defs>
+
+        <!-- Step nodes (horizontal: steps 1-3, then vertical down, then back) -->
+
+        <!-- Step 1: Nouveau nœud génère paire X25519 -->
+        <circle cx="60" cy="96" r="34" fill="#081808" stroke="#059669" stroke-width="2"/>
+        <text x="60" y="88" text-anchor="middle" font-size="10" font-weight="800" fill="#6EE7B7">NOUVEAU</text>
+        <text x="60" y="101" text-anchor="middle" font-size="9" fill="#9CA3AF">NŒUD</text>
+        <text x="60" y="114" text-anchor="middle" font-size="9" fill="#9CA3AF">C</text>
+
+        <rect x="18" y="144" width="84" height="56" rx="5" fill="#0A1410" stroke="#064E3B" stroke-width="1"/>
+        <text x="60" y="160" text-anchor="middle" font-size="9" font-weight="700" fill="#34D399">① Génère</text>
+        <text x="60" y="174" text-anchor="middle" font-size="8.5" fill="#9CA3AF">(privkey_C, pubkey_C)</text>
+        <text x="60" y="186" text-anchor="middle" font-size="8" fill="#9CA3AF">X25519</text>
+        <text x="60" y="197" text-anchor="middle" font-size="8" fill="#9CA3AF">QR → pubkey_C</text>
+
+        <!-- Arrow 1→2 -->
+        <path d="M94 96 Q160 96 232 96" fill="none" stroke="#6EE7B7" stroke-width="1.4" marker-end="url(#ea)"/>
+        <rect x="110" y="78" width="104" height="32" rx="4" fill="#0D1117" stroke="#1E2837"/>
+        <text x="162" y="91" text-anchor="middle" font-size="8" font-weight="700" fill="#6EE7B7">QR Code scanné</text>
+        <text x="162" y="102" text-anchor="middle" font-size="7.5" fill="#6B7280">pubkey_C transmis</text>
+        <circle r="3.5" fill="#6EE7B7" opacity=".9">
+          <animateMotion dur="2s" repeatCount="indefinite" begin=".3s"><mpath href="#e1"/></animateMotion>
+        </circle>
+
+        <!-- Step 2: Nœud autorisé -->
+        <circle cx="300" cy="96" r="34" fill="#1A0E30" stroke="#A78BFA" stroke-width="2"/>
+        <text x="300" y="88" text-anchor="middle" font-size="10" font-weight="800" fill="#C4B5FD">NŒUD</text>
+        <text x="300" y="101" text-anchor="middle" font-size="9" fill="#9CA3AF">AUTORISÉ</text>
+        <text x="300" y="114" text-anchor="middle" font-size="9" fill="#9CA3AF">A ou B</text>
+
+        <rect x="238" y="144" width="124" height="66" rx="5" fill="#0A0820" stroke="#4C1D95" stroke-width="1"/>
+        <text x="300" y="160" text-anchor="middle" font-size="9" font-weight="700" fill="#A78BFA">② Reçoit pubkey_C</text>
+        <text x="300" y="174" text-anchor="middle" font-size="8.5" fill="#9CA3AF">③ Chiffre la DEK :</text>
+        <text x="300" y="188" text-anchor="middle" font-size="8.5" fill="#C4B5FD">sealed_box(DEK, pubkey_C)</text>
+        <text x="300" y="200" text-anchor="middle" font-size="8" fill="#9CA3AF">→ blob chiffré</text>
+
+        <!-- Arrow 2→3 -->
+        <path d="M334 96 Q400 96 456 96" fill="none" stroke="#93C5FD" stroke-width="1.4" marker-end="url(#eb)"/>
+        <rect x="352" y="78" width="98" height="32" rx="4" fill="#0D1117" stroke="#1E2837"/>
+        <text x="401" y="91" text-anchor="middle" font-size="8" font-weight="700" fill="#93C5FD">Blob envoyé</text>
+        <text x="401" y="102" text-anchor="middle" font-size="7.5" fill="#6B7280">via relais HTTPS</text>
+        <circle r="3.5" fill="#93C5FD" opacity=".9">
+          <animateMotion dur="1.8s" repeatCount="indefinite" begin=".7s"><mpath href="#e2"/></animateMotion>
+        </circle>
+
+        <!-- Step 3: Relais transit -->
+        <rect x="466" y="62" width="136" height="68" rx="7" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.5"/>
+        <text x="534" y="84" text-anchor="middle" font-size="9.5" font-weight="700" fill="#A5B4FC">④ Relais</text>
+        <text x="534" y="99" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Transit opaque</text>
+        <text x="534" y="113" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Ne déchiffre pas</text>
+        <text x="534" y="124" text-anchor="middle" font-size="8" fill="#6B7280">Jeton usage unique validé</text>
+
+        <!-- Arrow transit down -->
+        <path d="M534 130 L534 174" fill="none" stroke="#4F46E5" stroke-width="1.3" stroke-dasharray="4,2" marker-end="url(#ea)"/>
+
+        <rect x="466" y="174" width="136" height="58" rx="7" fill="#081808" stroke="#059669" stroke-width="1.5"/>
+        <text x="534" y="196" text-anchor="middle" font-size="9.5" font-weight="700" fill="#6EE7B7">⑤ Nouveau nœud C</text>
+        <text x="534" y="211" text-anchor="middle" font-size="8.5" fill="#9CA3AF">open_box(blob, privkey_C)</text>
+        <text x="534" y="225" text-anchor="middle" font-size="8.5" fill="#6EE7B7">→ DEK retrouvée ✓</text>
+
+        <!-- Token invalidation -->
+        <rect x="380" y="260" width="270" height="44" rx="5" fill="#130808" stroke="#DC2626" stroke-width="1" stroke-dasharray="4,2"/>
+        <text x="515" y="278" text-anchor="middle" font-size="9" fill="#F87171">⑥ Jeton d'invitation invalidé (usage unique)</text>
+        <text x="515" y="292" text-anchor="middle" font-size="8.5" fill="#6B7280">Courte durée de vie · Replay impossible</text>
+
+        <!-- Cluster after enrolment -->
+        <rect x="18" y="248" width="352" height="48" rx="6" fill="#081808" stroke="#059669" stroke-width="1.5"/>
+        <text x="194" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#6EE7B7">Cluster PME après enrôlement</text>
+        <text x="194" y="284" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœuds A, B, C — tous ont accès à la DEK via leur blob personnel</text>
+
+        <!-- Animated flow step 3-4 -->
+        <circle r="3" fill="#6EE7B7" opacity=".85">
+          <animateMotion dur="2.2s" repeatCount="indefinite" begin="1.2s">
+            <mpath href="#e3"/>
+          </animateMotion>
+        </circle>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#6EE7B7">Propriétés de sécurité</h4>
+        <ul>
+          <li class="g"><span>La DEK ne transite jamais en clair sur le réseau</span></li>
+          <li class="g"><span>Jeton à usage unique — replay impossible</span></li>
+          <li class="g"><span>Courte durée de vie (minutes)</span></li>
+          <li class="g"><span>Révocation possible : supprimer le blob du nœud</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#93C5FD">Protocole sealed_box</h4>
+        <ul>
+          <li class="b"><span>Nonce éphémère aléatoire (32 bytes)</span></li>
+          <li class="b"><span>ECDH X25519 + XSalsa20-Poly1305</span></li>
+          <li class="b"><span>Authentification intégrée : intégrité garantie</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#F87171">Dé-enrôlement</h4>
+        <ul>
+          <li class="b"><span>Suppression du blob MinIO du nœud</span></li>
+          <li class="b"><span>Rotation DEK optionnelle si nœud compromis</span></li>
+          <li class="b"><span>Recalcul du quorum · Alerte si 3→2 nœuds</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 6 — Réplication PostgreSQL WAL
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="sh">
+    <div class="sh-tag">Slide 6/8 — Réplication</div>
+    <div class="sh-title">Réplication PostgreSQL WAL — Streaming synchrone</div>
+    <div class="sh-sub">Write-Ahead Logging · Chaque transaction répliquée avant confirmation · Latence &lt; 1 s</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="wa" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3FB950"/></marker>
+          <marker id="wb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58A6FF"/></marker>
+          <marker id="wc" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#E3B341"/></marker>
+          <path id="wal1" d="M330 148 L330 192"/>
+          <path id="wal2" d="M330 200 L330 244"/>
+          <path id="wal3" d="M330 252 L330 296"/>
+        </defs>
+
+        <!-- PRIMARY NODE -->
+        <rect x="130" y="10" width="400" height="100" rx="8" fill="#0A1408" stroke="#059669" stroke-width="2"/>
+        <rect x="130" y="10" width="400" height="28" rx="8" fill="#059669"/>
+        <rect x="130" y="26" width="400" height="12" fill="#059669"/>
+        <text x="330" y="29" text-anchor="middle" font-size="11" font-weight="800" fill="white">★  NŒUD PRIMAIRE (PRIMARY)</text>
+        <text x="330" y="58" text-anchor="middle" font-size="10" font-weight="700" fill="#86EFAC">ss-node Rust · NODE_MODE=active</text>
+        <text x="330" y="74" text-anchor="middle" font-size="9.5" fill="#9CA3AF">PostgreSQL 16 maître · WAL writer actif</text>
+        <text x="330" y="90" text-anchor="middle" font-size="9" fill="#6B7280">Kali Linux 192.168.200.128 · Port 5432</text>
+        <rect x="236" y="92" width="188" height="14" rx="3" fill="#064E3B"/>
+        <text x="330" y="103" text-anchor="middle" font-size="8.5" fill="#34D399">Accepte lecture + écriture</text>
+
+        <!-- WAL stream visual -->
+        <rect x="210" y="124" width="240" height="36" rx="5" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.2"/>
+        <text x="330" y="140" text-anchor="middle" font-size="9.5" font-weight="700" fill="#A5B4FC">WAL Streaming TCP — Synchrone</text>
+        <text x="330" y="153" text-anchor="middle" font-size="8.5" fill="#6B7280">Chaque enregistrement WAL envoyé avant commit confirmé</text>
+
+        <!-- Animated WAL packets -->
+        <circle r="5" fill="#3FB950" opacity=".9">
+          <animateMotion dur="1s" repeatCount="indefinite" begin="0s"><mpath href="#wal1"/></animateMotion>
+        </circle>
+        <circle r="4" fill="#3FB950" opacity=".7">
+          <animateMotion dur="1s" repeatCount="indefinite" begin=".33s"><mpath href="#wal1"/></animateMotion>
+        </circle>
+        <circle r="3.5" fill="#3FB950" opacity=".5">
+          <animateMotion dur="1s" repeatCount="indefinite" begin=".66s"><mpath href="#wal1"/></animateMotion>
+        </circle>
+
+        <!-- WAL record labels -->
+        <rect x="350" y="152" width="120" height="62" rx="4" fill="#0D1117" stroke="#1E2837"/>
+        <text x="410" y="167" text-anchor="middle" font-size="8" font-weight="700" fill="#6B7280">Enregistrements WAL</text>
+        <text x="410" y="180" text-anchor="middle" font-size="8" fill="#3FB950">INSERT/UPDATE/DELETE</text>
+        <text x="410" y="193" text-anchor="middle" font-size="8" fill="#58A6FF">CHECKPOINT · COMMIT</text>
+        <text x="410" y="206" text-anchor="middle" font-size="8" fill="#E3B341">SCHEMA changes</text>
+
+        <line x1="330" y1="160" x2="330" y2="200" stroke="#059669" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#wa)"/>
+
+        <!-- Sync vs Async note -->
+        <rect x="4" y="152" width="196" height="100" rx="5" fill="#0D1117" stroke="#1E2837"/>
+        <text x="102" y="168" text-anchor="middle" font-size="9" font-weight="700" fill="#E3B341">Mode synchrone (par type)</text>
+        <text x="14" y="184" font-size="8.5" fill="#3FB950">✓ Stock / Facturation / Paie</text>
+        <text x="14" y="198" font-size="8.5" fill="#3FB950">✓ Numérotation (unicité)</text>
+        <text x="14" y="212" font-size="8.5" fill="#F59E0B">~ Journal CBOR → async ok</text>
+        <text x="14" y="226" font-size="8.5" fill="#6B7280">Synchrone : bloque si standby</text>
+        <text x="14" y="240" font-size="8.5" fill="#6B7280">inaccessible → pas de perte</text>
+
+        <!-- STANDBY NODE -->
+        <rect x="130" y="210" width="400" height="100" rx="8" fill="#100C00" stroke="#F59E0B" stroke-width="1.8"/>
+        <rect x="130" y="210" width="400" height="28" rx="8" fill="#78350F"/>
+        <rect x="130" y="226" width="400" height="12" fill="#78350F"/>
+        <text x="330" y="229" text-anchor="middle" font-size="11" font-weight="800" fill="white">◎  NŒUD STANDBY (PASSIVE)</text>
+        <text x="330" y="258" text-anchor="middle" font-size="10" font-weight="700" fill="#FCD34D">ss-node Rust · NODE_MODE=passive</text>
+        <text x="330" y="274" text-anchor="middle" font-size="9.5" fill="#9CA3AF">PostgreSQL 16 · Hot standby · Applique WAL en continu</text>
+        <text x="330" y="290" text-anchor="middle" font-size="9" fill="#6B7280">Ubuntu 192.168.200.130 · Port 5432</text>
+        <rect x="236" y="292" width="188" height="14" rx="3" fill="#78350F"/>
+        <text x="330" y="303" text-anchor="middle" font-size="8.5" fill="#FCD34D">Lecture seule · Prêt au failover</text>
+
+        <!-- Replication lag -->
+        <rect x="4" y="266" width="196" height="52" rx="5" fill="#0D1117" stroke="#1E2837"/>
+        <text x="102" y="282" text-anchor="middle" font-size="9" font-weight="700" fill="#58A6FF">Métriques réplication</text>
+        <text x="14" y="298" font-size="8.5" fill="#9CA3AF">Lag cible : &lt; 1 seconde</text>
+        <text x="14" y="311" font-size="8.5" fill="#9CA3AF">WAL LSN : suivi continu</text>
+
+        <!-- Consistency guarantee -->
+        <rect x="4" y="324" width="652" height="32" rx="5" fill="#0A1408" stroke="#059669" stroke-width="1"/>
+        <text x="330" y="342" text-anchor="middle" font-size="9" fill="#34D399" font-weight="700">Garantie : si le primaire répond au client, le standby a déjà reçu et appliqué l'enregistrement WAL</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#3FB950">Write-Ahead Log</h4>
+        <ul>
+          <li class="b"><span>Chaque modification → enregistrement WAL en premier</span></li>
+          <li class="b"><span>Envoyé au standby avant confirmation au client</span></li>
+          <li class="b"><span>Pas de perte si le primaire tombe après confirmation</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#FCD34D">Hot Standby</h4>
+        <ul>
+          <li class="b"><span>Standby disponible en lecture seule</span></li>
+          <li class="b"><span>Applique le WAL stream en continu</span></li>
+          <li class="b"><span>Promotion en &lt; 10 s en cas de panne</span></li>
+          <li class="g"><span>Zéro perte de données (réplication synchrone)</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#E3B341">Sync vs Async par opération</h4>
+        <ul>
+          <li class="b"><span>Invariants forts (stock, facturation) : synchrone</span></li>
+          <li class="b"><span>Tolérables à perte (logs, stats) : asynchrone</span></li>
+          <li class="r"><span>Synchrone bloque si standby injoignable</span></li>
+          <li class="b"><span>Jamais de dégradation silencieuse</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 7 — Failover automatique + Fencing
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="sh">
+    <div class="sh-tag">Slide 7/8 — Failover &amp; Fencing</div>
+    <div class="sh-title">Failover automatique par quorum · Fencing contre le split-brain</div>
+    <div class="sh-sub">≥ 3 nœuds → promotion automatique en &lt; 30 s · Époque monotone bloque l'ancien primaire</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 680 370" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="qa" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3FB950"/></marker>
+          <marker id="qb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#F87171"/></marker>
+          <marker id="qc" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#E3B341"/></marker>
+        </defs>
+
+        <!-- Timeline label -->
+        <text x="10" y="22" font-size="9" font-weight="700" fill="#6B7280" letter-spacing=".1em">AVANT LA PANNE</text>
+
+        <!-- 3 nodes normal state -->
+        <!-- Primary -->
+        <rect x="30" y="34" width="120" height="70" rx="7" fill="#0A1408" stroke="#059669" stroke-width="2"/>
+        <text x="90" y="58" text-anchor="middle" font-size="10" font-weight="800" fill="#6EE7B7">PRIMARY</text>
+        <text x="90" y="73" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœud A</text>
+        <circle cx="90" cy="87" r="5" fill="#3FB950"><animate attributeName="opacity" values="1;.3;1" dur="1.5s" repeatCount="indefinite"/></circle>
+        <text x="100" y="91" font-size="8" fill="#3FB950">actif</text>
+
+        <!-- Watchdog lines -->
+        <path d="M150 70 L280 70" fill="none" stroke="#374151" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <text x="215" y="66" text-anchor="middle" font-size="7.5" fill="#374151">watchdog</text>
+
+        <!-- Standby 1 -->
+        <rect x="280" y="34" width="120" height="70" rx="7" fill="#100C00" stroke="#F59E0B" stroke-width="1.5"/>
+        <text x="340" y="58" text-anchor="middle" font-size="10" font-weight="700" fill="#FCD34D">STANDBY 1</text>
+        <text x="340" y="73" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœud B</text>
+        <circle cx="340" cy="87" r="5" fill="#F59E0B"><animate attributeName="opacity" values="1;.3;1" dur="1.5s" repeatCount="indefinite" begin=".3s"/></circle>
+        <text x="350" y="91" font-size="8" fill="#F59E0B">passif</text>
+
+        <path d="M400 70 L530 70" fill="none" stroke="#374151" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <text x="465" y="66" text-anchor="middle" font-size="7.5" fill="#374151">watchdog</text>
+
+        <!-- Standby 2 -->
+        <rect x="530" y="34" width="120" height="70" rx="7" fill="#100C00" stroke="#F59E0B" stroke-width="1.5"/>
+        <text x="590" y="58" text-anchor="middle" font-size="10" font-weight="700" fill="#FCD34D">STANDBY 2</text>
+        <text x="590" y="73" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœud C</text>
+        <circle cx="590" cy="87" r="5" fill="#F59E0B"><animate attributeName="opacity" values="1;.3;1" dur="1.5s" repeatCount="indefinite" begin=".6s"/></circle>
+
+        <!-- STEP: Panne -->
+        <line x1="0" y1="118" x2="680" y2="118" stroke="#F87171" stroke-width=".5" stroke-dasharray="6,3"/>
+        <text x="10" y="132" font-size="9" font-weight="700" fill="#F87171" letter-spacing=".08em">t=0 s — PANNE PRIMAIRE DÉTECTÉE</text>
+
+        <!-- Primary failed -->
+        <rect x="30" y="142" width="120" height="70" rx="7" fill="#1A0808" stroke="#F87171" stroke-width="2"/>
+        <text x="90" y="166" text-anchor="middle" font-size="14" fill="#F87171">✗</text>
+        <text x="90" y="183" text-anchor="middle" font-size="9.5" font-weight="700" fill="#F87171">PRIMARY</text>
+        <text x="90" y="196" text-anchor="middle" font-size="8.5" fill="#9CA3AF">tombé · inaccessible</text>
+        <text x="90" y="207" text-anchor="middle" font-size="8" fill="#F87171">Nœud A</text>
+
+        <text x="215" y="162" text-anchor="middle" font-size="8" fill="#F87171" font-style="italic">Timeout heartbeat</text>
+        <text x="215" y="174" text-anchor="middle" font-size="8" fill="#6B7280">t+5s : B et C détectent</text>
+        <text x="215" y="186" text-anchor="middle" font-size="8" fill="#6B7280">Quorum consulté</text>
+
+        <!-- Quorum vote -->
+        <rect x="280" y="142" width="120" height="70" rx="7" fill="#100C00" stroke="#E3B341" stroke-width="2"/>
+        <text x="340" y="166" text-anchor="middle" font-size="9.5" font-weight="700" fill="#E3B341">VOTE QUORUM</text>
+        <text x="340" y="181" text-anchor="middle" font-size="8.5" fill="#9CA3AF">B et C votent</text>
+        <text x="340" y="194" text-anchor="middle" font-size="8.5" fill="#FCD34D">Majorité → B promu</text>
+        <text x="340" y="207" text-anchor="middle" font-size="8" fill="#9CA3AF">t+10s</text>
+        <circle cx="340" cy="170" r="4" fill="#E3B341"><animate attributeName="opacity" values="1;0;1" dur=".8s" repeatCount="indefinite"/></circle>
+
+        <rect x="530" y="142" width="120" height="70" rx="7" fill="#100C00" stroke="#F59E0B" stroke-width="1.5"/>
+        <text x="590" y="166" text-anchor="middle" font-size="10" font-weight="700" fill="#FCD34D">STANDBY 2</text>
+        <text x="590" y="181" text-anchor="middle" font-size="9" fill="#9CA3AF">Vote → B promu</text>
+        <text x="590" y="196" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Redevient standby</text>
+
+        <!-- STEP: Promotion -->
+        <line x1="0" y1="226" x2="680" y2="226" stroke="#3FB950" stroke-width=".5" stroke-dasharray="6,3"/>
+        <text x="10" y="240" font-size="9" font-weight="700" fill="#3FB950" letter-spacing=".08em">t+15 s — PROMOTION STANDBY 1 → PRIMARY</text>
+
+        <!-- OLD primary: FENCED -->
+        <rect x="30" y="250" width="120" height="80" rx="7" fill="#1A0808" stroke="#F87171" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="90" y="272" text-anchor="middle" font-size="9" font-weight="700" fill="#F87171">BLOQUÉ</text>
+        <text x="90" y="285" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Fencing époque</text>
+        <text x="90" y="298" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Si reconnecte :</text>
+        <text x="90" y="311" text-anchor="middle" font-size="8" fill="#F87171">Epoch fence → rejeté</text>
+        <text x="90" y="324" text-anchor="middle" font-size="8" fill="#6B7280">Split-brain impossible</text>
+
+        <!-- B: new primary -->
+        <rect x="280" y="250" width="120" height="80" rx="7" fill="#0A1408" stroke="#3FB950" stroke-width="2.5"/>
+        <text x="340" y="272" text-anchor="middle" font-size="10" font-weight="800" fill="#6EE7B7">★ NOUVEAU</text>
+        <text x="340" y="285" text-anchor="middle" font-size="10" font-weight="800" fill="#6EE7B7">PRIMARY</text>
+        <text x="340" y="300" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœud B promu</text>
+        <text x="340" y="313" text-anchor="middle" font-size="8.5" fill="#34D399">Écrit WAL · Epoch+1</text>
+        <circle cx="340" cy="321" r="4" fill="#3FB950"><animate attributeName="opacity" values="1;.3;1" dur="1.2s" repeatCount="indefinite"/></circle>
+
+        <!-- C: stays standby -->
+        <rect x="530" y="250" width="120" height="80" rx="7" fill="#100C00" stroke="#F59E0B" stroke-width="1.5"/>
+        <text x="590" y="274" text-anchor="middle" font-size="9.5" font-weight="700" fill="#FCD34D">STANDBY</text>
+        <text x="590" y="289" text-anchor="middle" font-size="9" fill="#9CA3AF">Nœud C</text>
+        <text x="590" y="303" text-anchor="middle" font-size="8.5" fill="#9CA3AF">Réplication depuis B</text>
+        <text x="590" y="318" text-anchor="middle" font-size="8" fill="#6B7280">Toujours disponible</text>
+
+        <!-- Portail notification -->
+        <rect x="0" y="338" width="680" height="28" rx="5" fill="#1A1A0A" stroke="#E3B341" stroke-width="1"/>
+        <text x="340" y="356" text-anchor="middle" font-size="9" fill="#E3B341" font-weight="700">⚡ SaaS éditeur notifié : failover exécuté · PME passe à 2 nœuds → bascule manuelle désormais requise</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#3FB950">Quorum ≥ 3 nœuds</h4>
+        <ul>
+          <li class="g"><span>Promotion automatique sans intervention</span></li>
+          <li class="g"><span>Vote par majorité : 2 nœuds suffisent pour décider</span></li>
+          <li class="g"><span>Promotion en &lt; 30 s via Patroni-style watchdog</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#E3B341">Fencing — Époque monotone</h4>
+        <ul>
+          <li class="b"><span>Chaque promotion incrémente un compteur d'époque</span></li>
+          <li class="b"><span>Ancien primaire détient époque N-1 → rejeté par tous</span></li>
+          <r class="r" style="display:flex;gap:5px"><span style="color:#F85149">✗</span><span>Split-brain techniquement impossible</span></r>
+          <li class="b"><span>Reconnexion → lecture seule puis reconfiguration</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#F87171">Seuil 2 nœuds</h4>
+        <ul>
+          <li class="r"><span>Failover automatique désactivé (risque split-brain)</span></li>
+          <li class="b"><span>Bascule manuelle : commande ss-node failover</span></li>
+          <li class="y"><span>PME alertée via portail SaaS immédiatement</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 8 — Sinistre total & Récupération
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="sh">
+    <div class="sh-tag">Slide 8/8 — Sinistre total</div>
+    <div class="sh-title">Scénario catastrophe — Toutes les machines PME perdues</div>
+    <div class="sh-sub">Incendie · Vol · Destruction · L'éditeur aide sans jamais lire les données</div>
+  </div>
+  <div class="ca">
+    <div class="sp">
+      <svg viewBox="0 0 660 370" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ra" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3FB950"/></marker>
+          <marker id="rb" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58A6FF"/></marker>
+          <marker id="rc" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#A78BFA"/></marker>
+        </defs>
+
+        <!-- Step 1: Sinistre -->
+        <rect x="4" y="4" width="652" height="52" rx="6" fill="#1A0808" stroke="#DC2626" stroke-width="2"/>
+        <text x="330" y="22" text-anchor="middle" font-size="11" font-weight="800" fill="#F87171">⚠  SINISTRE TOTAL</text>
+        <text x="330" y="38" text-anchor="middle" font-size="9.5" fill="#9CA3AF">Toutes les machines PME sont détruites ou volées</text>
+        <text x="330" y="51" text-anchor="middle" font-size="9" fill="#6B7280">Données chiffrées sur disque · Clés privées perdues · DEK inaccessible</text>
+
+        <!-- Step 2: Contact éditeur -->
+        <line x1="330" y1="56" x2="330" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#ra)"/>
+        <rect x="4" y="78" width="652" height="46" rx="6" fill="#0D1117" stroke="#1E2837" stroke-width="1"/>
+        <text x="330" y="96" text-anchor="middle" font-size="10" font-weight="700" fill="#C9D1D9">① PME contacte l'éditeur SaaS</text>
+        <text x="330" y="111" text-anchor="middle" font-size="9" fill="#6B7280">Identification via compte PME · Contrat de service · Procédure formelle</text>
+
+        <!-- Step 3: Éditeur restitue blob -->
+        <line x1="330" y1="124" x2="330" y2="146" stroke="#374151" stroke-width="1.5" marker-end="url(#rb)"/>
+        <rect x="4" y="146" width="652" height="54" rx="6" fill="#0A0A18" stroke="#4F46E5" stroke-width="1.5"/>
+        <text x="330" y="164" text-anchor="middle" font-size="10" font-weight="700" fill="#A5B4FC">② L'éditeur restitue le blob de récupération depuis MinIO</text>
+        <text x="330" y="180" text-anchor="middle" font-size="9" fill="#9CA3AF">Blob Argon2id(DEK, passphrase) — chiffré, opaque</text>
+        <text x="330" y="194" text-anchor="middle" font-size="9" fill="#818CF8">L'éditeur ne peut pas le déchiffrer · Garantie zero-knowledge tenue</text>
+
+        <!-- Step 4: PME déchiffre avec code -->
+        <line x1="330" y1="200" x2="330" y2="222" stroke="#374151" stroke-width="1.5" marker-end="url(#rc)"/>
+        <rect x="4" y="222" width="652" height="54" rx="6" fill="#0A1408" stroke="#059669" stroke-width="1.5"/>
+        <text x="330" y="240" text-anchor="middle" font-size="10" font-weight="700" fill="#6EE7B7">③ PME entre son code de récupération haute entropie</text>
+        <text x="330" y="256" text-anchor="middle" font-size="9" fill="#9CA3AF">Argon2id(blob, code) → DEK retrouvée</text>
+        <text x="330" y="270" text-anchor="middle" font-size="9" fill="#34D399">Déchiffrement local — DEK jamais transmise sur le réseau</text>
+
+        <!-- Step 5: Restauration -->
+        <line x1="330" y1="276" x2="330" y2="298" stroke="#374151" stroke-width="1.5" marker-end="url(#ra)"/>
+        <rect x="4" y="298" width="652" height="46" rx="6" fill="#081808" stroke="#059669" stroke-width="1.5"/>
+        <text x="330" y="316" text-anchor="middle" font-size="10" font-weight="700" fill="#6EE7B7">④ Nouvelle machine ss-node — DEK injectée → données déchiffrées</text>
+        <text x="330" y="331" text-anchor="middle" font-size="9" fill="#9CA3AF">Restauration PostgreSQL depuis backup + WAL · Activité PME reprend</text>
+
+        <!-- Promise box -->
+        <rect x="4" y="350" width="652" height="18" rx="3" fill="#0A1408" stroke="#059669" stroke-width="1"/>
+        <text x="330" y="362" text-anchor="middle" font-size="9" fill="#34D399" font-weight="700">✓ Les données ont été préservées · L'éditeur n'a jamais lu leur contenu · La promesse zero-knowledge est tenue</text>
+      </svg>
+    </div>
+    <div class="ip">
+      <div class="ic">
+        <h4 style="color:#F87171">Prérequis pour récupérer</h4>
+        <ul>
+          <li class="b"><span>Avoir le blob de récupération (stocké par relais)</span></li>
+          <li class="b"><span>Connaître le code Argon2id haute entropie</span></li>
+          <r class="r" style="display:flex;gap:5px"><span style="color:#F85149">✗</span><span>Perte du code = perte définitive</span></r>
+          <li class="g"><span>Blob seul est inutile sans le code</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#34D399">Où est le backup ?</h4>
+        <ul>
+          <li class="b"><span>Blob chiffré : MinIO sur le relais éditeur</span></li>
+          <li class="b"><span>Code Argon2id : connu seulement de la PME</span></li>
+          <li class="b"><span>Données chiffrées : PostgreSQL + sauvegardes PME</span></li>
+          <li class="g"><span>Dissociation physique : blob + code séparés</span></li>
+        </ul>
+      </div>
+      <div class="ic">
+        <h4 style="color:#A78BFA">Garantie zero-knowledge</h4>
+        <ul>
+          <li class="g"><span>Éditeur saisi par autorité → données illisibles</span></li>
+          <li class="g"><span>Relais compromis → blob inutilisable sans code</span></li>
+          <li class="g"><span>Éditeur malhonnête → impossible de lire les données</span></li>
+          <li class="g"><span>Promesse cryptographique — pas contractuelle seulement</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+
+<!-- DOTS -->
+<div class="dots" id="dots"></div>
 
 <script>
+const TITLES = [
+  'Architecture globale','Flux de données','Matrice ZK',
+  'Clés DEK','Enrôlement','Réplication WAL','Failover','Sinistre'
+];
+let cur = 0;
+const N = 8;
+
+function render() {
+  document.querySelectorAll('.slide').forEach((s,i) => s.classList.toggle('on', i === cur));
+  document.querySelectorAll('.d').forEach((d,i) => d.classList.toggle('on', i === cur));
+  document.getElementById('sc').textContent = ' · ' + TITLES[cur] + ' (' + (cur+1) + '/' + N + ')';
+}
+
+function go(d) {
+  cur = (cur + d + N) % N;
+  render();
+}
+
+// Build dots
+const dotsEl = document.getElementById('dots');
+for (let i = 0; i < N; i++) {
+  const d = document.createElement('div');
+  d.className = 'd' + (i === 0 ? ' on' : '');
+  d.title = TITLES[i];
+  d.onclick = () => { cur = i; render(); };
+  dotsEl.appendChild(d);
+}
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'f' || e.key === 'F') {
-    document.documentElement.requestFullscreen?.() ?? document.documentElement.webkitRequestFullscreen?.();
-  }
+  if (e.key === 'ArrowRight' || e.key === ' ') go(1);
+  else if (e.key === 'ArrowLeft') go(-1);
+  else if (e.key === 'f' || e.key === 'F') toggleFS();
 });
+
+function toggleFS() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.() ?? document.documentElement.webkitRequestFullscreen?.();
+  } else {
+    document.exitFullscreen?.() ?? document.webkitExitFullscreen?.();
+  }
+}
+
+render();
 </script>
 </body>
 </html>
