@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% block title %}Architecture{% endblock %}
+{% block content %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+.canvas {
+  background: #060B18;
+  border-radius: 16px;
+  padding: 44px 32px 52px;
+  color: #E2E8F0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,.18) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(16,185,129,.1) 0%, transparent 55%),
+    radial-gradient(1px 1px at  8% 15%, rgba(255,255,255,.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 18% 72%, rgba(255,255,255,.2)  0%, transparent 100%),
+    radial-gradient(1px 1px at 32% 38%, rgba(255,255,255,.28) 0%, transparent 100%),
+    radial-gradient(1px 1px at 47%  8%, rgba(255,255,255,.22) 0%, transparent 100%),
+    radial-gradient(1px 1px at 61% 85%, rgba(255,255,255,.18) 0%, transparent 100%),
+    radial-gradient(1px 1px at 74% 22%, rgba(255,255,255,.3)  0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 60%, rgba(255,255,255,.2)  0%, transparent 100%),
+    radial-gradient(1px 1px at 95% 40%, rgba(255,255,255,.25) 0%, transparent 100%);
+  pointer-events: none;
+}
+.canvas > * { position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+.hdr { text-align: center; margin-bottom: 50px; }
+.hdr-badge {
+  display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 20px; margin-bottom: 14px;
+  background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.35); color: #818CF8;
+  animation: fadeDown .5s ease both;
+}
+.hdr-title {
+  font-size: clamp(1.4rem, 2.5vw, 2.2rem); font-weight: 900; letter-spacing: -.03em; line-height: 1.15;
+  background: linear-gradient(135deg, #818CF8 0%, #34D399 50%, #F59E0B 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: 10px; animation: fadeDown .5s .1s ease both;
+}
+.hdr-sub { font-size: .88rem; color: #475569; letter-spacing: .04em; animation: fadeDown .5s .2s ease both; }
+@keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:none} }
+
+/* ── MAIN DIAGRAM ── */
+.main-diag {
+  display: grid; grid-template-columns: 1fr 90px 1fr 90px 1fr;
+  align-items: stretch; gap: 0; margin-bottom: 36px;
+}
+
+/* ── ZONES ── */
+.zone { border-radius: 18px; padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; }
+.zone-ed  { background:rgba(220,38,38,.07);  border:1.5px solid rgba(220,38,38,.3);  box-shadow:0 0 60px rgba(220,38,38,.06),inset 0 1px 0 rgba(255,255,255,.04);  animation:riseIn .7s .0s  cubic-bezier(.22,1,.36,1) both; }
+.zone-rl  { background:rgba(99,102,241,.07); border:1.5px solid rgba(99,102,241,.3); box-shadow:0 0 60px rgba(99,102,241,.06),inset 0 1px 0 rgba(255,255,255,.04); animation:riseIn .7s .15s cubic-bezier(.22,1,.36,1) both; }
+.zone-pme { background:rgba(16,185,129,.07); border:1.5px solid rgba(16,185,129,.3); box-shadow:0 0 60px rgba(16,185,129,.06),inset 0 1px 0 rgba(255,255,255,.04); animation:riseIn .7s .3s  cubic-bezier(.22,1,.36,1) both; }
+@keyframes riseIn { from{opacity:0;transform:translateY(28px) scale(.96)} to{opacity:1;transform:none} }
+
+.zone-top { margin-bottom: 4px; }
+.z-label { font-size:.63rem; font-weight:800; text-transform:uppercase; letter-spacing:.13em; margin-bottom:6px; }
+.z-label.red    { color:#F87171 }
+.z-label.indigo { color:#818CF8 }
+.z-label.green  { color:#34D399 }
+.z-ips { display:flex; flex-wrap:wrap; gap:5px; }
+.z-ip { font-family:'SF Mono','Fira Code',monospace; font-size:.68rem; padding:2px 10px; border-radius:20px; display:inline-block; }
+.ip-r { background:rgba(220,38,38,.2);  color:#FCA5A5 }
+.ip-i { background:rgba(99,102,241,.2); color:#A5B4FC }
+.ip-g { background:rgba(16,185,129,.2); color:#6EE7B7 }
+.divider { height:1px; background:rgba(255,255,255,.06); margin:2px 0; }
+
+/* ── CARDS ── */
+.card { border-radius:11px; padding:12px 14px; display:flex; align-items:flex-start; gap:11px; transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s; cursor:default; }
+.card:hover { transform:translateY(-3px) scale(1.01); box-shadow:0 10px 32px rgba(0,0,0,.4); }
+.c-ed      { background:rgba(255,255,255,.04); border:1px solid rgba(220,38,38,.18); }
+.c-rl      { background:rgba(255,255,255,.04); border:1px solid rgba(99,102,241,.18); }
+.c-primary { background:rgba(255,255,255,.05); border:2px solid rgba(16,185,129,.45); box-shadow:0 0 20px rgba(16,185,129,.1); }
+.c-standby { background:rgba(255,255,255,.04); border:1px solid rgba(245,158,11,.28); }
+.c-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:.9rem; font-weight:800; flex-shrink:0; }
+.i-dj { background:#092E20; color:#6EE7B7; }
+.i-pg { background:#17375F; color:#93C5FD; font-size:.65rem; letter-spacing:-.02em; }
+.i-rs { background:#4F1C14; color:#FBBF24; font-size:.68rem; }
+.i-s3 { background:#4A0F1C; color:#FCA5A5; font-size:.68rem; }
+.i-pr { background:#064E3B; color:#34D399; }
+.i-st { background:#451A03; color:#FCD34D; }
+.c-name   { font-size:.82rem; font-weight:700; margin-bottom:3px; color:#F1F5F9; }
+.c-detail { font-size:.71rem; color:#64748B; line-height:1.6; }
+.c-tag    { display:inline-block; font-size:.61rem; font-weight:700; padding:2px 8px; border-radius:20px; margin-top:5px; }
+.t-ok { background:rgba(16,185,129,.15); color:#34D399 }
+.t-no { background:rgba(220,38,38,.15);  color:#F87171 }
+.t-in { background:rgba(99,102,241,.15); color:#A5B4FC }
+.t-yw { background:rgba(245,158,11,.15); color:#FCD34D }
+
+/* ── WAL ── */
+.wal-wrap { display:flex; align-items:center; gap:8px; padding:2px 0; }
+.wal-lbl { font-size:.64rem; font-weight:700; color:#34D399; white-space:nowrap; }
+.wal-track { flex:1; height:5px; border-radius:3px; background:rgba(16,185,129,.1); position:relative; overflow:hidden; }
+.wal-glow { position:absolute; top:0; left:-50%; width:50%; height:100%; background:linear-gradient(to right,transparent,#34D399 50%,transparent); animation:wal 1.3s linear infinite; }
+@keyframes wal { from{left:-50%} to{left:110%} }
+.wal-sync { font-size:.6rem; color:#059669; font-weight:600; }
+
+/* ── CONNECTORS ── */
+.conn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.conn-top { font-size:.58rem; font-weight:700; color:#4B5563; text-transform:uppercase; letter-spacing:.08em; }
+.conn-btm { font-size:.57rem; color:#374151; text-align:center; }
+
+/* ── LOWER ── */
+.lower { display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:18px; margin-bottom:28px; }
+.panel { background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:18px 20px; animation:riseIn .7s cubic-bezier(.22,1,.36,1) both; }
+.panel:nth-child(1){ animation-delay:.5s }
+.panel:nth-child(2){ animation-delay:.6s }
+.panel:nth-child(3){ animation-delay:.7s }
+.p-title { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,.07); }
+
+.ktree { font-family:'SF Mono','Fira Code',monospace; font-size:.73rem; line-height:2; color:#94A3B8; }
+.kr { color:#818CF8; font-weight:700; }
+.kh { color:#34D399; font-weight:700; }
+.ka { color:#4F46E5; }
+.kn { color:#374151; font-size:.65rem; }
+.kc { color:#A5B4FC; }
+
+.fo { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.fo:last-child { border-bottom:none; }
+.fo-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.dr { background:#EF4444; box-shadow:0 0 10px #EF4444; }
+.dg { background:#10B981; box-shadow:0 0 10px #10B981; }
+.dy { background:#F59E0B; box-shadow:0 0 10px #F59E0B; }
+.fo-txt { font-size:.79rem; color:#CBD5E1; line-height:1.4; }
+.fo-sub { font-size:.68rem; color:#475569; margin-top:2px; }
+
+.fl { display:flex; align-items:flex-start; gap:9px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.fl:last-child { border-bottom:none; }
+.fl-enc { font-size:.6rem; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.e-tls { background:rgba(99,102,241,.2);  color:#A5B4FC }
+.e-zk  { background:rgba(16,185,129,.2);  color:#34D399 }
+.e-lan { background:rgba(245,158,11,.2);  color:#FCD34D }
+.fl-lbl { font-size:.73rem; font-weight:600; color:#E2E8F0; }
+.fl-dsc { font-size:.69rem; color:#64748B; margin-top:2px; line-height:1.5; }
+
+.zk-footer { background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(16,185,129,.07)); border:1px solid rgba(99,102,241,.22); border-radius:14px; padding:16px 22px; display:flex; align-items:center; gap:16px; animation:riseIn .7s .8s cubic-bezier(.22,1,.36,1) both; }
+.zk-ico { font-size:1.5rem; flex-shrink:0; }
+.zk-txt { font-size:.82rem; color:#94A3B8; line-height:1.7; }
+.zk-txt strong { color:#A5B4FC; }
+</style>
+
+<div class="canvas">
+
+  <div class="hdr">
+    <div class="hdr-badge">Phase 0 — Spike validé</div>
+    <div class="hdr-title">Architecture SaaS Souverain</div>
+    <div class="hdr-sub">Flux zero-knowledge &nbsp;·&nbsp; Données souveraines sur cluster PME &nbsp;·&nbsp; Réplication PostgreSQL distribuée</div>
+  </div>
+
+  <div class="main-diag">
+
+    <!-- ① ÉDITEUR -->
+    <div class="zone zone-ed">
+      <div class="zone-top">
+        <div class="z-label red">① Serveur Éditeur SaaS</div>
+        <div class="z-ips">
+          <span class="z-ip ip-r">192.168.200.1 :8000</span>
+          <span class="z-ip ip-r">Chez l'éditeur</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="card c-ed">
+        <div class="c-icon i-dj">🐍</div>
+        <div>
+          <div class="c-name">Django + React / TypeScript</div>
+          <div class="c-detail">Portail web SaaS · Gestion tenants<br>Licences · Supervision clusters PME</div>
+          <span class="c-tag t-ok">✓ Voit : comptes &amp; licences</span>
+        </div>
+      </div>
+      <div class="card c-ed">
+        <div class="c-icon i-pg">PG</div>
+        <div>
+          <div class="c-name">PostgreSQL éditeur</div>
+          <div class="c-detail">Tenants · Devices · Sessions<br>UUID installations (pas de MAC)</div>
+          <span class="c-tag t-no">✗ Jamais les données métier PME</span>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:10px 0 2px;font-size:.7rem;color:#475569;line-height:1.8;border-top:1px solid rgba(220,38,38,.15)">
+        <div style="font-weight:700;color:#F87171;margin-bottom:4px">Ce que voit l'éditeur</div>
+        <div>✓ UUID nœuds &amp; rôle cluster</div>
+        <div>✓ Dernier heartbeat reçu</div>
+        <div>✓ Compteur de failovers</div>
+        <div style="color:#374151">✗ Données stock / paie / facturation</div>
+        <div style="color:#374151">✗ Clés DEK</div>
+      </div>
+    </div>
+
+    <!-- CONNECTEUR A -->
+    <div class="conn">
+      <div class="conn-top">HTTPS</div>
+      <svg width="70" height="120" viewBox="0 0 70 120" fill="none">
+        <defs>
+          <linearGradient id="ga" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#EF4444" stop-opacity=".6"/>
+            <stop offset="100%" stop-color="#6366F1" stop-opacity=".6"/>
+          </linearGradient>
+        </defs>
+        <path id="pa1" d="M5 45 C 20 30, 50 30, 65 45" stroke="url(#ga)" stroke-width="1.8" fill="none" stroke-dasharray="5 3"/>
+        <path d="M65 75 C 50 90, 20 90, 5 75" stroke="url(#ga)" stroke-width="1.8" fill="none" stroke-dasharray="5 3"/>
+        <text x="35" y="63" text-anchor="middle" font-size="9" fill="#4B5563" font-weight="700">↔</text>
+        <circle r="4" fill="#818CF8" opacity=".85"><animateMotion dur="2s" repeatCount="indefinite" begin="0s"><mpath href="#pa1"/></animateMotion></circle>
+        <circle r="4" fill="#818CF8" opacity=".85"><animateMotion dur="2s" repeatCount="indefinite" begin="1s"><mpath href="#pa1"/></animateMotion></circle>
+        <polygon points="59,41 65,45 59,49" fill="#818CF8" opacity=".6"/>
+        <polygon points="11,71 5,75 11,79" fill="#F87171" opacity=".5"/>
+      </svg>
+      <div class="conn-btm">Annonces<br>topologie</div>
+    </div>
+
+    <!-- ② RELAIS -->
+    <div class="zone zone-rl">
+      <div class="zone-top">
+        <div class="z-label indigo">② Relais Zero-Knowledge</div>
+        <div class="z-ips">
+          <span class="z-ip ip-i">192.168.100.100 :8080</span>
+          <span class="z-ip ip-i">Chez l'éditeur</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="card c-rl">
+        <div class="c-icon i-rs">RS</div>
+        <div>
+          <div class="c-name">Service Rust stateless</div>
+          <div class="c-detail">Point de rendez-vous multi-sites<br>Enregistrement nœuds PME</div>
+          <span class="c-tag t-no">✗ Ne lit jamais le contenu</span>
+        </div>
+      </div>
+      <div class="card c-rl">
+        <div class="c-icon i-s3">S3</div>
+        <div>
+          <div class="c-name">MinIO · Stockage objet</div>
+          <div class="c-detail">Blobs DEK chiffrés XChaCha20<br>Blob récupération Argon2id</div>
+          <span class="c-tag t-in">🔒 Blobs opaques — jamais déchiffrés</span>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:10px 0 2px;font-size:.7rem;color:#475569;line-height:1.8;border-top:1px solid rgba(99,102,241,.15)">
+        <div style="font-weight:700;color:#818CF8;margin-bottom:4px">Garantie zero-knowledge</div>
+        <div>✓ UUID nœuds (metadata)</div>
+        <div>✓ Blobs chiffrés (opaques)</div>
+        <div style="color:#374151">✗ DEK (jamais en clair)</div>
+        <div style="color:#374151">✗ Clés privées X25519</div>
+        <div style="color:#374151">✗ Données métier</div>
+      </div>
+    </div>
+
+    <!-- CONNECTEUR B -->
+    <div class="conn">
+      <div class="conn-top">HTTPS</div>
+      <svg width="70" height="120" viewBox="0 0 70 120" fill="none">
+        <defs>
+          <linearGradient id="gb" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#6366F1" stop-opacity=".6"/>
+            <stop offset="100%" stop-color="#10B981" stop-opacity=".6"/>
+          </linearGradient>
+        </defs>
+        <path id="pb1" d="M5 45 C 20 30, 50 30, 65 45" stroke="url(#gb)" stroke-width="1.8" fill="none" stroke-dasharray="5 3"/>
+        <path d="M65 75 C 50 90, 20 90, 5 75" stroke="url(#gb)" stroke-width="1.8" fill="none" stroke-dasharray="5 3"/>
+        <text x="35" y="63" text-anchor="middle" font-size="9" fill="#4B5563" font-weight="700">↔</text>
+        <circle r="4" fill="#34D399" opacity=".85"><animateMotion dur="1.7s" repeatCount="indefinite" begin="0s"><mpath href="#pb1"/></animateMotion></circle>
+        <circle r="4" fill="#34D399" opacity=".85"><animateMotion dur="1.7s" repeatCount="indefinite" begin=".85s"><mpath href="#pb1"/></animateMotion></circle>
+        <polygon points="59,41 65,45 59,49" fill="#34D399" opacity=".6"/>
+        <polygon points="11,71 5,75 11,79" fill="#6366F1" opacity=".5"/>
+      </svg>
+      <div class="conn-btm">Heartbeat<br>DEK chiffrée</div>
+    </div>
+
+    <!-- ③ PME -->
+    <div class="zone zone-pme">
+      <div class="zone-top">
+        <div class="z-label green">③ Cluster PME — Périmètre souverain</div>
+        <div class="z-ips">
+          <span class="z-ip ip-g">.128 Kali · Primaire</span>
+          <span class="z-ip ip-g">.130 Ubuntu · Standby</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="card c-primary">
+        <div class="c-icon i-pr">★</div>
+        <div>
+          <div class="c-name">Nœud Primaire <span style="font-size:.62rem;background:rgba(16,185,129,.2);color:#34D399;padding:1px 8px;border-radius:10px;margin-left:4px">192.168.200.128</span></div>
+          <div class="c-detail">ss-node Rust · PostgreSQL 16 maître<br>Interface web :9001 · DEK déchiffrée en RAM</div>
+          <span class="c-tag t-ok">✓ Données en clair — périmètre souverain uniquement</span>
+        </div>
+      </div>
+      <div class="wal-wrap">
+        <div class="wal-lbl">WAL stream →</div>
+        <div class="wal-track"><div class="wal-glow"></div></div>
+        <div class="wal-sync">TCP sync</div>
+      </div>
+      <div class="card c-standby">
+        <div class="c-icon i-st">◎</div>
+        <div>
+          <div class="c-name">Nœud Standby <span style="font-size:.62rem;background:rgba(245,158,11,.2);color:#FCD34D;padding:1px 8px;border-radius:10px;margin-left:4px">192.168.200.130</span></div>
+          <div class="c-detail">ss-node Rust · PG 16 standby<br>Réplication streaming · Prêt au failover</div>
+          <span class="c-tag t-yw">◎ Réplique synchrone</span>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:10px 0 2px;font-size:.7rem;color:#475569;line-height:1.8;border-top:1px solid rgba(16,185,129,.15)">
+        <div style="font-weight:700;color:#34D399;margin-bottom:4px">Périmètre souverain</div>
+        <div>✓ Données métier (stock, paie…)</div>
+        <div>✓ Journal CBOR chiffré (DEK)</div>
+        <div>✓ DEK déchiffrée en RAM uniquement</div>
+        <div>✓ Failover auto ≥ 3 nœuds</div>
+        <div>✓ Fencing — époque monotone</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOWER PANELS -->
+  <div class="lower">
+
+    <div class="panel">
+      <div class="p-title" style="color:#818CF8">🔑 Hiérarchie des clés cryptographiques</div>
+      <div class="ktree">
+<span class="kr">DEK</span> <span class="kn">XChaCha20-Poly1305 · unique par PME</span>
+<span class="ka"> ├▶</span> <span class="kc">Chiffre données métier + journal CBOR</span>
+<span class="ka"> ├▶</span> <span class="kh">sealed_box X25519</span>
+<span class="ka"> │   └▶</span> <span class="kn">1 blob par appareil autorisé</span>
+<span class="ka"> └▶</span> <span class="kh">Argon2id</span>
+<span class="ka">     └▶</span> <span class="kn">blob récup. stocké sur relais (opaque)</span>
+
+<span class="kr">Enrôlement nouveau nœud</span>
+<span class="ka"> 1.</span> <span class="kc">Nœud génère paire X25519</span>
+<span class="ka">    └▶</span> <span class="kn">affiche clé publique via QR code</span>
+<span class="ka"> 2.</span> <span class="kc">Nœud autorisé scanne le QR</span>
+<span class="ka">    └▶</span> <span class="kn">sealed_box(DEK, pub_key_nouveau)</span>
+<span class="ka"> 3.</span> <span class="kc">Nouveau nœud ouvre le blob → DEK</span>
+<span class="ka"> 4.</span> <span class="kn">Jeton usage unique invalidé</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-title" style="color:#34D399">⚡ Règles de bascule (Failover)</div>
+      <div class="fo">
+        <div class="fo-dot dg"></div>
+        <div><div class="fo-txt"><strong>≥ 3 nœuds</strong> — bascule automatique par quorum</div><div class="fo-sub">Supervision Patroni · promotion standby</div></div>
+      </div>
+      <div class="fo">
+        <div class="fo-dot dr"></div>
+        <div><div class="fo-txt"><strong>2 nœuds</strong> — bascule manuelle uniquement</div><div class="fo-sub">Commande ss-node failover · intervention PME</div></div>
+      </div>
+      <div class="fo">
+        <div class="fo-dot dy"></div>
+        <div><div class="fo-txt"><strong>Fencing</strong> — jeton d'époque monotone</div><div class="fo-sub">Ancien primaire bloqué · split-brain impossible</div></div>
+      </div>
+      <div class="fo">
+        <div class="fo-dot dy"></div>
+        <div><div class="fo-txt"><strong>Alerte 3 → 2 nœuds</strong> — signalée au SaaS</div><div class="fo-sub">PME informée : bascule manuelle seulement</div></div>
+      </div>
+      <div class="fo">
+        <div class="fo-dot dr"></div>
+        <div><div class="fo-txt"><strong>Sinistre total</strong> — récupération PME</div><div class="fo-sub">Blob relais + code Argon2id → DEK retrouvée</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="p-title" style="color:#F59E0B">📡 Flux de données entre acteurs</div>
+      <div class="fl">
+        <span class="fl-enc e-tls">TLS</span>
+        <div><div class="fl-lbl">Nœud PME → Éditeur SaaS</div><div class="fl-dsc">UUID · rôle · heartbeat · failover count</div></div>
+      </div>
+      <div class="fl">
+        <span class="fl-enc e-zk">ZK</span>
+        <div><div class="fl-lbl">Nœud PME → Relais MinIO</div><div class="fl-dsc">DEK chiffrée X25519 · blob récupération Argon2id</div></div>
+      </div>
+      <div class="fl">
+        <span class="fl-enc e-lan">WAL</span>
+        <div><div class="fl-lbl">Primaire PG → Standby PG</div><div class="fl-dsc">WAL streaming TCP · synchrone · &lt; 1 s de lag</div></div>
+      </div>
+      <div class="fl">
+        <span class="fl-enc e-lan">RAM</span>
+        <div><div class="fl-lbl">Application → PostgreSQL local</div><div class="fl-dsc">Données en clair · exclusivement LAN PME</div></div>
+      </div>
+      <div class="fl">
+        <span class="fl-enc e-tls">TLS</span>
+        <div><div class="fl-lbl">Éditeur → Nœud PME</div><div class="fl-dsc">Token licence · docker-compose · instructions</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="zk-footer">
+    <div class="zk-ico">🔐</div>
+    <div class="zk-txt">
+      <strong>Garantie zero-knowledge</strong> —
+      L'éditeur gère les <strong>comptes et licences</strong> sans jamais voir les données métier.
+      Le relais stocke des <strong>blobs chiffrés opaques</strong> qu'il ne peut pas déchiffrer.
+      Les données métier ne sortent <strong>jamais en clair</strong> du périmètre PME,
+      même en cas de saisie judiciaire du relais ou de compromission totale du serveur éditeur.
+    </div>
+  </div>
+
+</div>
+{% endblock %}

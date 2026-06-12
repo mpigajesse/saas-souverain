@@ -68,6 +68,24 @@
         </svg>
         Relais
       </a>
+      <a href="{% url 'architecture' %}" class="nav-link {% if request.resolver_match.url_name == 'architecture' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1" y="5" width="4" height="3" rx="1"/>
+          <rect x="6" y="1" width="4" height="3" rx="1"/>
+          <rect x="11" y="5" width="4" height="3" rx="1"/>
+          <rect x="6" y="10" width="4" height="5" rx="1"/>
+          <path d="M3 8v2.5M8 4v3M13 8v2.5M3 10.5h10M8 10.5v-.5"/>
+        </svg>
+        Architecture
+      </a>
+      <a href="{% url 'schema-soutenance' %}" class="nav-link {% if request.resolver_match.url_name == 'schema-soutenance' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1" y="1" width="14" height="11" rx="1.5"/>
+          <path d="M4 13v2M12 13v2M2 15h12"/>
+          <path d="M4 5h3M4 8h5M9 5l2 1.5L9 8"/>
+        </svg>
+        Schéma soutenance
+      </a>
     </nav>
     <div class="sidebar-footer">
       <div>{{ request.user.username }}</div>
