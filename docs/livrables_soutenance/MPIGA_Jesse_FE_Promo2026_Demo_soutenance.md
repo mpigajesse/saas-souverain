@@ -194,6 +194,52 @@ docker compose up -d
 
 ---
 
+## 🔄 Réinitialisation après répétition (repartir vierge pour le jour J)
+
+> Objectif : effacer la PME de test **Boulangerie Atlas** pour que la vraie démo reparte de zéro
+> (inscription + 1ʳᵉ installation). **Ne pas toucher à MPJ** — il sert aussi le jour J.
+
+### A. Côté machine PME (Debian)
+
+```bash
+cd /opt/elbaraa-pme
+docker compose down                 # stoppe pg-node, ss-node, pgadmin
+sudo systemctl disable elbaraa-pme.service 2>/dev/null || true
+sudo rm -f /etc/systemd/system/elbaraa-pme.service
+sudo systemctl daemon-reload
+# Purge des données (DEK, base, config) → force un "premier install" propre
+sudo rm -rf /opt/pme-node/pg-data /opt/pme-node/node-data
+sudo rm -rf /opt/elbaraa-pme
+```
+> On garde Docker et l'image pré-tirée (`192.168.10.1:5000/ss-node:dev`) — pas besoin de les réinstaller.
+
+### B. Côté SaaS éditeur — supprimer le tenant de test
+
+**Méthode simple (UI)** : SaaS → **Tenants** → *Boulangerie Atlas* → **Supprimer** (cascade : licences + machines).
+Puis Django admin → **Users** → supprimer le compte `contact` (sinon l'email unique bloque le ré-essai).
+
+**Méthode shell (sûre, tout en un)** :
+```bash
+python manage.py shell -c "
+from tenants.models import Tenant
+for t in Tenant.objects.filter(name__icontains='Atlas'):
+    u = t.user
+    t.delete()            # cascade : devices + licenses
+    if u: u.delete()      # supprime aussi le compte Django (email unique)
+print('Tenant de test supprimé.')
+"
+```
+
+### C. Vérification « état jour J »
+
+- [ ] SaaS → **Tenants** : seul **MPJ** reste (plus de Boulangerie Atlas).
+- [ ] SaaS → **Parc machines** : seules les 2 machines MPJ.
+- [ ] SaaS → **Clusters** : MPJ « ✓ Cluster sain ».
+- [ ] Debian : `docker ps` ne montre plus pg-node/ss-node/pgadmin · `/opt/elbaraa-pme` absent.
+- [ ] *(optionnel)* MPJ : supprimer l'article de répétition créé pendant la démo réplication, si vous voulez un historique propre.
+
+---
+
 ## Plan B (si le réseau lâche pendant la démo)
 
 1. Basculer sur les **captures d'écran** préparées (dossier `tests/captures-GUIDE-TEST-METIER-MPJ/`).
