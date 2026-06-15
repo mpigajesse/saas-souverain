@@ -1,0 +1,753 @@
+# Support de Soutenance — Slides
+<!-- NOM FICHIER MOODLE : MPIGA_Jesse_FE_Promo2026_Soutenance.ppt -->
+<!-- DEADLINE DEPOT MOODLE : 30/06/2026 (veille de soutenance) -->
+<!-- DUREE CIBLE : 30 minutes (27–33 min tolérés) -->
+<!-- FORMAT : PowerPoint .ppt — max 8 Mo -->
+<!-- THÈME ACTUEL : Framework SaaS Souverain pour logiciels métier distribués -->
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1 — PAGE DE GARDE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 1 — Page de Garde
+
+**[Design : fond sombre #0D0A07, motif zellige subtil en transparence, accent doré #C79A1B]**
+
+---
+
+**[LOGO EIGSI — haut gauche]** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **[LOGO AL BARAA CONSULTING — haut droite]**
+
+---
+
+## 🔐 Framework SaaS Souverain
+
+### Conception et Implémentation d'un Framework SaaS Souverain
+### pour Logiciels Métier Distribués
+
+---
+
+**Expérience Professionnelle de Fin d'Études**
+EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
+**Promotion 2026**
+
+---
+
+| | |
+|---|---|
+| **Étudiant** | Jesse MPIGA-ODOUMBA |
+| **Encadrante entreprise** | Mme Soumia CHOKRI — AL BARAA CONSULTING |
+| **Tuteur EIGSI** | M. Ayoub AMRANI |
+| **Soutenance** | 01 juillet 2026 — EIGSI Casablanca |
+
+---
+
+*Notes présentateur :*
+> Sourire, regarder le jury. Pause 3 secondes. Commencer par : "Mesdames, Messieurs, je vous remercie de m'accorder ce temps pour vous présenter mon projet de fin d'études : la conception d'un framework qui permet à un éditeur de vendre un logiciel métier en mode SaaS, sans jamais voir les données de ses clients."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2 — PLAN DE LA PRÉSENTATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 2 — Plan de la Présentation
+
+**[Design : fond sombre, titre en doré, bullets avec icônes]**
+
+---
+
+## Plan
+
+| # | Partie | ⏱ |
+|---|--------|---|
+| 1 | AL BARAA CONSULTING & contexte du stage | 2 min |
+| 2 | Problématique : la souveraineté des données métier | 3 min |
+| 3 | La solution : un framework à trois acteurs | 3 min |
+| 4 | Architecture & garantie zero-knowledge | 4 min |
+| 5 | Le cœur technique : réplication & résilience | 4 min |
+| 6 | **Démonstration live** — cluster PME 2 nœuds | 5 min |
+| 7 | **Supervision intelligente — agent IA** | 3 min |
+| 8 | Difficultés & posture ingénieur | 3 min |
+| 9 | Bilan, compétences & perspectives | 3 min |
+
+---
+
+*Notes présentateur :*
+> "La présentation suit le fil du projet : d'abord le problème de souveraineté, puis la solution architecturale, le cœur technique que j'ai prouvé sur un banc réel, une démonstration live, et enfin la dimension intelligence artificielle qui supervise le système — au cœur de ma spécialité."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3 — AL BARAA CONSULTING -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 3 — AL BARAA CONSULTING
+
+**[Design : fond sombre, logo AL BARAA prominent, données clés en cartes]**
+
+---
+
+**[LOGO AL BARAA CONSULTING — centré, grand]**
+
+---
+
+## Un cabinet de conseil en ingénierie numérique
+
+| 📅 Fondé | Mars 2017 |
+|---------|-----------|
+| 📍 Siège | Ain Sebaa, Casablanca |
+| ⚖️ Statut | SARL AU — 100 000 MAD |
+| 👤 DG | Mme Soumia CHOKRI |
+| 🎯 Missions | Développement logiciel, Architecture SI, Transformation numérique |
+| 🤝 Clients | Secteur public & privé (B2B) |
+
+---
+
+### Ma position dans l'entreprise
+
+> Développeur & Architecte principal du projet — **responsabilité totale** sur l'ensemble du cycle (conception → développement → déploiement → validation).
+
+---
+
+*Notes présentateur :*
+> "AL BARAA CONSULTING est un cabinet à taille humaine, ce qui m'a placé en situation de forte responsabilité dès le premier jour : une mission d'ingénieur avec une autonomie réelle, pas des tâches d'exécution."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4 — PROBLÉMATIQUE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 4 — La Problématique
+
+**[Design : fond sombre, carte de l'Afrique en arrière-plan transparent, couleurs chaudes]**
+
+---
+
+## Le dilemme de l'éditeur de logiciel métier
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Pour vendre en SaaS, l'éditeur héberge les données…      │
+│        ↓                                                   │
+│  ☁️  …donc il VOIT les données métier de ses clients      │
+│        ↓                                                   │
+│  ❌ Stock, factures, paie, clients → exposés à l'éditeur   │
+│  ❌ Et souvent stockés sur un cloud étranger              │
+│                                                            │
+│  Alternative actuelle : le client installe tout lui-même  │
+│        ↓                                                   │
+│  ❌ Pas de mises à jour, pas de licences, pas de support  │
+└──────────────────────────────────────────────────────────┘
+```
+
+---
+
+### L'AUDPF — Union Africaine, Déc. 2025
+
+> *"Les données des organisations africaines doivent rester sous contrôle local et ne pas transiter sans consentement par des serveurs étrangers."*
+
+---
+
+### ❓ La question centrale
+
+> **Comment un éditeur peut-il vendre un logiciel métier en SaaS (comptes, licences, mises à jour) tout en garantissant qu'il ne pourra JAMAIS lire les données métier de ses clients ?**
+
+---
+
+*Notes présentateur :*
+> "Le problème n'est pas que technique, il est commercial. Un éditeur veut le modèle SaaS — abonnement, parc géré, mises à jour. Mais le SaaS classique implique de voir les données du client. Mon projet résout cette contradiction."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5 — LA SOLUTION : TROIS ACTEURS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 5 — La Solution : un Framework à Trois Acteurs
+
+**[Design : 3 blocs distincts reliés, fond sombre, accent doré ; PME en vert (zone souveraine)]**
+
+---
+
+## Séparer ce qui peut être vu de ce qui ne doit jamais l'être
+
+```
+  🏢 SaaS ÉDITEUR          🔒 RELAIS ZERO-KNOWLEDGE       🏭 CLUSTER PME
+  (chez l'éditeur)          (chez l'éditeur)               (chez le client)
+  ───────────────           ─────────────────              ──────────────
+  Comptes tenants           Stockage de blobs              Logiciel métier
+  Licences                  CHIFFRÉS opaques               Données EN CLAIR
+  Suivi du parc             (jamais déchiffrables)         PostgreSQL répliqué
+       │                          ▲                              │
+       │  voit : compte/licence   │  voit : RIEN                 │  voit : tout
+       └──────────────────────────┴──────────────────────────────┘
+                       Les données métier ne sortent
+                       que CHIFFRÉES, jamais en clair
+```
+
+---
+
+### Les 3 garanties fondatrices
+
+| 🏛️ Souveraineté | Les données métier restent sur les machines du client |
+|-------------|----------------------------------------------|
+| 🔑 Zero-knowledge | L'éditeur gère le parc mais ne détient aucune clé |
+| ⚙️ Résilience | Cluster répliqué : panne d'une machine ≠ perte de données |
+
+---
+
+### Ce que le framework n'est PAS
+
+❌ Un SaaS classique où l'éditeur voit les données
+❌ Une installation isolée sans licences ni mises à jour
+❌ Une solution dépendante d'un cloud étranger
+
+---
+
+*Notes présentateur :*
+> "L'idée clé : on découpe le rôle en trois. L'éditeur gère le commercial — comptes, licences. Le relais stocke des sauvegardes chiffrées qu'il ne peut pas lire. Et c'est uniquement chez le client, dans son périmètre, que les données existent en clair."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6 — POSITIONNEMENT -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 6 — Positionnement vs Alternatives
+
+**[Design : tableau comparatif, colonnes colorées, notre solution en surbrillance]**
+
+---
+
+## Pourquoi pas les modèles existants ?
+
+| Critère | SaaS cloud classique | Logiciel installé (on-premise) | **✅ Framework SaaS Souverain** |
+|---------|:---:|:---:|:---:|
+| Données invisibles à l'éditeur | ❌ | ✅ | ✅ Zero-knowledge |
+| Comptes / licences / parc gérés | ✅ | ❌ | ✅ SaaS éditeur |
+| Mises à jour centralisées | ✅ | ❌ | ✅ Image Docker |
+| Résilience (réplication, failover) | ✅ | ⚠️ Manuel | ✅ PostgreSQL natif |
+| Souveraineté infrastructurelle | ❌ | ✅ | ✅ Totale |
+| Conformité AUDPF | ❌ | ⚠️ | ✅ Par design |
+
+---
+
+### Les 3 différenciateurs
+
+> **1.** Modèle SaaS complet (commercial) **sans** accès aux données métier
+> **2.** Résilience de niveau base de données (réplication primaire/standby)
+> **3.** Souveraineté garantie cryptographiquement, pas contractuellement
+
+---
+
+*Notes présentateur :*
+> "Le SaaS classique est pratique mais expose les données. Le logiciel installé protège les données mais perd tout le confort du SaaS. Mon framework prend le meilleur des deux : le confort SaaS pour l'éditeur, la souveraineté totale pour le client."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7 — ARCHITECTURE & ZERO-KNOWLEDGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 7 — Architecture & Garantie Zero-Knowledge
+
+**[Design : schéma hiérarchie de clés, fond sombre, cadenas dorés]**
+
+---
+
+## La hiérarchie de clés — le cœur de la promesse
+
+```
+  DEK (clé symétrique, unique par entreprise)
+   ├─ chiffre : données métier + journal des écritures (CBOR)
+   ├─ emballée par "sealed box" pour chaque appareil autorisé (X25519)
+   └─ emballée sous un code de récupération (Argon2id)
+         └─ stocké CHIFFRÉ sur le relais éditeur
+```
+
+> Le relais ne voit jamais la DEK ni aucune clé privée. **Même saisi ou compromis, il ne peut rien déchiffrer.**
+
+---
+
+## Crypto : aucune primitive réinventée — tout via libsodium
+
+| Usage | Primitive |
+|-------|-----------|
+| Données & journal | XChaCha20-Poly1305 |
+| Identité appareil | X25519 |
+| Dérivation (code de récupération) | Argon2id |
+| Enrôlement d'un appareil | Sealed box |
+
+---
+
+### Cœur partagé en **Rust** — un seul code, desktop & mobile (via UniFFI)
+
+---
+
+*Notes présentateur :*
+> "Tout repose sur la DEK, une clé unique par entreprise. Elle chiffre les données. Pour chaque nouvel appareil autorisé, on lui emballe la DEK avec sa clé publique. Le relais, lui, ne reçoit que des blobs chiffrés et une copie de la DEK scellée sous le code de récupération du client — qu'il ne connaît pas. La promesse zero-knowledge tient cryptographiquement."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8 — CLUSTER PME : RÉPLICATION & RÉSILIENCE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 8 — Le Cœur Technique : Réplication & Résilience
+
+**[Design : 2 nœuds PostgreSQL reliés par flux WAL, fond sombre]**
+
+---
+
+## Cluster PME — PostgreSQL primaire / standby
+
+```
+  🖥️ NŒUD PRIMAIRE                     🖥️ NŒUD STANDBY
+  (écritures + lectures)                (réplique lecture seule)
+  PostgreSQL 16                         PostgreSQL 16
+       │                                      ▲
+       │   réplication streaming WAL (TCP)    │
+       └──────────────────────────────────────┘
+            chaque écriture répliquée en < 1 s
+```
+
+| Mécanisme | Garantie |
+|-----------|----------|
+| Réplication par opération | Synchrone pour les invariants forts (stock, facturation) |
+| Journal append-only (CBOR) | Écritures sérialisées, chiffrées DEK avant disque |
+| `standby.signal` | Le standby refuse toute écriture → ne peut pas diverger |
+| Failover | 2 nœuds = bascule manuelle · ≥ 3 nœuds = quorum automatique |
+
+---
+
+## Découverte & packaging
+
+> **Image Docker multi-arch** distribuée à la PME · les nœuds s'annoncent au relais éditeur au démarrage (pas de mDNS) · `docker-compose.yml` fourni.
+
+---
+
+*Notes présentateur :*
+> "Côté client, le logiciel tourne dans Docker avec une base PostgreSQL répliquée. Toute écriture sur le primaire est copiée sur le standby en moins d'une seconde. Si une machine tombe, les données sont déjà ailleurs. Je n'ai réinventé ni la crypto, ni le consensus — j'ai orchestré des briques éprouvées."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9 — ENRÔLEMENT & RÉCUPÉRATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 9 — Enrôlement d'un Appareil & Récupération de Sinistre
+
+**[Design : 2 mini-schémas côte à côte, fond sombre]**
+
+---
+
+## Enrôlement (partage de la DEK, sans QR à scanner)
+
+```
+1. La PME souscrit une licence chez l'éditeur
+2. Un appareil déjà autorisé emballe la DEK (sealed box)
+   pour la clé publique du nouvel appareil
+3. Le nouvel appareil ouvre le blob avec sa clé privée → obtient la DEK
+4. Le jeton d'invitation est consommé (usage unique, courte durée)
+```
+
+---
+
+## Récupération si la PME perd toutes ses machines
+
+```
+1. La PME contacte l'éditeur
+2. L'éditeur restitue le blob chiffré stocké sur le relais
+   (qu'il n'a JAMAIS pu lire)
+3. La PME l'ouvre avec SON code de récupération → récupère la DEK
+   → redéchiffre ses données sur une nouvelle machine
+```
+
+> L'éditeur aide sans jamais accéder au contenu. La promesse zero-knowledge tient même en sinistre total.
+
+---
+
+*Notes présentateur :*
+> "Deux scénarios critiques. L'enrôlement : ajouter un appareil, c'est lui transmettre la DEK de façon chiffrée. La récupération : même si le client perd toutes ses machines, l'éditeur lui rend une sauvegarde chiffrée qu'il est le seul à pouvoir ouvrir, avec son code de récupération."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10 — DÉMONSTRATION LIVE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 10 — Démonstration Live
+
+**[Design : fond vert foncé, badge "LIVE" rouge, captures terminal/SaaS en arrière-plan]**
+
+---
+
+## 🔴 LIVE — Cluster PME 2 nœuds (tenant MPJ)
+
+**[CAPTURE : Kali primaire (.128) + Ubuntu standby (.130) côte à côte + dashboard SaaS]**
+
+---
+
+### Scénario de démonstration (5 min)
+
+| Étape | Action | Résultat attendu |
+|-------|--------|-----------------|
+| **1** | Connexion employé (Alice) → créer 2 articles | Articles enregistrés sur le primaire |
+| **2** | Bob (autre employé) → sortie de stock | Base partagée : Bob agit sur les données d'Alice |
+| **3** | Requête SQL sur le **standby** Ubuntu | Articles & stocks répliqués en < 1 s |
+| **4** | Tableau de bord SaaS éditeur | « ✓ Cluster sain · Réplication streaming » |
+| **5** | Couper le standby → observer le SaaS | « ✗ Réplication interrompue » détecté |
+| **6** | Rallumer le standby | Rattrapage WAL automatique + retour « sain » |
+
+---
+
+**[CAPTURE : articles répliqués sur Ubuntu]** · **[CAPTURE : SaaS « Réplication interrompue »]** · **[CAPTURE : retour « Cluster sain »]**
+
+---
+
+*Notes présentateur :*
+> "Ce ne sont pas des simulations : deux machines réelles, Kali et Ubuntu. Un employé crée des données, elles apparaissent sur la seconde machine en moins d'une seconde. Et quand je coupe la réplication, le tableau de bord de l'éditeur le détecte immédiatement — il ne ment jamais sur l'état réel."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11 — RÉSULTATS & VALIDATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 11 — Résultats : Validation sur Banc Réel
+
+**[Design : tableau de résultats, vert dominant]**
+
+---
+
+## Campagne de test métier — tenant MPJ (2 employés)
+
+| # | Scénario | Garantie démontrée | Verdict |
+|---|----------|--------------------|:-------:|
+| 1 | Création de 2 articles + entrées | Réplication primaire → standby | ✅ |
+| 2 | Sorties de stock (2 employés) | Base unique partagée | ✅ |
+| 3 | Stocks calculés + alerte de seuil | Cohérence ACID | ✅ |
+| 4 | Insertion de doublon | Contrainte `UNIQUE` avant réplication | ✅ |
+| 5 | Écritures concurrentes | Sérialisation MVCC sans corruption | ✅ |
+| 6 | Panne du standby → reprise | Rattrapage WAL + détection SaaS | ✅ |
+
+---
+
+### Résultat global : **6 / 6 scénarios validés — 0 échec**
+
+> Banc : Kali (primaire ⚡) + Ubuntu (standby) · réplication streaming async confirmée par `pg_stat_replication`.
+
+---
+
+*Notes présentateur :*
+> "Six scénarios, tous validés sur deux machines physiques. Le plus important est le sixième : la résilience à la panne. C'est là que se joue la vraie promesse d'un système distribué."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12 — AGENT IA DE MONITORING ⭐ -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 12 — Supervision Intelligente : un Agent IA
+
+**[Design : fond sombre, accent doré + bleu "IA", schéma flux métriques → modèle → alerte]**
+
+---
+
+## Le cluster produit déjà des données — exploitons-les
+
+```
+  Heartbeats (~60 s) ┐
+  streaming_standby   ├─▶  Séries temporelles  ─▶  Agent IA  ─▶  Score d'anomalie
+  WAL lag             │      (Big Data)             (détection)     + prédiction
+  failover_count     ┘                                              de panne
+```
+
+> Chaque nœud émet ses métriques au SaaS toutes les ~60 s. Sur la durée, cela forme un **historique exploitable** — terrain naturel du Big Data et de l'IA.
+
+---
+
+## Ce que l'agent apporte (au-delà du seuil fixe)
+
+| Approche actuelle | Apport de l'agent IA |
+|-------------------|----------------------|
+| Seuil binaire (streaming = 0 → alerte) | **Détection d'anomalie** sur la dynamique des métriques |
+| Réaction *après* la panne | **Prédiction** : lag qui dérive, heartbeats qui s'espacent |
+| Une règle par symptôme | Modèle non supervisé (Isolation Forest / z-score) |
+
+---
+
+### Preuve de concept
+
+> PoC Python sur les métriques réelles du parc (heartbeats, `streaming_standby_count`, `failover_count`) → détection de l'anomalie qui a **précédé le split-brain** observé en phase de test. *(voir annexe / démo)*
+
+---
+
+*Notes présentateur :*
+> "Ma spécialité est l'IA et le Big Data. Le système génère naturellement des séries temporelles : battements de cœur, état de réplication, compteurs de bascule. Un agent intelligent peut apprendre le comportement normal du cluster et alerter AVANT la panne — pas seulement constater après. J'en ai fait une preuve de concept sur des données réelles."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13 — SÉCURITÉ -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 13 — Sécurité : Souveraineté par Design
+
+**[Design : schéma en oignon — couches de sécurité emboîtées]**
+
+---
+
+## Défense en profondeur
+
+```
+┌─────────────────────────────────────────────────┐
+│  🔑 ZERO-KNOWLEDGE                               │
+│  Le relais ne détient aucune clé déchiffrable    │
+├─────────────────────────────────────────────────┤
+│  💾 AT-REST (données + journal CBOR)             │
+│  XChaCha20-Poly1305 sous la DEK                  │
+├─────────────────────────────────────────────────┤
+│  📲 ENRÔLEMENT                                   │
+│  Sealed box X25519 — jeton à usage unique        │
+├─────────────────────────────────────────────────┤
+│  🛡️ FENCING (failover)                          │
+│  Jeton d'époque monotone — isole le nœud déchu   │
+├─────────────────────────────────────────────────┤
+│  🆔 IDENTITÉ PARC                                │
+│  UUID d'installation authentifié (pas la MAC)    │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+> La souveraineté n'est pas une promesse contractuelle, c'est une **propriété cryptographique** : l'éditeur ne *peut pas* lire les données, même s'il le voulait.
+
+---
+
+*Notes présentateur :*
+> "La sécurité est architecturale. Le point le plus subtil est le fencing : quand un standby est promu après une panne, l'ancien primaire doit être bloqué par un jeton d'époque pour éviter deux primaires en parallèle — un piège classique des systèmes distribués que j'ai rencontré en vrai."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14 — DIFFICULTÉS : POSTURE INGÉNIEUR -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 14 — Difficulté Majeure : Diagnostic d'un Split-Brain
+
+**[Design : avant/après — 2 sources de vérité qui se contredisent → résolution]**
+
+---
+
+## Un incident réel de système distribué
+
+| | |
+|---|---|
+| 🔴 **Symptôme** | Le SaaS affiche « Cluster sain », mais le nœud affiche « aucun standby connecté » |
+| 🔍 **Diagnostic** | Deux sources de vérité divergentes : le SaaS croyait un rôle *déclaré*, PostgreSQL mesurait la réalité |
+| ❓ **Cause racine** | Le standby s'était auto-promu (failover) pendant que le primaire tournait → **deux primaires** (split-brain) |
+| 🔧 **Technicien** | Redémarrer les conteneurs (ne corrige rien : le nœud promu reste primaire) |
+| ✅ **Ingénieur** | (1) Réparer le cluster par `pg_basebackup` · (2) **faire dire la vérité au SaaS** : le primaire transmet son nombre réel de standbys en streaming (`pg_stat_replication`) |
+| 📐 **Principe** | Jamais de dégradation silencieuse — un tableau de bord ne doit afficher que ce qu'il a *mesuré* |
+
+---
+
+> **De l'incident à l'amélioration produit** : le correctif a fermé la dégradation silencieuse, et a inspiré l'agent IA prédictif (slide 12).
+
+---
+
+*Notes présentateur :*
+> "Cet incident résume la posture ingénieur. Le réflexe technicien : redémarrer. Mais ça ne réglait rien. J'ai compris que le tableau de bord mentait parce qu'il se fiait à une déclaration, pas à une mesure. J'ai corrigé la cause — et j'en ai tiré une fonctionnalité : la supervision intelligente."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15 — COMPÉTENCES DÉVELOPPÉES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 15 — Compétences Développées
+
+**[Design : hexagones de compétences, couleurs par domaine]**
+
+---
+
+### Techniques
+
+| Domaine | Compétences acquises |
+|---------|---------------------|
+| 🦀 Cœur système | Rust, sérialisation CBOR, journal append-only |
+| 🔐 Cryptographie | libsodium, XChaCha20-Poly1305, X25519, Argon2id, zero-knowledge |
+| 🗄️ Systèmes distribués | PostgreSQL réplication, failover/quorum, fencing, MVCC |
+| 📊 Big Data & IA | Séries temporelles de métriques, détection d'anomalies, agent de supervision |
+| 🐳 DevOps | Docker multi-arch, docker-compose, registre privé, watchtower |
+| ⚡ Backend SaaS | Django, API REST, modèle tenant/licence/parc |
+
+---
+
+### Transversales
+
+> 🎯 **Diagnostic en production** — split-brain résolu structurellement
+> 📝 **Rigueur documentaire** — plan directeur, guide de test, journal technique
+> 🧭 **Autonomie** — décisions d'architecture sans supervision permanente
+> 💬 **Communication** — points réguliers avec Mme CHOKRI & M. Amrani
+
+---
+
+*Notes présentateur :*
+> "Au-delà des technologies, ce stage m'a appris à diagnostiquer un système distribué en production — là où chaque couche cache la suivante — et à relier ma spécialité IA & Big Data à un problème d'infrastructure concret."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 16 — BILAN & PERSPECTIVES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 16 — Bilan et Perspectives
+
+**[Design : deux colonnes — Acquis (vert) / Perspectives (bleu/or)]**
+
+---
+
+## Ce qui a été accompli
+
+| ✅ | Résultat |
+|----|---------|
+| 6/6 | Scénarios métier validés sur banc réel |
+| Zero-knowledge | Hiérarchie de clés DEK prouvée cross-OS |
+| Réplication | PostgreSQL primaire/standby + détection de panne |
+| Reporting véridique | Le SaaS reflète l'état réel de la réplication |
+| Agent IA (PoC) | Détection d'anomalie sur métriques réelles |
+
+---
+
+## Valeur pour AL BARAA CONSULTING
+
+> ✅ Framework réutilisable pour vendre tout logiciel métier en SaaS souverain
+> ✅ Argument commercial fort : conformité AUDPF par design
+> ✅ Différenciation sur le marché africain des solutions souveraines
+
+---
+
+## Perspectives techniques
+
+| Horizon court | Horizon moyen |
+|---------------|---------------|
+| Fencing par jeton d'époque (failover sûr) | Agent IA en production (alerte prédictive) |
+| IP statiques sur réseau de réplication | Quorum ≥ 3 nœuds (failover automatique) |
+| Module métier v1 (gestion de stock) | Frontend Tauri + mobile (UniFFI) |
+
+---
+
+*Notes présentateur :*
+> "C'est un socle prouvé, pas un produit fini. La priorité technique suivante est le fencing, pour sécuriser le failover automatique. Et l'agent IA, aujourd'hui en preuve de concept, a vocation à devenir une supervision prédictive en production."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 17 — CONCLUSION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 17 — Conclusion
+
+**[Design : fond sombre, accent doré, texte centré, sobre et fort]**
+
+---
+
+## Ce que nous avons démontré
+
+---
+
+### Techniquement
+
+> Un éditeur peut vendre un logiciel métier en **SaaS complet** (comptes, licences, parc, mises à jour) tout en étant **cryptographiquement incapable** de lire les données de ses clients.
+
+---
+
+### Stratégiquement
+
+> **6/6** scénarios validés sur banc réel multi-OS
+> **Zero-knowledge** garanti par la hiérarchie de clés, pas par un contrat
+> **Résilience** de niveau base de données + supervision intelligente
+> **Conforme AUDPF** — par design, pas par configuration
+
+---
+
+### Personnellement
+
+> Ce projet m'a confirmé que la valeur d'un ingénieur réside dans la **qualité des décisions architecturales**, la **rigueur du diagnostic**, et la capacité à relier l'**IA & le Big Data** à un problème d'infrastructure réel.
+
+---
+
+## La souveraineté numérique africaine commence ici.
+
+---
+
+**[LOGO EIGSI + LOGO AL BARAA CONSULTING]**
+
+*Jesse MPIGA-ODOUMBA — EIGSI Casablanca — Promotion 2026*
+
+---
+
+*Notes présentateur :*
+> Pause. Regarder le jury.
+> "Je vous remercie pour votre attention. Je suis à votre disposition pour répondre à vos questions."
+> *(Ne pas dépasser 33 minutes — chronomètre personnel conseillé)*
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ANNEXE — SLIDES DE RÉSERVE (si questions jury) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+---
+---
+
+# SLIDES DE RÉSERVE — Pour les questions jury
+
+*(Ne pas présenter sauf si le jury pose ces questions)*
+
+---
+
+## RÉSERVE A — Les trois acteurs en détail
+
+| Acteur | Hébergement | Voit le clair ? | Rôle |
+|--------|-------------|:---:|------|
+| SaaS éditeur (Django) | Chez l'éditeur | Compte/licence seulement | Comptes tenants, licences, suivi parc |
+| Relais zero-knowledge | Chez l'éditeur | **Jamais** | Stockage de blobs chiffrés opaques |
+| Cluster PME | Chez le client | **Oui** | Exécute le logiciel, détient les données |
+
+---
+
+## RÉSERVE B — Pourquoi PostgreSQL et pas un consensus maison ?
+
+> Aucun algorithme de consensus écrit à la main. On utilise la **promotion de standby PostgreSQL** + supervision type Patroni. Réinventer Raft/Paxos serait une faute d'ingénierie : risque élevé, valeur nulle face à des briques éprouvées.
+
+---
+
+## RÉSERVE C — Failover : 2 nœuds vs 3 nœuds
+
+| Configuration | Comportement |
+|---------------|--------------|
+| 2 nœuds | Bascule **manuelle** uniquement (risque de split-brain sinon) |
+| ≥ 3 nœuds | Failover **automatique** par quorum |
+
+> Le SaaS signale à la PME si son cluster ne permet que la bascule manuelle.
+
+---
+
+## RÉSERVE D — Le split-brain : comment l'éviter définitivement
+
+> **Fencing par jeton d'époque monotone** : à chaque promotion, l'époque s'incrémente. Un ancien primaire qui revient avec une époque inférieure est isolé — il ne peut plus accepter d'écritures. C'est la prochaine étape technique.
+
+---
+
+## RÉSERVE E — L'agent IA : quel modèle ?
+
+| Élément | Choix |
+|---------|-------|
+| Données | Séries temporelles : heartbeats, streaming_standby_count, WAL lag, failover_count |
+| Modèle | Détection d'anomalie non supervisée (Isolation Forest / z-score glissant) |
+| Sortie | Score d'anomalie + alerte prédictive avant franchissement de seuil |
+| Pourquoi | Les pannes (ex. split-brain) sont précédées de dérives détectables |
+
+---
+
+## RÉSERVE F — Sécurité : que se passe-t-il si le relais est saisi ?
+
+> Rien d'exploitable. Le relais ne stocke que des **blobs chiffrés** et une copie de la DEK **scellée sous le code de récupération du client**. Sans ce code (que l'éditeur ne connaît pas), aucun déchiffrement n'est possible.
+
+---
+
+*Fin du support de soutenance*
+
+---
+
+*MPIGA-ODOUMBA Jesse — EIGSI Casablanca — Promotion 2026*
+*AL BARAA CONSULTING — Soutenance : 01/07/2026*
