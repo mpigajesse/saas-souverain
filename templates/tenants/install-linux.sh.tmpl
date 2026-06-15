@@ -11,10 +11,13 @@ SAAS_URL="http://{{ saas_host }}:{{ saas_port }}"
 NODE_IMAGE="{{ node_image }}"
 INSTALL_DIR="/opt/elbaraa-pme"
 
-# Fallback : si pas de registre configuré, construire l'URL depuis saas_host
-if [ -z "$NODE_IMAGE" ] || [[ "$NODE_IMAGE" != *"/"* ]]; then
-    NODE_IMAGE="{{ saas_host }}:5000/ss-node:dev"
-fi
+# Le registre Docker tourne sur le MÊME hôte que le SaaS éditeur ({{ saas_host }}).
+# On normalise donc TOUJOURS le préfixe de registre vers cet hôte, en conservant
+# uniquement le nom d'image:tag — robuste quelle que soit la valeur de SS_NODE_IMAGE
+# (évite qu'une IP codée en dur pointe vers un réseau injoignable depuis cette PME).
+IMAGE_NAME="${NODE_IMAGE##*/}"
+[ -z "$IMAGE_NAME" ] && IMAGE_NAME="ss-node:dev"
+NODE_IMAGE="{{ saas_host }}:5000/${IMAGE_NAME}"
 
 echo ""
 echo "===================================================="
