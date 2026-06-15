@@ -10,6 +10,7 @@ Dossier des documents **finalisés et prêts au dépôt Moodle**.
 |---|---|---|---|
 | `MPIGA_Jesse_FE_Promo2026_Plan_soutenance.md` | `…_Plan_soutenance.pdf` | 24/06/2026 | ✅ Finalisé — conforme consignes EIGSI |
 | `MPIGA_Jesse_FE_Promo2026_Soutenance_slides.md` | `…_Soutenance.ppt` (max 8 Mo) | 30/06/2026 | ✅ Finalisé — 17 slides + réserve |
+| `MPIGA_Jesse_FE_Promo2026_Demo_soutenance.md` | *(support interne, non déposé)* | — | ✅ Runbook démo live (2 PME) |
 
 > **Rapport final** (`MPIGA_Jesse_FE_Promo2026_Rapport_final.md`) : encore dans `docs/redaction/` —
 > en cours de réalignement sur le thème actuel (Framework SaaS Souverain). Sera déplacé ici une fois finalisé.
