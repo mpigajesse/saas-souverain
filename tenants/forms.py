@@ -41,10 +41,23 @@ class InscriptionForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput, label='Mot de passe')
     password_confirm = forms.CharField(widget=forms.PasswordInput, label='Confirmer le mot de passe')
 
+    # Exemples affichés en placeholder pour guider la saisie (PME type)
+    PLACEHOLDERS = {
+        'name': 'Yasmine Argan',
+        'email': 'contact@yasmine-argan.ma',
+        'phone': '+212 6 12 34 56 78',
+        'address': 'Quartier industriel, Agadir',
+        'employee_count': '1',
+        'password': '••••••••',
+        'password_confirm': '••••••••',
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        for name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
+            if name in self.PLACEHOLDERS:
+                field.widget.attrs['placeholder'] = self.PLACEHOLDERS[name]
 
     def clean_email(self):
         email = self.cleaned_data['email']
