@@ -19,34 +19,40 @@ Message au jury : *« Une PME démarre avec une machine ; quand elle grandit, el
 
 > ⚠️ À faire **avant** d'entrer, jamais en direct. Une démo fluide se prépare.
 
-### 🔌 Réseau — LE point bloquant à régler en premier
+### 🔌 Réseau — à valider en premier
 
-Le SaaS et le registre Docker sont sur **192.168.200.1** (VMnet `192.168.200.0/24`, le même que MPJ).
-La VM Debian doit avoir **une patte sur ce réseau**, sinon elle ne joint ni le SaaS ni le registre.
+**Chaque PME a son propre LAN** (réaliste). Boulangerie Atlas vit sur **`192.168.10.0/24`** (`ens37` = 192.168.10.128) ; MPJ sur `192.168.200.0/24`. Le SaaS éditeur, lui, doit être **joignable depuis chaque LAN PME** — comme un SaaS public en production.
 
-État Debian (rappel) : `ens33` = 192.168.1.57 (LAN + Internet) · `ens37` = **192.168.10.128 ❌ mauvais VMnet**.
+L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement **`192.168.10.1`**). C'est par cette IP que Boulangerie Atlas atteint le SaaS et le registre — **sans quitter son réseau**.
 
-- [ ] **Rattacher `ens37` au VMnet de MPJ** (VMware → Debian → Adaptateur réseau 2 → même VMnet que Kali/Ubuntu).
-- [ ] Renouveler le bail : `sudo dhclient -r ens37 && sudo dhclient ens37` → `ens37` obtient **192.168.200.x**.
-- [ ] Vérifier la liaison : `ping -c1 192.168.200.1` puis `curl -I http://192.168.200.1:8000`.
-- [ ] **Noter l'IP 192.168.200.x de la Debian** → c'est l'IP de l'interface métier en démo (`http://<ip>:9001`).
-- [ ] Garder `ens33` (192.168.1.57, Internet) actif — utile si Docker doit s'installer.
+- [ ] **Trouver l'IP de l'hôte sur ce LAN** (depuis la Debian) :
+  ```bash
+  ip route | grep default          # passerelle du LAN PME
+  ping -c1 192.168.10.1            # l'hôte VMware répond-il ?
+  curl -I http://192.168.10.1:8000 # le SaaS répond-il ?  (sinon tester .2)
+  ```
+  → noter cette IP comme **`SAAS_IP`** (192.168.10.1 attendu).
+- [ ] **Django accepte cette IP** : dans le `.env` du SaaS, `ALLOWED_HOSTS` doit inclure `192.168.10.1` (le plus simple pour la démo : `ALLOWED_HOSTS=*`). Si POST refusé (CSRF), ajouter `CSRF_TRUSTED_ORIGINS=http://192.168.10.1:8000`. Redémarrer le SaaS.
+- [ ] **Registre joignable** : `curl http://192.168.10.1:5000/v2/_catalog` depuis la Debian doit répondre (le registre écoute sur 0.0.0.0:5000).
+- [ ] `ens33` (192.168.1.57, Internet) reste actif — utile pour installer Docker.
 
-### Préparation Docker (sur la Debian, via Internet ens33)
+### Préparation Docker (sur la Debian)
 
-- [ ] **Installer Docker à l'avance** : `curl -fsSL https://get.docker.com | sh` (évite l'attente live).
-- [ ] Autoriser le registre éditeur : ajouter `192.168.200.1:5000` dans `/etc/docker/daemon.json` → `{"insecure-registries":["192.168.200.1:5000"]}` puis `sudo systemctl restart docker`.
-- [ ] **Pré-tirer l'image** : `docker pull 192.168.200.1:5000/ss-node:dev`.
-- [ ] **Aucun stack PME installé** : `/opt/elbaraa-pme` absent (sinon `docker compose down` + purge avant la démo).
+- [ ] **Installer Docker à l'avance** (via Internet ens33) : `curl -fsSL https://get.docker.com | sh`.
+- [ ] Autoriser le registre éditeur : `/etc/docker/daemon.json` → `{"insecure-registries":["192.168.10.1:5000"]}` puis `sudo systemctl restart docker`.
+- [ ] **Pré-tirer l'image** : `docker pull 192.168.10.1:5000/ss-node:dev`.
+- [ ] **Aucun stack PME installé** : `/opt/elbaraa-pme` absent (sinon `docker compose down` + purge avant).
 
 ### SaaS & cluster existant
 
-- [ ] **SaaS éditeur** joignable : `http://192.168.200.1:8000` (Tableau de bord visible).
-- [ ] **Registre Docker** up : image `ss-node:dev` présente sur `192.168.200.1:5000`.
+- [ ] **SaaS éditeur** joignable depuis la Debian : `http://192.168.10.1:8000` (Tableau de bord visible).
 - [ ] **Cluster MPJ** en marche : Kali (.128) + Ubuntu (.130) → Clusters « ✓ Cluster sain ».
 - [ ] **Onglets navigateur** ouverts : (1) inscription SaaS, (2) Parc machines, (3) Clusters.
 - [ ] **Plan B** : captures d'écran dans `tests/captures-GUIDE-TEST-METIER-MPJ/` si le réseau flanche.
 - [ ] Terminaux lisibles : **police agrandie** (Ctrl+ +), fond clair si projecteur pâle.
+
+> ℹ️ `SAAS_IP` = IP de l'hôte sur le LAN de la PME (attendu 192.168.10.1). Remplacer `192.168.10.1`
+> par la valeur réelle si `.1` ne répond pas (en NAT VMware, tester `.2`).
 
 ---
 
@@ -73,8 +79,8 @@ La VM Debian doit avoir **une patte sur ce réseau**, sinon elle ne joint ni le 
 
 **Écran : page Bienvenue (SaaS), puis terminal Debian.**
 
-1. **Depuis le navigateur de la Debian**, ouvrir le SaaS via `http://192.168.200.1:8000` (important : c'est cette URL qui sera injectée comme `SAAS_URL` et registre dans le script). Sur la page **Bienvenue** → section installation → **Linux** → télécharger `install-boulangerie-atlas.sh`.
-   *(le script embarque déjà le token, l'URL du SaaS = 192.168.200.1:8000, l'URL du relais et l'image du registre)*
+1. **Depuis le navigateur de la Debian**, ouvrir le SaaS via `http://192.168.10.1:8000` (important : c'est cette URL — l'IP de l'hôte sur le LAN de la PME — qui sera injectée comme `SAAS_URL` et registre dans le script). Sur la page **Bienvenue** → section installation → **Linux** → télécharger `install-boulangerie-atlas.sh`.
+   *(le script embarque déjà le token, l'URL du SaaS = 192.168.10.1:8000, le registre 192.168.10.1:5000, l'URL du relais et l'image)*
 2. Transférer/ouvrir le script sur la **Debian**, puis :
    ```bash
    sudo bash install-boulangerie-atlas.sh
@@ -108,8 +114,8 @@ La VM Debian doit avoir **une patte sur ce réseau**, sinon elle ne joint ni le 
    docker compose -f /opt/elbaraa-pme/docker-compose.yml logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
    ```
 2. Se connecter à l'interface → créer **1 article** (ex. `PAIN-01` / `Baguette` / unité / seuil 20) + **1 entrée** de stock (qté 200).
-3. Revenir sur le SaaS :
-   - **Parc machines** : la machine `Boulangerie Atlas` apparaît (1 poste, primaire, en ligne).
+3. Revenir sur le SaaS (`http://192.168.10.1:8000`) :
+   - **Parc machines** : la machine `Boulangerie Atlas` apparaît (1 poste, primaire `192.168.10.128`, en ligne).
    - **Clusters** : « **⚠ Bascule manuelle** » — *une seule machine, pas de redondance*.
 
 > **Narration :** *« Le logiciel tourne, les données sont là — et restent là. Mais avec une seule machine, pas de redondance : le SaaS le signale honnêtement. C'est exactement la situation d'une PME qui démarre avec peu de moyens. Voyons ce qui se passe quand elle ajoute une deuxième machine. »*
@@ -176,12 +182,14 @@ docker compose up -d
 
 ## URLs
 
+> SaaS vu par **Boulangerie Atlas** : `192.168.10.1` · SaaS vu par **MPJ** : `192.168.200.1` (même SaaS, IP de l'hôte propre à chaque LAN).
+
 | Quoi | URL |
 |---|---|
-| Inscription PME | `http://192.168.200.1:8000/tenants/inscription/` |
-| Parc machines | `http://192.168.200.1:8000/devices/` |
+| Inscription PME (depuis la Debian) | `http://192.168.10.1:8000/tenants/inscription/` |
+| Parc machines | `http://192.168.10.1:8000/devices/` |
 | Clusters | (menu « Clusters » du SaaS) |
-| Interface métier (Debian) | `http://<ip-debian-192.168.200.x>:9001` *(IP obtenue après rattachement au VMnet MPJ)* |
+| Interface métier (Debian) | `http://192.168.10.128:9001` |
 | Interface métier (MPJ primaire) | `http://192.168.200.128:9001` |
 
 ---
