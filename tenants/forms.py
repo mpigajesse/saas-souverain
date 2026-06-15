@@ -41,13 +41,13 @@ class InscriptionForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput, label='Mot de passe')
     password_confirm = forms.CharField(widget=forms.PasswordInput, label='Confirmer le mot de passe')
 
-    # Exemples affichés en placeholder pour guider la saisie (PME type)
+    # Placeholders génériques pour guider la saisie
     PLACEHOLDERS = {
-        'name': 'Yasmine Argan',
-        'email': 'contact@yasmine-argan.ma',
-        'phone': '+212 6 12 34 56 78',
-        'address': 'Quartier industriel, Agadir',
-        'employee_count': '1',
+        'name': "Nom de votre entreprise",
+        'email': 'contact@entreprise.ma',
+        'phone': '+212 6 00 00 00 00',
+        'address': 'Ville, pays',
+        'employee_count': 'Ex. : 5',
         'password': '••••••••',
         'password_confirm': '••••••••',
     }
