@@ -8,7 +8,7 @@ Durée cible : **~10 min** (slide 10 du support). Objectif : montrer que **dépl
 ## Scénario narratif
 
 > Deux PME illustrent le cycle de vie :
-> - **PME nouvelle — « Boulangerie Atlas »** : peu de moyens, **une seule machine (Debian)**. Sert à montrer l'inscription + l'installation en quelques minutes.
+> - **PME nouvelle — « Yasmine Argan »** (fondée par Yasmine El Idrissi, jeune entrepreneuse marocaine — coopérative d'huile d'argan) : peu de moyens, **une seule machine (Debian)**. Sert à montrer l'inscription + l'installation en quelques minutes.
 > - **PME existante — « MPJ »** : cluster **2 nœuds** déjà en place (Kali primaire + Ubuntu standby). Sert à expliquer la **réplication** et la **résilience à la panne**.
 
 Message au jury : *« Une PME démarre avec une machine ; quand elle grandit, elle ajoute un nœud et obtient la réplication automatique — la même commande d'installation s'en charge. »*
@@ -21,9 +21,9 @@ Message au jury : *« Une PME démarre avec une machine ; quand elle grandit, el
 
 ### 🔌 Réseau — à valider en premier
 
-**Chaque PME a son propre LAN** (réaliste). Boulangerie Atlas vit sur **`192.168.10.0/24`** (`ens37` = 192.168.10.128) ; MPJ sur `192.168.200.0/24`. Le SaaS éditeur, lui, doit être **joignable depuis chaque LAN PME** — comme un SaaS public en production.
+**Chaque PME a son propre LAN** (réaliste). Yasmine Argan vit sur **`192.168.10.0/24`** (`ens37` = 192.168.10.128) ; MPJ sur `192.168.200.0/24`. Le SaaS éditeur, lui, doit être **joignable depuis chaque LAN PME** — comme un SaaS public en production.
 
-L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement **`192.168.10.1`**). C'est par cette IP que Boulangerie Atlas atteint le SaaS et le registre — **sans quitter son réseau**.
+L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement **`192.168.10.1`**). C'est par cette IP que Yasmine Argan atteint le SaaS et le registre — **sans quitter son réseau**.
 
 - [ ] **Trouver l'IP de l'hôte sur ce LAN** (depuis la Debian) :
   ```bash
@@ -64,9 +64,9 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 2. Remplir le formulaire :
    | Champ | Valeur démo |
    |---|---|
-   | Nom de l'entreprise | `Boulangerie Atlas` |
-   | Email | `contact@boulangerie-atlas.ma` |
-   | Mot de passe | `Atlas2026!` |
+   | Nom de l'entreprise | `Yasmine Argan` |
+   | Email | `contact@yasmine-argan.ma` |
+   | Mot de passe | `Yasmine2026!` |
    | Téléphone | `+212 6 00 00 00 00` |
    | Nombre d'employés | `1` |
 3. Valider → **automatiquement** : compte créé + **licence d'essai 30 jours (Starter, 1 poste)** + connexion + page **Bienvenue**.
@@ -79,11 +79,11 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 **Écran : page Bienvenue (SaaS), puis terminal Debian.**
 
-1. **Depuis le navigateur de la Debian**, ouvrir le SaaS via `http://192.168.10.1:8000` (important : c'est cette URL — l'IP de l'hôte sur le LAN de la PME — qui sera injectée comme `SAAS_URL` et registre dans le script). Sur la page **Bienvenue** → section installation → **Linux** → télécharger `install-boulangerie-atlas.sh`.
+1. **Depuis le navigateur de la Debian**, ouvrir le SaaS via `http://192.168.10.1:8000` (important : c'est cette URL — l'IP de l'hôte sur le LAN de la PME — qui sera injectée comme `SAAS_URL` et registre dans le script). Sur la page **Bienvenue** → section installation → **Linux** → télécharger `install-yasmine-argan.sh`.
    *(le script embarque déjà le token, l'URL du SaaS = 192.168.10.1:8000, le registre 192.168.10.1:5000, l'URL du relais et l'image)*
 2. Transférer/ouvrir le script sur la **Debian**, puis :
    ```bash
-   sudo bash install-boulangerie-atlas.sh
+   sudo bash install-yasmine-argan.sh
    ```
 3. **Commenter les 5 étapes** qui défilent :
    | Étape | Ce que fait l'installeur | À dire |
@@ -96,7 +96,7 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 4. À la fin, l'installeur affiche :
    ```
-   Installation terminée ! (Boulangerie Atlas — primary)
+   Installation terminée ! (Yasmine Argan — primary)
    Interface : http://<ip-debian>:9001
    pgAdmin   : http://<ip-debian>:5050
    ```
@@ -113,9 +113,9 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
    ```bash
    docker compose -f /opt/elbaraa-pme/docker-compose.yml logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
    ```
-2. Se connecter à l'interface → créer **1 article** (ex. `PAIN-01` / `Baguette` / unité / seuil 20) + **1 entrée** de stock (qté 200).
+2. Se connecter à l'interface → créer **1 article** (ex. `ARG-50` / `Huile d'argan 50 ml` / unité / seuil 20) + **1 entrée** de stock (qté 200).
 3. Revenir sur le SaaS (`http://192.168.10.1:8000`) :
-   - **Parc machines** : la machine `Boulangerie Atlas` apparaît (1 poste, primaire `192.168.10.128`, en ligne).
+   - **Parc machines** : la machine `Yasmine Argan` apparaît (1 poste, primaire `192.168.10.128`, en ligne).
    - **Clusters** : « **⚠ Bascule manuelle** » — *une seule machine, pas de redondance*.
 
 > **Narration :** *« Le logiciel tourne, les données sont là — et restent là. Mais avec une seule machine, pas de redondance : le SaaS le signale honnêtement. C'est exactement la situation d'une PME qui démarre avec peu de moyens. Voyons ce qui se passe quand elle ajoute une deuxième machine. »*
@@ -169,7 +169,7 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 ```bash
 # Debian (nouvelle PME) — installation
-sudo bash install-boulangerie-atlas.sh
+sudo bash install-yasmine-argan.sh
 docker compose -f /opt/elbaraa-pme/docker-compose.yml logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
 
 # MPJ — vérif réplication (sur Ubuntu .130)
@@ -182,7 +182,7 @@ docker compose up -d
 
 ## URLs
 
-> SaaS vu par **Boulangerie Atlas** : `192.168.10.1` · SaaS vu par **MPJ** : `192.168.200.1` (même SaaS, IP de l'hôte propre à chaque LAN).
+> SaaS vu par **Yasmine Argan** : `192.168.10.1` · SaaS vu par **MPJ** : `192.168.200.1` (même SaaS, IP de l'hôte propre à chaque LAN).
 
 | Quoi | URL |
 |---|---|
@@ -196,7 +196,7 @@ docker compose up -d
 
 ## 🔄 Réinitialisation après répétition (repartir vierge pour le jour J)
 
-> Objectif : effacer la PME de test **Boulangerie Atlas** pour que la vraie démo reparte de zéro
+> Objectif : effacer la PME de test **Yasmine Argan** pour que la vraie démo reparte de zéro
 > (inscription + 1ʳᵉ installation). **Ne pas toucher à MPJ** — il sert aussi le jour J.
 
 ### A. Côté machine PME (Debian)
@@ -215,14 +215,14 @@ sudo rm -rf /opt/elbaraa-pme
 
 ### B. Côté SaaS éditeur — supprimer le tenant de test
 
-**Méthode simple (UI)** : SaaS → **Tenants** → *Boulangerie Atlas* → **Supprimer** (cascade : licences + machines).
+**Méthode simple (UI)** : SaaS → **Tenants** → *Yasmine Argan* → **Supprimer** (cascade : licences + machines).
 Puis Django admin → **Users** → supprimer le compte `contact` (sinon l'email unique bloque le ré-essai).
 
 **Méthode shell (sûre, tout en un)** :
 ```bash
 python manage.py shell -c "
 from tenants.models import Tenant
-for t in Tenant.objects.filter(name__icontains='Atlas'):
+for t in Tenant.objects.filter(name__icontains='Yasmine'):
     u = t.user
     t.delete()            # cascade : devices + licenses
     if u: u.delete()      # supprime aussi le compte Django (email unique)
@@ -232,7 +232,7 @@ print('Tenant de test supprimé.')
 
 ### C. Vérification « état jour J »
 
-- [ ] SaaS → **Tenants** : seul **MPJ** reste (plus de Boulangerie Atlas).
+- [ ] SaaS → **Tenants** : seul **MPJ** reste (plus de Yasmine Argan).
 - [ ] SaaS → **Parc machines** : seules les 2 machines MPJ.
 - [ ] SaaS → **Clusters** : MPJ « ✓ Cluster sain ».
 - [ ] Debian : `docker ps` ne montre plus pg-node/ss-node/pgadmin · `/opt/elbaraa-pme` absent.
