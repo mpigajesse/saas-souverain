@@ -44,9 +44,42 @@ echo "      IP détectée : $MY_IP"
 echo "[2/5] Vérification de Docker..."
 if ! command -v docker &>/dev/null; then
     echo "      Docker absent — installation automatique..."
-    curl -fsSL https://get.docker.com | sh
-    systemctl enable --now docker
-    echo "      Docker installé."
+
+    # Prérequis : curl + ca-certificates (souvent absents sur Debian minimal)
+    if ! command -v curl &>/dev/null; then
+        echo "      Installation des prérequis (curl, ca-certificates)..."
+        if command -v apt-get &>/dev/null; then
+            apt-get update -y && apt-get install -y curl ca-certificates
+        elif command -v dnf &>/dev/null; then
+            dnf install -y curl ca-certificates
+        elif command -v yum &>/dev/null; then
+            yum install -y curl ca-certificates
+        fi
+    fi
+
+    # Installation Docker via le script officiel (curl, sinon wget)
+    if command -v curl &>/dev/null; then
+        curl -fsSL https://get.docker.com | sh
+    elif command -v wget &>/dev/null; then
+        wget -qO- https://get.docker.com | sh
+    fi
+
+    # Repli : paquet docker.io de la distribution si le script officiel a échoué
+    if ! command -v docker &>/dev/null && command -v apt-get &>/dev/null; then
+        echo "      Repli : installation via apt (docker.io)..."
+        apt-get update -y
+        apt-get install -y docker.io docker-compose-v2 || apt-get install -y docker.io
+    fi
+
+    systemctl enable --now docker 2>/dev/null || true
+
+    if command -v docker &>/dev/null; then
+        echo "      Docker installé."
+    else
+        echo "      ERREUR : impossible d'installer Docker automatiquement (pas d'accès Internet ?)."
+        echo "      Installez Docker manuellement, puis relancez ce script."
+        exit 1
+    fi
 else
     echo "      Docker déjà présent."
 fi
