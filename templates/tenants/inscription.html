@@ -132,7 +132,10 @@
             <label class="form-label" for="{{ form.password.id_for_label }}">
               {{ form.password.label }}{% if form.password.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
             </label>
-            {{ form.password }}
+            <div class="pw-wrap">
+              {{ form.password }}
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe" tabindex="-1">👁</button>
+            </div>
             {% if form.password.errors %}<p class="form-error">{{ form.password.errors.as_text }}</p>{% endif %}
           </div>
 
@@ -141,7 +144,10 @@
             <label class="form-label" for="{{ form.password_confirm.id_for_label }}">
               {{ form.password_confirm.label }}{% if form.password_confirm.field.required %} <span style="color:var(--crimson)">*</span>{% endif %}
             </label>
-            {{ form.password_confirm }}
+            <div class="pw-wrap">
+              {{ form.password_confirm }}
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe" tabindex="-1">👁</button>
+            </div>
             {% if form.password_confirm.errors %}<p class="form-error">{{ form.password_confirm.errors.as_text }}</p>{% endif %}
           </div>
 
@@ -160,5 +166,29 @@
     </p>
 
   </div><!-- /auth-container -->
+
+  <style>
+    .pw-wrap { position: relative; }
+    .pw-wrap .form-control { padding-right: 44px; }
+    .pw-toggle {
+      position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 4px;
+      font-size: 1.05rem; line-height: 1; opacity: .6;
+    }
+    .pw-toggle:hover { opacity: 1; }
+  </style>
+
+  <script>
+    document.querySelectorAll('.pw-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = btn.parentElement.querySelector('input');
+        if (!input) return;
+        var reveal = input.type === 'password';
+        input.type = reveal ? 'text' : 'password';
+        btn.textContent = reveal ? '🙈' : '👁';
+        btn.setAttribute('aria-label', reveal ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+      });
+    });
+  </script>
 </body>
 </html>
