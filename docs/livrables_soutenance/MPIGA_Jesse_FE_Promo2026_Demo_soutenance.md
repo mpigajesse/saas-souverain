@@ -19,13 +19,33 @@ Message au jury : *« Une PME démarre avec une machine ; quand elle grandit, el
 
 > ⚠️ À faire **avant** d'entrer, jamais en direct. Une démo fluide se prépare.
 
-- [ ] **SaaS éditeur** démarré et joignable : `http://192.168.200.1:8000` (Tableau de bord visible).
-- [ ] **Registre Docker** local up : `192.168.200.1:5000` (image `ss-node:dev` présente).
-- [ ] **Cluster MPJ** en marche : Kali (.128) + Ubuntu (.130) → page Clusters « ✓ Cluster sain ».
-- [ ] **VM Debian** prête : réseau OK vers `192.168.200.1` (SaaS + registre), **sans** stack PME installé.
-- [ ] **Pré-tirer l'image** sur la Debian pour éviter l'attente : `docker pull 192.168.200.1:5000/ss-node:dev` *(si Docker déjà présent ; sinon l'installeur le fera)*.
+### 🔌 Réseau — LE point bloquant à régler en premier
+
+Le SaaS et le registre Docker sont sur **192.168.200.1** (VMnet `192.168.200.0/24`, le même que MPJ).
+La VM Debian doit avoir **une patte sur ce réseau**, sinon elle ne joint ni le SaaS ni le registre.
+
+État Debian (rappel) : `ens33` = 192.168.1.57 (LAN + Internet) · `ens37` = **192.168.10.128 ❌ mauvais VMnet**.
+
+- [ ] **Rattacher `ens37` au VMnet de MPJ** (VMware → Debian → Adaptateur réseau 2 → même VMnet que Kali/Ubuntu).
+- [ ] Renouveler le bail : `sudo dhclient -r ens37 && sudo dhclient ens37` → `ens37` obtient **192.168.200.x**.
+- [ ] Vérifier la liaison : `ping -c1 192.168.200.1` puis `curl -I http://192.168.200.1:8000`.
+- [ ] **Noter l'IP 192.168.200.x de la Debian** → c'est l'IP de l'interface métier en démo (`http://<ip>:9001`).
+- [ ] Garder `ens33` (192.168.1.57, Internet) actif — utile si Docker doit s'installer.
+
+### Préparation Docker (sur la Debian, via Internet ens33)
+
+- [ ] **Installer Docker à l'avance** : `curl -fsSL https://get.docker.com | sh` (évite l'attente live).
+- [ ] Autoriser le registre éditeur : ajouter `192.168.200.1:5000` dans `/etc/docker/daemon.json` → `{"insecure-registries":["192.168.200.1:5000"]}` puis `sudo systemctl restart docker`.
+- [ ] **Pré-tirer l'image** : `docker pull 192.168.200.1:5000/ss-node:dev`.
+- [ ] **Aucun stack PME installé** : `/opt/elbaraa-pme` absent (sinon `docker compose down` + purge avant la démo).
+
+### SaaS & cluster existant
+
+- [ ] **SaaS éditeur** joignable : `http://192.168.200.1:8000` (Tableau de bord visible).
+- [ ] **Registre Docker** up : image `ss-node:dev` présente sur `192.168.200.1:5000`.
+- [ ] **Cluster MPJ** en marche : Kali (.128) + Ubuntu (.130) → Clusters « ✓ Cluster sain ».
 - [ ] **Onglets navigateur** ouverts : (1) inscription SaaS, (2) Parc machines, (3) Clusters.
-- [ ] **Plan B** : captures d'écran de chaque étape dans `tests/captures-GUIDE-TEST-METIER-MPJ/` au cas où le réseau flanche.
+- [ ] **Plan B** : captures d'écran dans `tests/captures-GUIDE-TEST-METIER-MPJ/` si le réseau flanche.
 - [ ] Terminaux lisibles : **police agrandie** (Ctrl+ +), fond clair si projecteur pâle.
 
 ---
@@ -53,8 +73,8 @@ Message au jury : *« Une PME démarre avec une machine ; quand elle grandit, el
 
 **Écran : page Bienvenue (SaaS), puis terminal Debian.**
 
-1. Sur la page **Bienvenue**, section installation → choisir **Linux** → télécharger `install-boulangerie-atlas.sh`.
-   *(le script embarque déjà le token, l'URL du SaaS, l'URL du relais et l'image)*
+1. **Depuis le navigateur de la Debian**, ouvrir le SaaS via `http://192.168.200.1:8000` (important : c'est cette URL qui sera injectée comme `SAAS_URL` et registre dans le script). Sur la page **Bienvenue** → section installation → **Linux** → télécharger `install-boulangerie-atlas.sh`.
+   *(le script embarque déjà le token, l'URL du SaaS = 192.168.200.1:8000, l'URL du relais et l'image du registre)*
 2. Transférer/ouvrir le script sur la **Debian**, puis :
    ```bash
    sudo bash install-boulangerie-atlas.sh
@@ -161,7 +181,7 @@ docker compose up -d
 | Inscription PME | `http://192.168.200.1:8000/tenants/inscription/` |
 | Parc machines | `http://192.168.200.1:8000/devices/` |
 | Clusters | (menu « Clusters » du SaaS) |
-| Interface métier (Debian) | `http://<ip-debian>:9001` |
+| Interface métier (Debian) | `http://<ip-debian-192.168.200.x>:9001` *(IP obtenue après rattachement au VMnet MPJ)* |
 | Interface métier (MPJ primaire) | `http://192.168.200.128:9001` |
 
 ---
