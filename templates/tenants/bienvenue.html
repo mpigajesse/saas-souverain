@@ -259,10 +259,10 @@
             <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm-.75 5v1.5h-.5v1h2v-1h-.5V6h-1zm0-2.5v1.5h1.5V3.5h-1.5z"/>
           </svg>
           <span>
-            <strong>Windows :</strong> clic droit sur <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">installer-pme.bat</code> →
+            <strong>Windows :</strong> clic droit sur <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">install-{{ tenant.name|slugify }}.bat</code> →
             <em>Exécuter en tant qu'administrateur</em>.
             <br>
-            <strong>Linux :</strong> <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">chmod +x installer-pme.sh &amp;&amp; sudo ./installer-pme.sh</code>
+            <strong>Linux :</strong> <code style="background:rgba(0,0,0,.08); padding:1px 5px; border-radius:3px;">chmod +x install-{{ tenant.name|slugify }}.sh &amp;&amp; sudo ./install-{{ tenant.name|slugify }}.sh</code>
           </span>
         </div>
       </div>
