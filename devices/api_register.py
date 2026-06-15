@@ -10,6 +10,14 @@ from tenants.models import Tenant
 from .models import Device
 
 
+def _parse_int(value):
+    """Convertit une valeur JSON en int, ou None si absente/invalide."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def device_register(request):
@@ -63,6 +71,8 @@ def device_register(request):
     node_addr = request.data.get('node_addr', '')
     web_addr = request.data.get('web_addr', '')
     node_role = request.data.get('node_role', '')
+    # Vérité de réplication mesurée localement, rapportée uniquement par un primaire.
+    streaming_reported = _parse_int(request.data.get('streaming_standby_count'))
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -73,6 +83,7 @@ def device_register(request):
             'node_addr': node_addr,
             'web_addr': web_addr,
             'node_role': node_role,
+            'streaming_standby_count': streaming_reported or 0,
             'is_active': True,
         },
     )
@@ -99,6 +110,9 @@ def device_register(request):
                     node_role='primary',
                     is_active=True,
                 ).exclude(installation_id=installation_id).update(node_role='standby')
+        # Seul un primaire fait autorité sur le compte de réplication (None côté standby).
+        if node_role == 'primary' and streaming_reported is not None:
+            device.streaming_standby_count = streaming_reported
         device.save()
 
         if not device.is_active:

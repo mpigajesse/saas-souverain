@@ -98,7 +98,12 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                         "  Rôle PG réel ({}) ≠ NODE_MODE ({}) — re-déclaration au portail",
                         actual_role, declared_role
                     );
-                    register_with_saas_role(&config, actual_role).await;
+                    let streaming = if actual_role == "primary" {
+                        Some(supervision::connected_standby_count(&pool).await.unwrap_or(0))
+                    } else {
+                        None
+                    };
+                    register_with_saas_role(&config, actual_role, streaming).await;
                 }
 
                 // Migrations uniquement sur le primaire — le standby est en lecture
@@ -269,7 +274,7 @@ async fn run_supervision_loop(
                             println!("  [tick {tick}] PG primaire OK — {} standby(s) connecté(s)", standbys);
                             // Re-registration périodique : corrige les cas où le SaaS a rétrogradé
                             // ce nœud en "standby" suite à un split-brain détecté ailleurs.
-                            register_with_saas_role(config, "primary").await;
+                            register_with_saas_role(config, "primary", Some(standbys)).await;
                         }
                         wal_miss = 0;
                     }
@@ -278,9 +283,10 @@ async fn run_supervision_loop(
                     }
                     (RunMode::Passive, true) => {
                         // Déjà promu (failover précédent dans cette session)
+                        let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
                         if tick % 12 == 1 {
                             println!("  [tick {tick}] Ce nœud est désormais primaire.");
-                            register_with_saas_role(config, "primary").await;
+                            register_with_saas_role(config, "primary", Some(standbys)).await;
                         }
                         wal_miss = 0;
                     }
@@ -291,7 +297,7 @@ async fn run_supervision_loop(
                             wal_miss = 0;
                             if tick % 12 == 1 {
                                 println!("  [tick {tick}] PG standby : réplication active");
-                                register_with_saas_role(config, "standby").await;
+                                register_with_saas_role(config, "standby", None).await;
                             }
                         } else {
                             wal_miss += 1;
@@ -305,7 +311,8 @@ async fn run_supervision_loop(
                                 match supervision::promote_standby(&pool).await {
                                     Ok(true) => {
                                         println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire !");
-                                        register_with_saas_role(config, "primary").await;
+                                        // Fraîchement promu : aucun standby encore rattaché → 0.
+                                        register_with_saas_role(config, "primary", Some(0)).await;
                                         wal_miss = 0;
                                     }
                                     Ok(false) => {
@@ -347,12 +354,19 @@ async fn register_with_saas(config: &NodeConfig) -> Option<String> {
         Ok("active") => "primary",
         _ => "standby",
     };
-    register_with_saas_role(config, role).await
+    // Au démarrage, un primaire n'a encore aucun standby rattaché ; le compte réel
+    // sera transmis aux ticks suivants. Un standby ne rapporte pas cette métrique.
+    let streaming = if role == "primary" { Some(0) } else { None };
+    register_with_saas_role(config, role, streaming).await
 }
 
 /// Enregistre le nœud avec un rôle explicite — utilisé après failover automatique.
 /// Retourne le nom du tenant fourni par le SaaS. Non bloquant — erreurs loguées.
-async fn register_with_saas_role(config: &NodeConfig, node_role: &str) -> Option<String> {
+async fn register_with_saas_role(
+    config: &NodeConfig,
+    node_role: &str,
+    streaming_standbys: Option<i64>,
+) -> Option<String> {
     let saas_url = match std::env::var("SAAS_URL") {
         Ok(u) if !u.is_empty() => u,
         _ => return None,
@@ -385,7 +399,10 @@ async fn register_with_saas_role(config: &NodeConfig, node_role: &str) -> Option
         "mac_address": "",
         "node_addr": node_addr,
         "web_addr": web_addr,
-        "node_role": node_role
+        "node_role": node_role,
+        // Vérité de réplication mesurée localement (pg_stat_replication).
+        // Renseigné uniquement par un primaire ; `null` côté standby → le SaaS n'y touche pas.
+        "streaming_standby_count": streaming_standbys
     });
 
     match reqwest::Client::new()

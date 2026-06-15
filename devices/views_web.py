@@ -49,6 +49,11 @@ def cluster_overview(request):
         primary_info = enrich(primary) if primary else None
         standbys_info = [enrich(s) for s in standbys]
 
+        # Vérité de réplication : nb de standbys réellement en streaming, mesuré
+        # par le primaire (pg_stat_replication). Un standby simplement enregistré
+        # et "en ligne" ne prouve PAS que la réplication WAL fonctionne.
+        streaming = primary.streaming_standby_count if primary else 0
+
         # Santé globale du cluster
         total = devices.count()
         online_count = devices.filter(last_seen__gte=threshold).count()
@@ -61,6 +66,9 @@ def cluster_overview(request):
             health = 'primary_offline'
         elif len(standbys) == 0:
             health = 'no_standby'
+        elif streaming == 0:
+            # Un standby existe mais aucun flux WAL → split-brain ou conninfo périmé.
+            health = 'replication_down'
         elif not license_status['ok']:
             health = 'over_license'
         else:
@@ -74,6 +82,7 @@ def cluster_overview(request):
             'tenant': tenant,
             'primary': primary_info,
             'standbys': standbys_info,
+            'streaming': streaming,
             'total': total,
             'online_count': online_count,
             'license': license_status,

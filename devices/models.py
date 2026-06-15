@@ -22,6 +22,11 @@ class Device(models.Model):
         help_text='Dernier failover automatique détecté sur ce nœud',
     )
     failover_count = models.IntegerField(default=0)
+    streaming_standby_count = models.IntegerField(
+        default=0,
+        help_text="Nb de standbys réellement en streaming, rapporté par le primaire "
+                  "(pg_stat_replication). Source de vérité de la réplication.",
+    )
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

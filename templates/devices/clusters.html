@@ -123,6 +123,8 @@
         <span class="health-badge hb-ok">✓ Cluster sain</span>
       {% elif c.health == 'no_standby' %}
         <span class="health-badge hb-warn">⚠ Bascule manuelle</span>
+      {% elif c.health == 'replication_down' %}
+        <span class="health-badge hb-danger">✗ Réplication interrompue</span>
       {% elif c.health == 'no_primary' %}
         <span class="health-badge hb-danger">✗ Pas de primaire</span>
       {% elif c.health == 'primary_offline' %}
@@ -169,9 +171,13 @@
             </div>
             {% endwith %}
 
-            {# Connecteur visuel #}
+            {# Connecteur visuel — reflète le flux WAL réel, pas la simple présence d'un standby #}
             {% if c.standbys %}
-            <div class="topo-connector">Réplication streaming →</div>
+              {% if c.streaming > 0 %}
+              <div class="topo-connector">Réplication streaming →</div>
+              {% else %}
+              <div class="topo-connector" style="color:#B91C1C">✗ Réplication interrompue ✗</div>
+              {% endif %}
             {% endif %}
           {% endif %}
 
@@ -208,6 +214,8 @@
         {# Alertes contextuelles #}
         {% if c.health == 'no_standby' %}
         <div class="alert-msg">⚠ Un seul nœud — bascule manuelle uniquement si panne</div>
+        {% elif c.health == 'replication_down' %}
+        <div class="alert-msg">✗ Standby enregistré mais aucun flux WAL — split-brain ou primaire injoignable. Aucune redondance active.</div>
         {% elif c.health == 'primary_offline' %}
         <div class="alert-msg">✗ Le nœud primaire ne répond plus — intervention requise</div>
         {% elif c.health == 'no_primary' %}
