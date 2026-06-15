@@ -445,37 +445,37 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
-## Le cluster produit déjà des données — exploitons-les
+## Le système produit déjà la matière première (Big Data)
 
 ```
   Heartbeats (~60 s) ┐
-  streaming_standby   ├─▶  Séries temporelles  ─▶  Agent IA  ─▶  Score d'anomalie
-  WAL lag             │      (Big Data)             (détection)     + prédiction
-  failover_count     ┘                                              de panne
+  streaming_standby   ├─▶  Séries temporelles  ─▶  (Agent IA)  ─▶  Score d'anomalie
+  WAL lag             │      collectées             à concevoir     + alerte préventive
+  failover_count     ┘       par le SaaS
 ```
 
-> Chaque nœud émet ses métriques au SaaS toutes les ~60 s. Sur la durée, cela forme un **historique exploitable** — terrain naturel du Big Data et de l'IA.
+> Chaque nœud émet déjà ses métriques au SaaS toutes les ~60 s. Sur la durée, cela formerait un **historique exploitable** — terrain naturel du Big Data et de l'IA.
 
 ---
 
-## Ce que l'agent apporte (au-delà du seuil fixe)
+## La supervision actuelle, et ce qu'une couche IA apporterait
 
-| Approche actuelle | Apport de l'agent IA |
+| Aujourd'hui (implémenté) | Couche IA (conception / perspective) |
 |-------------------|----------------------|
-| Seuil binaire (streaming = 0 → alerte) | **Détection d'anomalie** sur la dynamique des métriques |
+| Seuil binaire : streaming = 0 → alerte | **Détection d'anomalie** sur la dynamique des métriques |
 | Réaction *après* la panne | **Prédiction** : lag qui dérive, heartbeats qui s'espacent |
-| Une règle par symptôme | Modèle non supervisé (Isolation Forest / z-score) |
+| Une règle par symptôme | Modèle non supervisé (ex. Isolation Forest / z-score glissant) |
 
 ---
 
-### Preuve de concept
+### Une évolution naturelle, pas encore déployée
 
-> PoC Python sur les métriques réelles du parc (heartbeats, `streaming_standby_count`, `failover_count`) → détection de l'anomalie qui a **précédé le split-brain** observé en phase de test. *(voir annexe / démo)*
+> Le système est **déjà instrumenté** pour produire ces données. La supervision intelligente est présentée ici comme la **prochaine brique cohérente** avec ma spécialité IA & Big Data — conçue, non encore implémentée. C'est une perspective assumée, pas un acquis.
 
 ---
 
 *Notes présentateur :*
-> "Ma spécialité est l'IA et le Big Data. Le système génère naturellement des séries temporelles : battements de cœur, état de réplication, compteurs de bascule. Un agent intelligent peut apprendre le comportement normal du cluster et alerter AVANT la panne — pas seulement constater après. J'en ai fait une preuve de concept sur des données réelles."
+> "Ma spécialité est l'IA et le Big Data. Je veux être transparent : cet agent n'est pas déployé. Mais le système produit déjà les bonnes données — battements de cœur, état de réplication, compteurs de bascule. La suite logique est une couche qui apprend le comportement normal et alerte AVANT la panne, plutôt que de constater après. C'est une perspective que j'assume comme conception, cohérente avec ma formation."
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -542,7 +542,7 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
-> **De l'incident à l'amélioration produit** : le correctif a fermé la dégradation silencieuse, et a inspiré l'agent IA prédictif (slide 12).
+> **De l'incident à l'amélioration produit** : le correctif a fermé la dégradation silencieuse, et a inspiré la perspective d'une supervision IA prédictive (slide 12).
 
 ---
 
@@ -604,7 +604,7 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 | Zero-knowledge | Hiérarchie de clés DEK prouvée cross-OS |
 | Réplication | PostgreSQL primaire/standby + détection de panne |
 | Reporting véridique | Le SaaS reflète l'état réel de la réplication |
-| Agent IA (PoC) | Détection d'anomalie sur métriques réelles |
+| Supervision IA (conçue) | Métriques déjà collectées — agent à implémenter |
 
 ---
 
@@ -620,7 +620,7 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 | Horizon court | Horizon moyen |
 |---------------|---------------|
-| Fencing par jeton d'époque (failover sûr) | Agent IA en production (alerte prédictive) |
+| Fencing par jeton d'époque (failover sûr) | Implémenter l'agent IA (alerte prédictive) |
 | IP statiques sur réseau de réplication | Quorum ≥ 3 nœuds (failover automatique) |
 | Module métier v1 (gestion de stock) | Frontend Tauri + mobile (UniFFI) |
 
@@ -728,14 +728,16 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
-## RÉSERVE E — L'agent IA : quel modèle ?
+## RÉSERVE E — L'agent IA : quelle conception ? *(perspective, non déployé)*
 
-| Élément | Choix |
+| Élément | Choix envisagé |
 |---------|-------|
-| Données | Séries temporelles : heartbeats, streaming_standby_count, WAL lag, failover_count |
-| Modèle | Détection d'anomalie non supervisée (Isolation Forest / z-score glissant) |
-| Sortie | Score d'anomalie + alerte prédictive avant franchissement de seuil |
-| Pourquoi | Les pannes (ex. split-brain) sont précédées de dérives détectables |
+| Données (déjà collectées) | Séries temporelles : heartbeats, streaming_standby_count, WAL lag, failover_count |
+| Modèle envisagé | Détection d'anomalie non supervisée (Isolation Forest / z-score glissant) |
+| Sortie visée | Score d'anomalie + alerte prédictive avant franchissement de seuil |
+| Pourquoi | Les pannes (ex. split-brain) sont souvent précédées de dérives détectables |
+
+> Honnêteté : le système est instrumenté pour fournir ces données, mais l'agent n'est pas implémenté — c'est une perspective de conception.
 
 ---
 

@@ -133,13 +133,13 @@
 
 ### Partie 8 — Supervision Intelligente : Agent IA (3 min — Slide 12)
 
-**Slide 12 — L'angle Big Data & IA**
-- Le cluster émet des séries temporelles : heartbeats (~60 s), streaming_standby_count, WAL lag, failover_count
-- Agent IA = détection d'anomalie non supervisée (Isolation Forest / z-score) sur ces métriques
+**Slide 12 — L'angle Big Data & IA** *(perspective assumée, non déployée)*
+- Le cluster émet **déjà** des séries temporelles : heartbeats (~60 s), streaming_standby_count, WAL lag, failover_count
+- Couche IA envisagée = détection d'anomalie non supervisée (Isolation Forest / z-score) sur ces métriques
 - Apport vs seuil fixe : **prédiction** de panne avant franchissement, pas réaction après
-- Preuve de concept : détection de l'anomalie ayant précédé le split-brain observé en test
+- Transparence : le système est instrumenté pour produire ces données ; l'agent est **conçu, non implémenté**
 
-*Message clé :* Ma spécialité IA & Big Data s'applique directement à un problème d'infrastructure réel : superviser intelligemment le cluster.
+*Message clé :* Ma spécialité IA & Big Data s'applique directement à un problème d'infrastructure réel — je présente honnêtement la supervision intelligente comme la prochaine brique cohérente, pas comme un acquis.
 
 ---
 
@@ -165,8 +165,8 @@
 - Rust, libsodium/zero-knowledge, PostgreSQL/systèmes distribués, IA & Big Data, Docker, Django
 
 **Slide 16 — Bilan & perspectives**
-- Acquis : 6/6 scénarios, zero-knowledge prouvé, reporting véridique, agent IA (PoC)
-- Perspectives : fencing (failover sûr), IP statiques, agent IA en production, module métier v1
+- Acquis : 6/6 scénarios, zero-knowledge prouvé, reporting véridique, métriques de supervision collectées
+- Perspectives : fencing (failover sûr), IP statiques, **implémenter** l'agent IA de supervision, module métier v1
 
 *Message clé :* Un socle prouvé, avec une feuille de route technique claire.
 
@@ -191,7 +191,7 @@ Citation de clôture (optionnelle) :
 | Comment garantissez-vous que l'éditeur ne peut PAS lire les données ? | Hiérarchie de clés : la DEK (unique par entreprise) ne quitte jamais le périmètre client en clair. Le relais ne stocke que des blobs chiffrés et une DEK scellée sous le code de récupération du client, que l'éditeur ne connaît pas. C'est cryptographique, pas contractuel. |
 | Pourquoi PostgreSQL et pas un consensus maison (Raft/Paxos) ? | Réinventer un consensus serait une faute d'ingénierie : risque élevé, valeur nulle. On utilise la promotion de standby PostgreSQL + supervision type Patroni — éprouvé en production. |
 | Qu'est-ce qui empêche le split-brain ? | À 2 nœuds, bascule manuelle uniquement. Le fencing par jeton d'époque monotone (prochaine étape) isole tout ancien primaire revenant avec une époque inférieure. J'ai rencontré le problème en vrai et corrigé le reporting pour le détecter. |
-| En quoi votre projet relève-t-il de l'IA & Big Data ? | Le cluster produit des séries temporelles de métriques. J'ai conçu un agent de détection d'anomalies (non supervisé) qui apprend le comportement normal et prédit les pannes — un cas d'usage Big Data + IA ancré dans des données réelles. |
+| En quoi votre projet relève-t-il de l'IA & Big Data ? | Le cluster produit déjà des séries temporelles de métriques (heartbeats, état de réplication, bascules). J'ai conçu — sans encore l'implémenter — une couche de détection d'anomalies non supervisée qui apprendrait le comportement normal et prédirait les pannes. Je l'assume comme perspective : la matière première Big Data existe, le modèle est défini, l'implémentation reste à faire. |
 | Le zero-knowledge ralentit-il les performances ? | Le chiffrement se fait côté client (XChaCha20-Poly1305, très rapide). La réplication PostgreSQL n'est pas affectée : elle réplique le journal chiffré. Réplication confirmée en < 1 s sur le banc. |
 | Avez-vous eu des échecs lors des tests ? | 0 échec sur les 6 scénarios. Le scénario de panne (T6) a même validé deux choses : le rattrapage WAL et la détection de panne par le SaaS. |
 
@@ -204,7 +204,7 @@ Citation de clôture (optionnelle) :
 - [ ] La problématique (dilemme de l'éditeur) est formulée précisément (slide 4)
 - [ ] Architecture 3 acteurs + zero-knowledge clairs (slides 5–9)
 - [ ] Résultats quantifiés : 6/6 scénarios, réplication < 1 s (slide 11)
-- [ ] Agent IA présenté avec preuve de concept (slide 12)
+- [ ] Agent IA présenté honnêtement comme conception/perspective, non déployé (slide 12)
 - [ ] Incident split-brain présenté comme posture ingénieur (slide 14)
 - [ ] Compétences explicitées, lien IA & Big Data (slide 15)
 - [ ] Durée totale : 27–33 minutes chronométrée
