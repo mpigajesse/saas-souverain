@@ -62,6 +62,13 @@
 
 *Message clé :* Le problème est autant commercial que technique — concilier modèle SaaS et souveraineté.
 
+**Objectifs de la mission (SMART) — annoncés en transition slide 4 → 5 :**
+- **O1** — Concevoir une architecture séparant gestion commerciale (éditeur) et données métier (client), avec garantie zero-knowledge.
+- **O2** — Prouver sur banc réel multi-OS la réplication PostgreSQL primaire/standby et la résilience à la panne d'un nœud.
+- **O3** — Valider la cohérence des données métier (transactions, contraintes, concurrence) répliquées sans divergence.
+- **O4** — Livrer un packaging déployable (image Docker) et un SaaS éditeur gérant comptes, licences et suivi du parc.
+- **O5** *(perspective)* — Instrumenter le cluster pour une supervision intelligente (IA/Big Data), conçue comme évolution.
+
 ---
 
 ### Partie 3 — La Solution : Trois Acteurs (3 min — Slides 5–6)
@@ -194,6 +201,22 @@ Citation de clôture (optionnelle) :
 | En quoi votre projet relève-t-il de l'IA & Big Data ? | Le cluster produit déjà des séries temporelles de métriques (heartbeats, état de réplication, bascules). J'ai conçu — sans encore l'implémenter — une couche de détection d'anomalies non supervisée qui apprendrait le comportement normal et prédirait les pannes. Je l'assume comme perspective : la matière première Big Data existe, le modèle est défini, l'implémentation reste à faire. |
 | Le zero-knowledge ralentit-il les performances ? | Le chiffrement se fait côté client (XChaCha20-Poly1305, très rapide). La réplication PostgreSQL n'est pas affectée : elle réplique le journal chiffré. Réplication confirmée en < 1 s sur le banc. |
 | Avez-vous eu des échecs lors des tests ? | 0 échec sur les 6 scénarios. Le scénario de panne (T6) a même validé deux choses : le rattrapage WAL et la détection de panne par le SaaS. |
+
+---
+
+## Conformité aux consignes EIGSI
+
+**Les 5 axes d'évaluation du jury :**
+
+| Axe | Où c'est couvert |
+|-----|------------------|
+| 1. Structure de l'exposé | Sommaire chronométré (~31 min), enchaînement contexte → problème → solution → résultats → conclusion |
+| 2. Message technique | Justification des choix (PostgreSQL vs consensus maison, libsodium, zero-knowledge) — Parties 4-5, réserves B-D |
+| 3. Réponses aux questions | Section « Questions Jury — Préparation » (6 Q/R argumentées) |
+| 4. Visuels et supports | Slides avec schémas, captures démo réelle, tableaux de résultats — notes design par slide |
+| 5. Expression orale | Notes présentateur par slide (ton, regard, phrases d'accroche) dans le support |
+
+**Checklist contenu (consigne) :** Contexte ✅ (P1) · Problématique ✅ (P2) · Objectifs ✅ (P2, SMART) · Missions ✅ (P1) · Réalisations ✅ (P5-7) · Résultats mesurables ✅ (P7, 6/6) · Compétences ✅ (P10) · Plan logique ✅.
 
 ---
 
