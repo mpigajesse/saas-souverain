@@ -161,6 +161,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let da = if active == "dashboard" { "active" } else { "" };
     let aa = if active == "articles" { "active" } else { "" };
     let ma = if active == "mouvements" { "active" } else { "" };
+    let cat_a = if active == "catalogue" { "active" } else { "" };
     let ca = if active == "cluster" { "active" } else { "" };
     let ua = if active == "utilisateurs" { "active" } else { "" };
 
@@ -230,6 +231,12 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
         <polyline points="17 6 23 6 23 12"/>
       </svg>
       Mouvements
+    </a>
+    <a href="/catalogue" class="{cat_a}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16v4H4z"/><path d="M4 12h7v8H4z"/><path d="M13 12h7v8h-7z"/>
+      </svg>
+      Catalogue
     </a>
   </nav>
 {admin_section}

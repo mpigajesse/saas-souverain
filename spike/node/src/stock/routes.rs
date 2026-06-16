@@ -177,6 +177,70 @@ fn mvt_row_small(m: &Mouvement) -> String {
     )
 }
 
+// ── Catalogue (vitrine produits) ────────────────────────────────────────────
+
+pub async fn catalogue(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
+    let items = match super::get_stock_actuel(&state.pool).await {
+        Ok(v) => v,
+        Err(e) => return err(&user, &state, &e.to_string()),
+    };
+
+    let cards: String = if items.is_empty() {
+        r#"<div class="empty" style="grid-column:1/-1;text-align:center;padding:40px">Aucun produit au catalogue — <a href="/articles/nouveau">ajouter un article</a></div>"#.into()
+    } else {
+        items.iter().map(|i| {
+            let prix = match i.prix_unitaire {
+                Some(p) => format!("{:.2} DH", p),
+                None => "—".to_string(),
+            };
+            let cat = i.categorie.as_deref().filter(|s| !s.is_empty()).unwrap_or("Sans catégorie");
+            let low = i.seuil_alerte > 0 && i.stock_qty <= i.seuil_alerte as i64;
+            let stock_badge = if low {
+                format!(r#"<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700">Stock bas : {} {}</span>"#, i.stock_qty, esc(&i.unite))
+            } else {
+                format!(r#"<span style="background:#ECFDF5;color:#065F46;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700">En stock : {} {}</span>"#, i.stock_qty, esc(&i.unite))
+            };
+            let initial = i.nom.chars().next().unwrap_or('?').to_uppercase().to_string();
+            format!(
+                r#"<div style="border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+  <div style="height:96px;background:linear-gradient(135deg,#1f2937,#C79A1B);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;font-weight:800">{initial}</div>
+  <div style="padding:14px">
+    <div style="font-size:.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:.04em">{cat}</div>
+    <div style="font-weight:700;font-size:1rem;margin:2px 0 8px">{nom}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-weight:800;color:#C79A1B;font-size:1.05rem">{prix}</span>
+      <span style="font-size:.72rem;color:#9CA3AF" class="mono">{code}</span>
+    </div>
+    <div style="margin-top:10px">{stock_badge}</div>
+  </div>
+</div>"#,
+                initial = esc(&initial),
+                cat = esc(cat),
+                nom = esc(&i.nom),
+                prix = prix,
+                code = esc(&i.code),
+                stock_badge = stock_badge,
+            )
+        }).collect()
+    };
+
+    let content = format!(
+        r#"<div class="page-title">Catalogue produits</div>
+<div class="page-sub">Vitrine des produits de {tenant} — {n} référence(s)</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:16px">
+{cards}
+</div>"#,
+        tenant = esc(&state.tenant_name),
+        n = items.len(),
+        cards = cards,
+    );
+
+    Html(layout("Catalogue", "catalogue", &user, &state, &content))
+}
+
 // ── Articles ─────────────────────────────────────────────────────────────────
 
 pub async fn articles_list(

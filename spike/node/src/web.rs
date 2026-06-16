@@ -78,6 +78,7 @@ pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) 
             get(stock_routes::article_form).post(stock_routes::article_create),
         )
         .route("/articles/:id/supprimer", post(stock_routes::article_delete))
+        .route("/catalogue", get(stock_routes::catalogue))
         .route(
             "/mouvements",
             get(stock_routes::mouvements_page).post(stock_routes::mouvement_create),
