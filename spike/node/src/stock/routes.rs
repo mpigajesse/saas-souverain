@@ -204,9 +204,19 @@ pub async fn catalogue(
                 format!(r#"<span style="background:#ECFDF5;color:#065F46;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700">En stock : {} {}</span>"#, i.stock_qty, esc(&i.unite))
             };
             let initial = i.nom.chars().next().unwrap_or('?').to_uppercase().to_string();
+            let media = match i.image_data.as_deref().filter(|s| s.starts_with("data:image/")) {
+                Some(d) => format!(
+                    r#"<div style="height:120px;background:#f3f4f6"><img src="{}" alt="" style="width:100%;height:120px;object-fit:cover"></div>"#,
+                    d
+                ),
+                None => format!(
+                    r#"<div style="height:96px;background:linear-gradient(135deg,#1f2937,#C79A1B);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;font-weight:800">{}</div>"#,
+                    esc(&initial)
+                ),
+            };
             format!(
                 r#"<div style="border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-  <div style="height:96px;background:linear-gradient(135deg,#1f2937,#C79A1B);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;font-weight:800">{initial}</div>
+  {media}
   <div style="padding:14px">
     <div style="font-size:.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:.04em">{cat}</div>
     <div style="font-weight:700;font-size:1rem;margin:2px 0 8px">{nom}</div>
@@ -217,7 +227,7 @@ pub async fn catalogue(
     <div style="margin-top:10px">{stock_badge}</div>
   </div>
 </div>"#,
-                initial = esc(&initial),
+                media = media,
                 cat = esc(cat),
                 nom = esc(&i.nom),
                 prix = prix,
@@ -369,6 +379,12 @@ const ARTICLE_FORM: &str = r#"
         <label for="description">Description (optionnel)</label>
         <textarea id="description" name="description" placeholder="Détails, référence fournisseur…"></textarea>
       </div>
+      <div class="fg full">
+        <label for="image_file">Image du produit (optionnel)</label>
+        <input id="image_file" type="file" accept="image/*">
+        <input type="hidden" id="image" name="image">
+        <div id="image_preview" style="margin-top:8px"></div>
+      </div>
     </div>
     <div class="fa">
       <button type="submit" class="btn btn-p">Créer l'article</button>
@@ -377,6 +393,34 @@ const ARTICLE_FORM: &str = r#"
   </form>
   </div>
 </div>
+<script>
+(function () {
+  var input = document.getElementById('image_file');
+  if (!input) return;
+  input.addEventListener('change', function () {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var max = 400, w = img.width, h = img.height;
+        if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+        else if (h > max) { w = Math.round(w * max / h); h = max; }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        var data = c.toDataURL('image/jpeg', 0.8);
+        document.getElementById('image').value = data;
+        document.getElementById('image_preview').innerHTML =
+          '<img src="' + data + '" style="height:90px;border-radius:8px;border:1px solid #E5E7EB">';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+})();
+</script>
 "#;
 
 #[derive(Deserialize)]
@@ -388,6 +432,7 @@ pub struct ArticleForm {
     pub unite: String,
     pub prix_unitaire: Option<String>,
     pub seuil_alerte: Option<String>,
+    pub image: Option<String>,
 }
 
 pub async fn article_create(
@@ -412,8 +457,14 @@ pub async fn article_create(
         .unwrap_or(0);
     let desc = f.description.as_deref().filter(|s| !s.trim().is_empty());
     let cat = f.categorie.as_deref().filter(|s| !s.trim().is_empty());
+    // Image : data URL base64 (data:image/...) produite côté navigateur, redimensionnée.
+    let image = f
+        .image
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| s.starts_with("data:image/"));
 
-    match super::create_article(&state.pool, &code, &nom, desc, cat, &f.unite, prix, seuil).await {
+    match super::create_article(&state.pool, &code, &nom, desc, cat, &f.unite, prix, seuil, image).await {
         Ok(_) => Redirect::to("/articles").into_response(),
         Err(e) => err(&user, &state, &e.to_string()).into_response(),
     }

@@ -15,6 +15,7 @@ pub struct Article {
     pub unite: String,
     pub prix_unitaire: Option<f64>,
     pub seuil_alerte: i32,
+    pub image_data: Option<String>,
     pub actif: bool,
     pub created_at: DateTime<Utc>,
 }
@@ -28,6 +29,7 @@ pub struct StockItem {
     pub unite: String,
     pub seuil_alerte: i32,
     pub prix_unitaire: Option<f64>,
+    pub image_data: Option<String>,
     pub stock_qty: i64,
 }
 
@@ -76,6 +78,11 @@ pub async fn run_migrations(pool: &PgPool) -> Result<()> {
     .execute(pool)
     .await?;
 
+    // Colonne image (ajoutée a posteriori — compatible bases existantes)
+    sqlx::query("ALTER TABLE articles ADD COLUMN IF NOT EXISTS image_data TEXT")
+        .execute(pool)
+        .await?;
+
     Ok(())
 }
 
@@ -83,12 +90,12 @@ pub async fn get_stock_actuel(pool: &PgPool) -> Result<Vec<StockItem>> {
     Ok(sqlx::query_as::<_, StockItem>(
         "SELECT
              a.id, a.code, a.nom, a.categorie, a.unite,
-             a.seuil_alerte, a.prix_unitaire,
+             a.seuil_alerte, a.prix_unitaire, a.image_data,
              COALESCE(SUM(m.quantite), 0)::bigint AS stock_qty
          FROM articles a
          LEFT JOIN mouvements_stock m ON m.article_id = a.id
          WHERE a.actif = TRUE
-         GROUP BY a.id, a.code, a.nom, a.categorie, a.unite, a.seuil_alerte, a.prix_unitaire
+         GROUP BY a.id, a.code, a.nom, a.categorie, a.unite, a.seuil_alerte, a.prix_unitaire, a.image_data
          ORDER BY a.nom",
     )
     .fetch_all(pool)
@@ -112,10 +119,11 @@ pub async fn create_article(
     unite: &str,
     prix_unitaire: Option<f64>,
     seuil_alerte: i32,
+    image_data: Option<&str>,
 ) -> Result<Uuid> {
     let row: (Uuid,) = sqlx::query_as(
-        "INSERT INTO articles (code, nom, description, categorie, unite, prix_unitaire, seuil_alerte)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO articles (code, nom, description, categorie, unite, prix_unitaire, seuil_alerte, image_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id",
     )
     .bind(code)
@@ -125,6 +133,7 @@ pub async fn create_article(
     .bind(unite)
     .bind(prix_unitaire)
     .bind(seuil_alerte)
+    .bind(image_data)
     .fetch_one(pool)
     .await?;
     Ok(row.0)
