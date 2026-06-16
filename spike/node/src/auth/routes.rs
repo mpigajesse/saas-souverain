@@ -345,6 +345,12 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Connexion — {tenant_esc}</title>
 <style>{CSS}</style>
+<style>
+.pw-wrap{{position:relative}}
+.pw-wrap input{{padding-right:42px}}
+.pw-toggle{{position:absolute;top:50%;right:8px;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;opacity:.6;padding:2px}}
+.pw-toggle:hover{{opacity:1}}
+</style>
 </head>
 <body class="login-body">
 <div class="login-card">
@@ -363,7 +369,10 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
     </div>
     <div class="fg">
       <label for="password">Mot de passe</label>
-      <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+      <div class="pw-wrap">
+        <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+        <button type="button" class="pw-toggle" tabindex="-1" aria-label="Afficher le mot de passe" onclick="var i=document.getElementById('password');var r=i.type==='password';i.type=r?'text':'password';this.textContent=r?'🙈':'👁';">👁</button>
+      </div>
     </div>
     <div class="fa" style="margin-top:4px">
       <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">Se connecter</button>
