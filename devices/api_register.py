@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from tenants.models import Tenant
-from .models import Device
+from .models import ClusterMetricSample, Device
 
 
 def _parse_int(value):
@@ -124,6 +124,19 @@ def device_register(request):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    # Enregistrer un échantillon de métriques (série temporelle pour l'agent IA).
+    # Best-effort : ne doit jamais faire échouer l'enregistrement du nœud.
+    try:
+        ClusterMetricSample.objects.create(
+            tenant=tenant,
+            device=device,
+            node_role=device.node_role,
+            streaming_standby_count=device.streaming_standby_count,
+            failover_count=device.failover_count,
+        )
+    except Exception:  # pragma: no cover - la métrique est secondaire
+        pass
 
     # Vérifier les sièges disponibles (après get_or_create pour inclure la machine actuelle)
     active_device_count = tenant.devices.filter(is_active=True).count()

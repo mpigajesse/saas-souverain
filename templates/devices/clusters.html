@@ -73,6 +73,26 @@
 .online-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle}
 .online-dot.on{background:#10B981;box-shadow:0 0 0 2px rgba(16,185,129,.2)}
 .online-dot.off{background:#EF4444}
+
+/* Panneau d'analyse IA */
+.ai-panel{margin:0 18px 14px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:#F8FAFF;display:none}
+.ai-panel.show{display:block;animation:aiFade .2s ease}
+@keyframes aiFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ai-risk{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.78rem;border-radius:20px;padding:3px 11px}
+.ai-risk.sain{background:#D1FAE5;color:#065F46}
+.ai-risk.surveiller{background:#FEF3C7;color:#92400E}
+.ai-risk.critique{background:#FEE2E2;color:#991B1B}
+.ai-score{font-size:.72rem;color:var(--text-muted);font-weight:600}
+.ai-summary{font-size:.82rem;color:var(--text);line-height:1.4;margin-bottom:6px}
+.ai-reco{font-size:.78rem;color:#1E3A8A;background:#EFF6FF;border-radius:7px;padding:6px 10px}
+.ai-reco b{color:#1D4ED8}
+.ai-source{margin-top:7px;font-size:.68rem;color:var(--text-muted)}
+.ai-source .badge-src{font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.ai-loading{font-size:.8rem;color:var(--text-muted)}
+.btn-ai{background:linear-gradient(135deg,#6366F1,#3B82F6);color:#fff;border:none}
+.btn-ai:hover{filter:brightness(1.05)}
 </style>
 
 <div class="clusters-header">
@@ -245,6 +265,9 @@
         {% endif %}
       </div>
       <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-ai btn-sm"
+                data-ai-url="{% url 'cluster-ai-analyze' c.tenant.pk %}"
+                onclick="runAiAnalysis(this)"><svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5V4M9.5 1.5V4M6.5 12v2.5M9.5 12v2.5M1.5 6.5H4M1.5 9.5H4M12 6.5h2.5M12 9.5h2.5"/></svg>Analyse IA</button>
         <a href="{% url 'tenant-detail' c.tenant.pk %}" class="btn btn-secondary btn-sm">Détail</a>
         {% if c.primary and c.primary.device %}
         <form method="post" action="{% url 'device-toggle' c.primary.device.pk %}" style="display:inline">
@@ -259,9 +282,41 @@
       </div>
     </div>
 
+    {# ── Panneau d'analyse IA (rempli en AJAX) #}
+    <div class="ai-panel" data-ai-panel></div>
+
   </div>
   {% endfor %}
 </div>
 {% endif %}
+
+<script>
+function runAiAnalysis(btn){
+  const card = btn.closest('.cluster-card');
+  const panel = card.querySelector('[data-ai-panel]');
+  panel.classList.add('show');
+  panel.innerHTML = '<div class="ai-loading"><svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px;animation:spin .9s linear infinite" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5" opacity=".9"/></svg>Analyse en cours…</div>';
+  btn.disabled = true;
+
+  fetch(btn.dataset.aiUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+    .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(d => {
+      const risk = (d.risk_level || 'surveiller');
+      const srcLabel = d.source === 'mistral' ? 'Mistral AI' : 'Analyse locale (repli)';
+      panel.innerHTML =
+        '<div class="ai-head">' +
+          '<span class="ai-risk ' + risk + '">Risque : ' + risk + '</span>' +
+          '<span class="ai-score">Score d\'anomalie : ' + d.anomaly_score + '/100</span>' +
+        '</div>' +
+        '<div class="ai-summary">' + (d.summary || '') + '</div>' +
+        '<div class="ai-reco"><b>Recommandation :</b> ' + (d.recommendation || '—') + '</div>' +
+        '<div class="ai-source">Source : <span class="badge-src">' + srcLabel + '</span></div>';
+    })
+    .catch(() => {
+      panel.innerHTML = '<div class="ai-loading" style="color:#B91C1C">Analyse indisponible. Réessayez.</div>';
+    })
+    .finally(() => { btn.disabled = false; });
+}
+</script>
 
 {% endblock %}

@@ -60,6 +60,16 @@
         </svg>
         Clusters
       </a>
+      <a href="{% url 'agent-monitoring' %}" class="nav-link {% if 'agent' in request.resolver_match.url_name %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="3" y="5" width="10" height="8" rx="2"/>
+          <path d="M8 5V2.5M6.5 2.5h3"/>
+          <circle cx="6" cy="9" r="1"/>
+          <circle cx="10" cy="9" r="1"/>
+          <path d="M1 8v2M15 8v2"/>
+        </svg>
+        Agent IA
+      </a>
       <a href="{% url 'relay-monitor' %}" class="nav-link {% if request.resolver_match.url_name == 'relay-monitor' %}active{% endif %}">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
           <circle cx="8" cy="8" r="2"/>

@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+{% block title %}Agent de supervision{% endblock %}
+{% block content %}
+
+<style>
+.agent-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+.agent-title{font-size:1.35rem;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px}
+.agent-sub{font-size:.875rem;color:var(--text-muted);margin-top:2px}
+.agent-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.agent-meta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.meta-pill{font-size:.74rem;font-weight:600;color:var(--text-muted);background:#fff;border:1px solid var(--border);border-radius:20px;padding:5px 12px}
+.meta-pill .on{color:#059669;font-weight:700}
+.meta-pill .off{color:#B45309;font-weight:700}
+
+.summary-bar{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.summary-chip{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:.82rem;font-weight:600}
+.summary-chip .chip-val{font-size:1.5rem;font-weight:800;line-height:1}
+.chip-sain .chip-val{color:#059669}
+.chip-surv .chip-val{color:#B45309}
+.chip-crit .chip-val{color:#DC2626}
+.chip-unk .chip-val{color:#6B7280}
+
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:18px}
+.agent-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.agent-card.crit{border-color:#FECACA;box-shadow:0 0 0 2px rgba(220,38,38,.07)}
+.agent-card.surv{border-color:#FDE68A}
+
+.ac-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ac-tenant{font-weight:700;font-size:.96rem}
+.ac-tenant a{color:var(--crimson);text-decoration:none}
+.ac-tenant a:hover{text-decoration:underline}
+
+.risk-badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:4px 12px;font-size:.74rem;font-weight:700}
+.risk-sain{background:#D1FAE5;color:#065F46}
+.risk-surveiller{background:#FEF3C7;color:#92400E}
+.risk-critique{background:#FEE2E2;color:#991B1B}
+.risk-none{background:#F3F4F6;color:#6B7280}
+
+.ac-body{padding:15px 18px}
+.score-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.score-num{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1}
+.score-bar-wrap{flex:1;height:8px;background:#E5E7EB;border-radius:5px;overflow:hidden}
+.score-bar{height:100%;border-radius:5px}
+.sb-sain{background:#10B981}
+.sb-surveiller{background:#F59E0B}
+.sb-critique{background:#EF4444}
+
+.ac-summary{font-size:.85rem;color:var(--text);line-height:1.45;margin-bottom:10px}
+.ac-reco{font-size:.8rem;color:#1E3A8A;background:#EFF6FF;border-radius:8px;padding:8px 11px;margin-bottom:12px}
+.ac-reco b{color:#1D4ED8}
+
+.metrics-title{font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:4px 0 7px}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.metric{display:flex;justify-content:space-between;gap:8px;font-size:.76rem;border-bottom:1px dashed var(--border);padding:3px 0}
+.metric .mk{color:var(--text-muted)}
+.metric .mv{font-weight:700;color:var(--text);font-family:monospace}
+
+.ac-foot{padding:10px 18px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border)}
+.ac-when{font-size:.72rem;color:var(--text-muted)}
+.src-tag{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:10px}
+.src-mistral{background:#EDE9FE;color:#5B21B6}
+.src-local{background:#F3F4F6;color:#4B5563}
+
+.no-verdict{font-size:.84rem;color:var(--text-muted);padding:8px 0}
+.btn-ai{background:linear-gradient(135deg,#6366F1,#3B82F6);color:#fff;border:none}
+.btn-ai:hover{filter:brightness(1.05)}
+.ico{width:15px;height:15px;flex-shrink:0;vertical-align:-2px}
+.btn .ico{margin-right:5px}
+.ico-sm{width:12px;height:12px;vertical-align:-1px}
+
+/* ── Supervision temps réel ─────────────────────────────────────────────── */
+.live-wrap{background:linear-gradient(135deg,#0D1B2A,#13263b);border-radius:16px;padding:18px 20px;margin-bottom:22px;color:#E8EEF5;position:relative;overflow:hidden}
+.live-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;position:relative;z-index:2}
+.live-id{display:flex;align-items:center;gap:13px}
+.radar{width:46px;height:46px;border-radius:50%;border:2px solid rgba(99,179,237,.35);position:relative;flex-shrink:0}
+.radar::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(56,189,248,.55),transparent 70%);animation:sweep 2.4s linear infinite}
+.radar::after{content:'';position:absolute;top:50%;left:50%;width:6px;height:6px;margin:-3px;background:#38BDF8;border-radius:50%;box-shadow:0 0 10px #38BDF8;animation:pulse 1.6s ease-in-out infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}
+.live-title{font-weight:800;font-size:1.02rem}
+.live-state{font-size:.76rem;color:#9DB4CC;display:flex;align-items:center;gap:6px;margin-top:2px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22C55E;box-shadow:0 0 0 0 rgba(34,197,94,.7);animation:beat 1.8s infinite}
+@keyframes beat{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.live-clock{font-family:monospace;font-size:.8rem;color:#7FA8D0;text-align:right}
+.live-scan{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#38BDF8,transparent);animation:scanline 3.5s ease-in-out infinite;z-index:1}
+@keyframes scanline{0%{transform:translateY(0);opacity:0}10%{opacity:.9}50%{transform:translateY(170px)}90%{opacity:.9}100%{transform:translateY(0);opacity:0}}
+
+.host-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;position:relative;z-index:2}
+.gauge{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px}
+.gauge-lbl{font-size:.7rem;color:#9DB4CC;text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center}
+.gauge-val{font-size:1.5rem;font-weight:800;margin:3px 0 7px;transition:color .4s}
+.gauge-bar{height:6px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:4px;width:0;transition:width .7s cubic-bezier(.16,1,.3,1),background .4s}
+.g-ok{background:#22C55E}.g-warn{background:#F59E0B}.g-crit{background:#EF4444}
+.gauge-sub{font-size:.68rem;color:#7FA8D0;margin-top:5px}
+.host-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:.75rem;color:#9DB4CC;position:relative;z-index:2}
+.host-meta b{color:#E8EEF5}
+.host-verdict{margin-top:14px;background:rgba(255,255,255,.06);border-radius:11px;padding:12px 14px;font-size:.82rem;position:relative;z-index:2;display:none}
+.host-verdict.show{display:block;animation:aiFade .25s ease}
+@keyframes aiFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.hv-badge{display:inline-block;font-weight:700;font-size:.72rem;border-radius:20px;padding:3px 11px}
+.hv-sain{background:rgba(34,197,94,.2);color:#86EFAC}
+.hv-surveiller{background:rgba(245,158,11,.2);color:#FCD34D}
+.hv-critique{background:rgba(239,68,68,.2);color:#FCA5A5}
+
+.live-clusters{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:relative;z-index:2}
+.lc-chip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:6px 11px;font-size:.76rem}
+.lc-dot{width:8px;height:8px;border-radius:50%}
+.lc-sain{background:#22C55E}.lc-surveiller{background:#F59E0B}.lc-critique{background:#EF4444;animation:beat 1.2s infinite}
+.flash{animation:flash .6s ease}
+@keyframes flash{0%{background:rgba(56,189,248,.25)}100%{background:transparent}}
+.btn-host{background:rgba(255,255,255,.12);color:#E8EEF5;border:1px solid rgba(255,255,255,.18)}
+.btn-host:hover{background:rgba(255,255,255,.2)}
+.spin{animation:spin 0.9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.live-clock{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+</style>
+
+<div class="agent-header">
+  <div>
+    <div class="agent-title">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5V4M9.5 1.5V4M6.5 12v2.5M9.5 12v2.5M1.5 6.5H4M1.5 9.5H4M12 6.5h2.5M12 9.5h2.5"/></svg>
+      Agent de supervision intelligente
+    </div>
+    <div class="agent-sub">Diagnostic IA des clusters PME à partir des métriques techniques (zero-knowledge : aucune donnée métier analysée)</div>
+  </div>
+  <div class="agent-actions">
+    <form method="post" action="{% url 'agent-analyze-all' %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-ai btn-sm"><svg class="ico" viewBox="0 0 16 16" fill="currentColor"><path d="M9 1 3 9h3.3l-1 6 6-8H8z"/></svg>Analyser tous les clusters</button>
+    </form>
+    <a href="{% url 'agent-report-pdf' %}" class="btn btn-ai btn-sm"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M3 13h10"/></svg>Rapport PDF</a>
+    <a href="{% url 'agent-report-download' %}" class="btn btn-secondary btn-sm">Markdown</a>
+  </div>
+</div>
+
+{# ── Supervision temps réel (animée) ─────────────────────────────────────── #}
+<div class="live-wrap">
+  <div class="live-scan"></div>
+  <div class="live-top">
+    <div class="live-id">
+      <div class="radar"></div>
+      <div>
+        <div class="live-title">Supervision en temps réel — Serveur éditeur SaaS</div>
+        <div class="live-state"><span class="live-dot"></span> Agent actif · collecte en continu (ton PC hôte)</div>
+      </div>
+    </div>
+    <div>
+      <div class="live-clock"><svg class="ico spin" style="width:13px;height:13px" viewBox="0 0 16 16" fill="none" stroke="#7FA8D0" stroke-width="1.4" stroke-linecap="round"><path d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5" opacity=".9"/></svg><span id="liveClock">—</span></div>
+      <button type="button" class="btn btn-host btn-sm" style="margin-top:6px" onclick="analyzeHost(this)"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/><path d="M4.5 4.5h.01M4.5 11.5h.01" stroke-linecap="round"/></svg>Diagnostic IA serveur</button>
+    </div>
+  </div>
+
+  <div class="host-grid">
+    <div class="gauge">
+      <div class="gauge-lbl"><span>CPU</span><span id="cpuCores">{{ host.cpu_cores }} cœurs</span></div>
+      <div class="gauge-val" id="cpuVal">{{ host.cpu_percent }}<span style="font-size:.8rem">%</span></div>
+      <div class="gauge-bar"><div class="gauge-fill g-ok" id="cpuBar"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-lbl"><span>Mémoire</span></div>
+      <div class="gauge-val" id="memVal">{{ host.mem_percent }}<span style="font-size:.8rem">%</span></div>
+      <div class="gauge-bar"><div class="gauge-fill g-ok" id="memBar"></div></div>
+      <div class="gauge-sub" id="memSub">{{ host.mem_used_gb }}/{{ host.mem_total_gb }} Go</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-lbl"><span>Disque</span></div>
+      <div class="gauge-val" id="diskVal">{{ host.disk_percent }}<span style="font-size:.8rem">%</span></div>
+      <div class="gauge-bar"><div class="gauge-fill g-ok" id="diskBar"></div></div>
+      <div class="gauge-sub" id="diskSub">{{ host.disk_used_gb }}/{{ host.disk_total_gb }} Go</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-lbl"><span>Base SaaS</span></div>
+      <div class="gauge-val" id="dbVal" style="font-size:1.05rem;margin-top:8px">{% if host.db_ok %}<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg> OK{% else %}<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="#EF4444" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg> KO{% endif %}</div>
+      <div class="gauge-sub" id="upSub">Uptime {{ host.uptime_h }} h</div>
+    </div>
+  </div>
+
+  <div class="host-meta">
+    <span>Tenants actifs : <b id="mTenants">{{ host.tenants_actifs }}</b></span>
+    <span>Nœuds en ligne : <b id="mOnline">{{ host.devices_en_ligne }}/{{ host.devices_actifs }}</b></span>
+    <span>Processus : <b id="mProc">{{ host.process_count }}</b></span>
+  </div>
+
+  <div class="host-verdict" id="hostVerdict"></div>
+
+  <div class="live-clusters" id="liveClusters">
+    {% for r in rows %}
+    <span class="lc-chip" data-tenant="{{ r.tenant.name }}">
+      <span class="lc-dot lc-{% if r.verdict %}{{ r.verdict.risk_level }}{% else %}surveiller{% endif %}"></span>
+      {{ r.tenant.name }}
+    </span>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="agent-meta">
+  <span class="meta-pill">Moteur :
+    {% if mistral_active %}<span class="on">Mistral AI actif</span>{% else %}<span class="off">Repli local (clé absente)</span>{% endif %}
+  </span>
+  {% if last_run %}
+  <span class="meta-pill">Dernière analyse : {{ last_run|date:"d/m/Y H:i" }} UTC</span>
+  {% else %}
+  <span class="meta-pill">Aucune analyse encore exécutée</span>
+  {% endif %}
+</div>
+
+<div class="summary-bar">
+  <div class="summary-chip chip-crit"><div class="chip-val">{{ counts.critique }}</div><div>critique{{ counts.critique|pluralize }}</div></div>
+  <div class="summary-chip chip-surv"><div class="chip-val">{{ counts.surveiller }}</div><div>à surveiller</div></div>
+  <div class="summary-chip chip-sain"><div class="chip-val">{{ counts.sain }}</div><div>sain{{ counts.sain|pluralize }}</div></div>
+  <div class="summary-chip chip-unk"><div class="chip-val">{{ counts.unknown }}</div><div>non analysé{{ counts.unknown|pluralize }}</div></div>
+</div>
+
+{% if not rows %}
+<div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+  <p style="font-size:1rem;font-weight:600;margin-bottom:6px">Aucun cluster actif</p>
+  <p style="font-size:.875rem">Les clusters PME apparaîtront ici dès qu'un nœud sera enregistré.</p>
+</div>
+{% else %}
+<div class="agent-grid">
+  {% for r in rows %}
+  {% with v=r.verdict %}
+  <div class="agent-card {% if v.risk_level == 'critique' %}crit{% elif v.risk_level == 'surveiller' %}surv{% endif %}">
+
+    <div class="ac-head">
+      <div class="ac-tenant"><a href="{% url 'tenant-detail' r.tenant.pk %}">{{ r.tenant.name }}</a></div>
+      {% if v %}
+        <span class="risk-badge risk-{{ v.risk_level }}">
+          {% if v.risk_level == 'critique' %}<svg class="ico-sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg> Critique{% elif v.risk_level == 'surveiller' %}<svg class="ico-sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"><path d="M8 2 1.5 13.5h13z"/><path d="M8 6.5v3.3M8 11.3v.4"/></svg> À surveiller{% else %}<svg class="ico-sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg> Sain{% endif %}
+        </span>
+      {% else %}
+        <span class="risk-badge risk-none">Non analysé</span>
+      {% endif %}
+    </div>
+
+    <div class="ac-body">
+      {% if v %}
+        <div class="score-row">
+          <div class="score-num">{{ v.anomaly_score }}<span style="font-size:.8rem;color:var(--text-muted)">/100</span></div>
+          <div class="score-bar-wrap">
+            <div class="score-bar sb-{{ v.risk_level }}" style="width:{{ v.anomaly_score }}%"></div>
+          </div>
+        </div>
+        <div class="ac-summary">{{ v.summary }}</div>
+        <div class="ac-reco"><b>Recommandation :</b> {{ v.recommendation }}</div>
+
+        {% if v.features %}
+        <div class="metrics-title">Métriques supervisées</div>
+        <div class="metrics-grid">
+          {% for k, val in v.features.items %}
+          <div class="metric"><span class="mk">{{ k }}</span><span class="mv">{{ val }}</span></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <div class="no-verdict">
+          Cluster non encore analysé.
+          <span style="color:var(--text-muted)">État actuel : <b>{{ r.snapshot.health }}</b> · {{ r.snapshot.total }} nœud{{ r.snapshot.total|pluralize }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="ac-foot">
+      {% if v %}
+        <span class="ac-when">Analysé le {{ v.created_at|date:"d/m H:i" }} ·
+          <span class="src-tag src-{{ v.source }}">{% if v.source == 'mistral' %}Mistral AI{% else %}Local{% endif %}</span>
+        </span>
+      {% else %}
+        <span class="ac-when">—</span>
+      {% endif %}
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-ai-url="{% url 'cluster-ai-analyze' r.tenant.pk %}"
+              onclick="reanalyze(this)"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg>Ré-analyser</button>
+    </div>
+
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+const SPINNER = '<svg class="ico spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5" opacity=".9"/></svg>';
+
+function reanalyze(btn){
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = SPINNER + 'Analyse…';
+  fetch(btn.dataset.aiUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(() => { window.location.reload(); })
+    .catch(() => { btn.disabled = false; btn.innerHTML = orig; alert('Analyse indisponible, réessayez.'); });
+}
+
+// ── Diagnostic IA du serveur éditeur (à la demande) ───────────────────────
+function analyzeHost(btn){
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = SPINNER + 'Analyse…';
+  const panel = document.getElementById('hostVerdict');
+  fetch("{% url 'agent-host-analyze' %}", {headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(d => {
+      panel.classList.add('show');
+      const src = d.source === 'mistral' ? 'Mistral AI' : 'Analyse locale';
+      panel.innerHTML =
+        '<span class="hv-badge hv-'+d.risk_level+'">Risque : '+d.risk_level+' · '+d.anomaly_score+'/100</span>' +
+        '<div style="margin-top:8px;color:#E8EEF5">'+d.summary+'</div>' +
+        '<div style="margin-top:6px;color:#9DB4CC"><b>Recommandation :</b> '+d.recommendation+'</div>' +
+        '<div style="margin-top:6px;font-size:.68rem;color:#7FA8D0">Source : '+src+'</div>';
+    })
+    .catch(() => { panel.classList.add('show'); panel.innerHTML='<span style="color:#FCA5A5">Diagnostic indisponible.</span>'; })
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// ── Flux temps réel : polling léger + animations ──────────────────────────
+(function(){
+  const lvlClass = p => p >= 90 ? 'g-crit' : (p >= 75 ? 'g-warn' : 'g-ok');
+  function setGauge(valId, barId, pct){
+    const v = document.getElementById(valId), b = document.getElementById(barId);
+    if(!v||!b) return;
+    v.innerHTML = pct + '<span style="font-size:.8rem">%</span>';
+    b.style.width = Math.min(100, pct) + '%';
+    b.className = 'gauge-fill ' + lvlClass(pct);
+  }
+  function tick(){
+    fetch("{% url 'agent-live' %}", {headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        const h = d.host;
+        setGauge('cpuVal','cpuBar', h.cpu_percent);
+        setGauge('memVal','memBar', h.mem_percent);
+        setGauge('diskVal','diskBar', h.disk_percent);
+        document.getElementById('memSub').textContent = h.mem_used_gb+'/'+h.mem_total_gb+' Go';
+        document.getElementById('diskSub').textContent = h.disk_used_gb+'/'+h.disk_total_gb+' Go';
+        const okIco = '<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg> OK';
+        const koIco = '<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="#EF4444" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg> KO';
+        document.getElementById('dbVal').innerHTML = h.db_ok ? okIco : koIco;
+        document.getElementById('upSub').textContent = 'Uptime '+h.uptime_h+' h';
+        document.getElementById('mTenants').textContent = h.tenants_actifs;
+        document.getElementById('mOnline').textContent = h.devices_en_ligne+'/'+h.devices_actifs;
+        document.getElementById('mProc').textContent = h.process_count;
+        const t = new Date(d.ts);
+        document.getElementById('liveClock').textContent = t.toLocaleTimeString('fr-FR');
+        // Clusters : mettre à jour la couleur des pastilles + flash si changement
+        const map = {}; d.clusters.forEach(c => map[c.name] = c.level);
+        document.querySelectorAll('#liveClusters .lc-chip').forEach(chip => {
+          const lvl = map[chip.dataset.tenant];
+          if(!lvl) return;
+          const dot = chip.querySelector('.lc-dot');
+          const next = 'lc-dot lc-' + lvl;
+          if(dot.className !== next){ dot.className = next; chip.classList.remove('flash'); void chip.offsetWidth; chip.classList.add('flash'); }
+        });
+      })
+      .catch(()=>{ const c=document.getElementById('liveClock'); if(c) c.textContent='hors-ligne'; });
+  }
+  tick();
+  setInterval(tick, 4000);
+})();
+</script>
+
+{% endblock %}

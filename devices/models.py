@@ -53,3 +53,70 @@ class Device(models.Model):
             .count()
         )
         return active_device_count <= active_license.seats
+
+
+class ClusterMetricSample(models.Model):
+    """
+    Échantillon de métriques techniques capturé à chaque heartbeat d'un nœud.
+
+    Constitue la série temporelle (Big Data) exploitée par l'agent de
+    supervision IA. Ne contient AUCUNE donnée métier — uniquement des
+    métriques d'infrastructure — ce qui préserve la promesse zero-knowledge.
+    """
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='metric_samples')
+    device = models.ForeignKey(
+        Device, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='metric_samples',
+    )
+    captured_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    node_role = models.CharField(max_length=10, blank=True)
+    streaming_standby_count = models.IntegerField(default=0)
+    failover_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-captured_at']
+        indexes = [
+            models.Index(fields=['tenant', '-captured_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.name} · {self.node_role or '?'} @ {self.captured_at:%d/%m %H:%M:%S}"
+
+
+class AgentVerdict(models.Model):
+    """
+    Résultat horodaté d'une analyse de l'agent de supervision IA pour un cluster.
+
+    Persisté pour alimenter la page « Agent de supervision » et l'export de
+    rapport. Ne contient que des métriques techniques + le diagnostic — jamais
+    de donnée métier (promesse zero-knowledge).
+    """
+    RISK_CHOICES = [
+        ('sain', 'Sain'),
+        ('surveiller', 'À surveiller'),
+        ('critique', 'Critique'),
+    ]
+    SOURCE_CHOICES = [
+        ('mistral', 'Mistral AI'),
+        ('local', 'Analyse locale (repli)'),
+    ]
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='agent_verdicts')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    health = models.CharField(max_length=20, blank=True)
+    risk_level = models.CharField(max_length=12, choices=RISK_CHOICES, default='surveiller')
+    anomaly_score = models.IntegerField(default=0)
+    summary = models.TextField(blank=True)
+    recommendation = models.TextField(blank=True)
+    details = models.TextField(blank=True)
+    source = models.CharField(max_length=12, choices=SOURCE_CHOICES, default='local')
+    features = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['tenant', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.name} · {self.risk_level} ({self.anomaly_score}) @ {self.created_at:%d/%m %H:%M}"

@@ -1,6 +1,42 @@
 {% extends 'base.html' %}
 {% block title %}Tableau de bord{% endblock %}
 {% block content %}
+
+<style>
+.kpi-section-title{font-size:.95rem;font-weight:800;color:var(--text);margin:26px 0 14px;display:flex;align-items:center;gap:8px}
+.kpi-section-title .ico{width:16px;height:16px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.kpi-card{background:#fff;border:1px solid var(--border);border-radius:13px;padding:15px 17px}
+.kpi-card.alert{border-color:#FECACA;background:#FFF7F7}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.kpi-lbl{font-size:.78rem;font-weight:600;color:var(--text-muted)}
+.kpi-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-ico .ico{width:16px;height:16px}
+.ic-blue{background:#EFF4FB;color:#003B71}.ic-green{background:#E6F4EA;color:#2E7D32}
+.ic-gold{background:#FBF3E0;color:#B45309}.ic-purple{background:#EDE9FE;color:#5B21B6}
+.ic-red{background:#FDE8E6;color:#C0392B}.ic-cyan{background:#E0F2FE;color:#0369A1}
+.kpi-val{font-size:1.7rem;font-weight:800;color:var(--text);line-height:1}
+.kpi-val small{font-size:.9rem;color:var(--text-muted);font-weight:600}
+.kpi-sub{font-size:.74rem;color:var(--text-muted);margin-top:4px}
+.kpi-bar{height:7px;background:#EEF1F5;border-radius:4px;overflow:hidden;margin-top:10px}
+.kpi-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.16,1,.3,1)}
+.f-green{background:#2E7D32}.f-gold{background:#E0A100}.f-red{background:#DC2626}.f-blue{background:#0072B5}
+
+.health-pill{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;border-radius:20px;padding:3px 10px}
+.hp-sain{background:#D1FAE5;color:#065F46}.hp-surveiller{background:#FEF3C7;color:#92400E}.hp-critique{background:#FEE2E2;color:#991B1B}
+.host-mini{display:flex;gap:14px;margin-top:11px;flex-wrap:wrap}
+.host-mini .hm{flex:1;min-width:60px}
+.hm-lbl{font-size:.66rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:flex;justify-content:space-between}
+.hm-bar{height:5px;background:#EEF1F5;border-radius:3px;overflow:hidden;margin-top:4px}
+.hm-fill{height:100%;border-radius:3px}
+.risk-split{display:flex;gap:6px;margin-top:11px}
+.rs{flex:1;text-align:center;border-radius:8px;padding:7px 4px}
+.rs-num{font-size:1.25rem;font-weight:800;line-height:1}
+.rs-lbl{font-size:.64rem;text-transform:uppercase;letter-spacing:.03em;margin-top:2px}
+.rs-crit{background:#FDE8E6;color:#C0392B}.rs-surv{background:#FEF3C7;color:#B45309}.rs-sain{background:#E6F4EA;color:#2E7D32}
+.ico{flex-shrink:0}
+</style>
+
 <div class="page-header">
   <div>
     <h1 class="page-title">Tableau de bord</h1>
@@ -26,14 +62,114 @@
   </div>
   {% if stats.tenants_over_limit > 0 %}
   <div class="stat-card" style="border-top:3px solid var(--crimson); background:#FFF5F5;">
-    <div class="stat-label">⚠ Hors conformité</div>
+    <div class="stat-label">Hors conformité</div>
     <div class="stat-value" style="color:var(--crimson);">{{ stats.tenants_over_limit }}</div>
     <div class="stat-sublabel">tenant(s) dépassant leur licence</div>
   </div>
   {% endif %}
 </div>
 
-<div class="card">
+{# ── Supervision opérationnelle ─────────────────────────────────────────── #}
+<div class="kpi-section-title">
+  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 8.5 4 8.5 5.5 4 8 12 10 6.5 11.5 8.5H14.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  Supervision opérationnelle
+</div>
+
+<div class="kpi-grid">
+
+  {# Nœuds en ligne #}
+  <div class="kpi-card">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Nœuds en ligne</span>
+      <span class="kpi-ico ic-green"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.2"/><path d="M4.4 4.4a5 5 0 0 0 0 7.2M11.6 4.4a5 5 0 0 1 0 7.2" stroke-linecap="round"/></svg></span>
+    </div>
+    <div class="kpi-val">{{ stats.devices_online }}<small>/{{ stats.total_devices }}</small></div>
+    <div class="kpi-sub">{{ stats.online_pct }}% du parc actif (heartbeat &lt; 2 min)</div>
+    <div class="kpi-bar"><div class="kpi-fill {% if stats.online_pct >= 80 %}f-green{% elif stats.online_pct >= 50 %}f-gold{% else %}f-red{% endif %}" style="width:{{ stats.online_pct }}%"></div></div>
+  </div>
+
+  {# Santé des clusters #}
+  <div class="kpi-card {% if stats.clusters_alert > 0 %}alert{% endif %}">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Santé des clusters</span>
+      <span class="kpi-ico ic-blue"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="3.5" r="1.8"/><circle cx="3.5" cy="12" r="1.8"/><circle cx="12.5" cy="12" r="1.8"/><path d="M8 5.3v2M8 7.3l-3.3 2.9M8 7.3l3.3 2.9"/></svg></span>
+    </div>
+    <div class="kpi-val" style="color:#2E7D32">{{ stats.clusters_ok }}<small style="color:var(--text-muted)"> sains</small>
+      {% if stats.clusters_alert > 0 %}<span style="font-size:1.1rem;color:#C0392B"> · {{ stats.clusters_alert }} en alerte</span>{% endif %}
+    </div>
+    <div class="kpi-sub">{{ stats.clusters_total }} cluster(s) supervisé(s)</div>
+  </div>
+
+  {# Réplication active #}
+  <div class="kpi-card">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Réplication active</span>
+      <span class="kpi-ico ic-cyan"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M2 5h9M9 3l2.5 2L9 7M14 11H5M7 9l-2.5 2L7 13"/></svg></span>
+    </div>
+    <div class="kpi-val">{{ stats.replication_active }}<small>/{{ stats.clusters_with_standby }}</small></div>
+    <div class="kpi-sub">clusters avec flux WAL streaming confirmé</div>
+  </div>
+
+  {# Occupation licences #}
+  <div class="kpi-card">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Occupation des licences</span>
+      <span class="kpi-ico ic-gold"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M2 7h12M5 1.5v2.5"/></svg></span>
+    </div>
+    <div class="kpi-val">{{ stats.seats_pct }}<small>%</small></div>
+    <div class="kpi-sub">{{ stats.seats_used }}/{{ stats.seats_total }} postes sous licence</div>
+    <div class="kpi-bar"><div class="kpi-fill {% if stats.seats_pct >= 100 %}f-red{% elif stats.seats_pct >= 85 %}f-gold{% else %}f-blue{% endif %}" style="width:{% if stats.seats_pct > 100 %}100{% else %}{{ stats.seats_pct }}{% endif %}%"></div></div>
+  </div>
+
+  {# Serveur éditeur #}
+  <div class="kpi-card">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Serveur éditeur SaaS</span>
+      <span class="kpi-ico ic-purple"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/><path d="M4.5 4.5h.01M4.5 11.5h.01" stroke-linecap="round"/></svg></span>
+    </div>
+    <div>
+      <span class="health-pill hp-{{ stats.host.health }}">
+        {% if stats.host.health == 'critique' %}Critique{% elif stats.host.health == 'surveiller' %}À surveiller{% else %}Opérationnel{% endif %}
+      </span>
+    </div>
+    <div class="host-mini">
+      <div class="hm">
+        <div class="hm-lbl"><span>CPU</span><span>{{ stats.host.cpu_percent }}%</span></div>
+        <div class="hm-bar"><div class="hm-fill {% if stats.host.cpu_percent >= 90 %}f-red{% elif stats.host.cpu_percent >= 75 %}f-gold{% else %}f-green{% endif %}" style="width:{{ stats.host.cpu_percent }}%"></div></div>
+      </div>
+      <div class="hm">
+        <div class="hm-lbl"><span>RAM</span><span>{{ stats.host.mem_percent }}%</span></div>
+        <div class="hm-bar"><div class="hm-fill {% if stats.host.mem_percent >= 92 %}f-red{% elif stats.host.mem_percent >= 80 %}f-gold{% else %}f-green{% endif %}" style="width:{{ stats.host.mem_percent }}%"></div></div>
+      </div>
+      <div class="hm">
+        <div class="hm-lbl"><span>Disque</span><span>{{ stats.host.disk_percent }}%</span></div>
+        <div class="hm-bar"><div class="hm-fill {% if stats.host.disk_percent >= 95 %}f-red{% elif stats.host.disk_percent >= 85 %}f-gold{% else %}f-green{% endif %}" style="width:{{ stats.host.disk_percent }}%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  {# Agent IA — distribution des risques #}
+  <div class="kpi-card">
+    <div class="kpi-top">
+      <span class="kpi-lbl">Agent de supervision IA</span>
+      <span class="kpi-ico ic-purple"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5V4M9.5 1.5V4M6.5 12v2.5M9.5 12v2.5M1.5 6.5H4M1.5 9.5H4M12 6.5h2.5M12 9.5h2.5"/></svg></span>
+    </div>
+    {% if stats.analyzed > 0 %}
+    <div class="risk-split">
+      <div class="rs rs-crit"><div class="rs-num">{{ stats.risk_counts.critique }}</div><div class="rs-lbl">Critique</div></div>
+      <div class="rs rs-surv"><div class="rs-num">{{ stats.risk_counts.surveiller }}</div><div class="rs-lbl">Surveiller</div></div>
+      <div class="rs rs-sain"><div class="rs-num">{{ stats.risk_counts.sain }}</div><div class="rs-lbl">Sain</div></div>
+    </div>
+    <div class="kpi-sub" style="margin-top:9px"><a href="{% url 'agent-monitoring' %}" style="color:#5B21B6;font-weight:600;text-decoration:none">Ouvrir l'agent →</a></div>
+    {% else %}
+    <div class="kpi-val" style="font-size:1rem;color:var(--text-muted);margin-top:6px">Aucune analyse</div>
+    <div class="kpi-sub"><a href="{% url 'agent-monitoring' %}" style="color:#5B21B6;font-weight:600;text-decoration:none">Lancer l'agent →</a></div>
+    {% endif %}
+  </div>
+
+</div>
+
+<div class="card" style="margin-top:26px">
   <div class="card-header">Tenants récents</div>
   <div class="card-body" style="padding:0;">
     <table>
