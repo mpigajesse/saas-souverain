@@ -307,19 +307,40 @@ async fn run_supervision_loop(
                             );
 
                             if wal_miss >= WAL_FAILOVER_THRESHOLD {
-                                println!("  [tick {tick}] Primaire considéré hors service — FAILOVER AUTOMATIQUE");
-                                match supervision::promote_standby(&pool).await {
-                                    Ok(true) => {
-                                        println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire !");
-                                        // Fraîchement promu : aucun standby encore rattaché → 0.
-                                        register_with_saas_role(config, "primary", Some(0)).await;
-                                        wal_miss = 0;
+                                // Décision actée n°2 : à < 3 nœuds → BASCULE MANUELLE uniquement.
+                                // L'auto-promotion à 2 nœuds provoquait un split-brain (deux
+                                // primaires) qui cassait définitivement la réplication.
+                                // On interroge le SaaS pour la taille réelle du cluster, au
+                                // franchissement du seuil puis périodiquement (évite le spam HTTP).
+                                if wal_miss == WAL_FAILOVER_THRESHOLD || tick % 12 == 1 {
+                                    let node_count = cluster_node_count().await;
+                                    if matches!(node_count, Some(n) if n >= 3) {
+                                        println!("  [tick {tick}] Cluster ≥3 nœuds — FAILOVER AUTOMATIQUE par quorum");
+                                        match supervision::promote_standby(&pool).await {
+                                            Ok(true) => {
+                                                println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire !");
+                                                // Fraîchement promu : aucun standby encore rattaché → 0.
+                                                register_with_saas_role(config, "primary", Some(0)).await;
+                                                wal_miss = 0;
+                                            }
+                                            Ok(false) => {
+                                                println!("  [tick {tick}] Promotion déjà en cours ou inutile.");
+                                                wal_miss = 0;
+                                            }
+                                            Err(e) => println!("  [tick {tick}] Erreur lors de la promotion : {}", e),
+                                        }
+                                    } else {
+                                        // < 3 nœuds OU SaaS injoignable (fail-safe) : on ne promeut
+                                        // PAS. L'alerte reste active (wal_miss non remis à 0) et le
+                                        // SaaS continue d'afficher la perte de redondance.
+                                        let n_txt = node_count
+                                            .map(|n| n.to_string())
+                                            .unwrap_or_else(|| "inconnu".to_string());
+                                        println!(
+                                            "  [tick {tick}] Primaire injoignable — cluster {n_txt} nœud(s) (<3) : \
+                                             BASCULE MANUELLE requise (anti split-brain, décision n°2)."
+                                        );
                                     }
-                                    Ok(false) => {
-                                        println!("  [tick {tick}] Promotion déjà en cours ou inutile.");
-                                        wal_miss = 0;
-                                    }
-                                    Err(e) => println!("  [tick {tick}] Erreur lors de la promotion : {}", e),
                                 }
                             }
                         }
@@ -345,6 +366,40 @@ fn node_addr(config: &NodeConfig) -> String {
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .unwrap_or_else(|_| "unknown".to_string());
     format!("{}:{}", host, config.port)
+}
+
+/// Interroge le SaaS pour connaître le nombre de nœuds actifs du cluster.
+///
+/// Garde-fou anti split-brain (décision actée n°2) : tant que le cluster compte
+/// moins de 3 nœuds, la bascule reste MANUELLE. Retourne `None` si le SaaS est
+/// injoignable ou non configuré → fail-safe : l'appelant ne promeut pas.
+async fn cluster_node_count() -> Option<usize> {
+    let saas_url = match std::env::var("SAAS_URL") {
+        Ok(u) if !u.is_empty() => u,
+        _ => return None,
+    };
+    let reg_token = match std::env::var("REGISTRATION_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => return None,
+    };
+
+    let url = format!(
+        "{}/api/devices/cluster-status/?token={}",
+        saas_url.trim_end_matches('/'),
+        reg_token
+    );
+
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let json: serde_json::Value = resp.json().await.ok()?;
+    json["node_count"].as_u64().map(|n| n as usize)
 }
 
 /// Enregistre le nœud avec le rôle détecté depuis NODE_MODE.
