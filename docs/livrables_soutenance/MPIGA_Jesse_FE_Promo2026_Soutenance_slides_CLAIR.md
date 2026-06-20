@@ -318,37 +318,42 @@ PostgreSQL 16                         PostgreSQL 16
 
 ## Supervision intelligente — un agent IA (implémenté)
 
-L'agent analyse en temps réel les métriques d'infrastructure et rend un verdict :
+L'agent analyse en temps réel les métriques d'infrastructure des **3 acteurs** et rend un verdict :
 
-<!-- DIAGRAMME À DESSINER (pipeline horizontal de gauche à droite, remplace le bloc, NE PAS afficher ce commentaire) :
-Chaîne de 4 étapes reliées par des flèches :
-  [Métriques sources] → [Séries temporelles en base] → [Agent IA — Mistral] → [Verdict + rapport]
-  • Étape 1 "Métriques" (bleu clair #0072B5) : Clusters PME (heartbeats, streaming, WAL lag, failover) ET Serveur éditeur (CPU, RAM, disque, base).
-  • Étape 2 "Séries temporelles collectées (ClusterMetricSample)" (bleu #003B71).
+<!-- DIAGRAMME À DESSINER (pipeline horizontal, remplace le bloc, NE PAS afficher ce commentaire) :
+Chaîne : [3 sources de métriques] → [Séries temporelles en base] → [Agent IA — Mistral] → [Verdict + rapport]
+  • Étape 1 "Métriques d'infra des 3 acteurs" (bleu clair #0072B5), 3 lignes empilées :
+      - Serveur éditeur (CPU, RAM, disque, base SaaS)
+      - Relais zero-knowledge (disponibilité, uptime, NB de blobs — JAMAIS le contenu)
+      - Clusters PME (heartbeats, streaming, WAL lag, failover)
+  • Étape 2 "Séries temporelles en base (ClusterMetricSample)" (bleu #003B71).
   • Étape 3 "Agent IA — Mistral (LLM) + repli local" : encadré PLEIN (implémenté), accent #0072B5.
   • Étape 4 "Verdict : risque + score /100 + diagnostic + reco · rapport PDF" (vert #2E7D32).
-Toutes les étapes en trait plein : la chaîne est fonctionnelle, pas conceptuelle.
+  Ajouter un petit cadenas sur la ligne "Relais" pour rappeler : métadonnées seules, contenu chiffré jamais lu.
 -->
 
 ```
-Clusters PME    ┐
-(heartbeats,     │
- streaming, WAL) ├─▶ Séries temporelles ─▶ Agent IA (Mistral ─▶ Verdict : risque + score
-Serveur éditeur  │     en base              + repli local)        + diagnostic + rapport PDF
-(CPU, RAM, base)┘
+Serveur éditeur   ┐
+(CPU, RAM, base)   │
+Relais 0-knowledge ├─▶ Séries temporelles ─▶ Agent IA (Mistral ─▶ Verdict : risque + score
+(santé, métadata)  │     en base              + repli local)        + diagnostic + rapport PDF
+Clusters PME       │
+(réplication, WAL)┘
 ```
 
-| Implémenté et démontrable | Perspective (prochaine étape) |
-|-------------------|----------------------|
-| Agent LLM (Mistral) : risque + score /100 + diagnostic + reco | **Modèle entraîné** non supervisé (Isolation Forest / z-score) |
-| Supervise clusters PME **et** serveur éditeur | **Prédiction** de panne avant franchissement de seuil |
-| Page temps réel animée + rapport PDF détaillé | Apprentissage sur l'historique accumulé |
-| Repli local si IA indisponible · zero-knowledge | — |
+**Supervision des 3 acteurs de l'architecture :**
 
-> L'agent **est branché** sur le SaaS : il supervise en direct les clusters et le serveur éditeur, et produit des rapports. Seules des **métriques d'infrastructure** lui sont transmises — la promesse zero-knowledge tient jusque dans la supervision.
+| Acteur supervisé | Ce que l'agent voit | Souveraineté |
+|---|---|---|
+| Serveur éditeur SaaS | CPU, RAM, disque, base, parc | — |
+| Relais zero-knowledge | Disponibilité, uptime, **nombre** de blobs | Contenu chiffré **jamais lu** |
+| Clusters PME | Réplication, heartbeats, failover | Métriques d'infra uniquement |
+
+> L'agent **est branché** et supervise en direct **toute l'architecture**. Seules des **métriques d'infrastructure** lui sont transmises — pour le relais, il ne lit que des métadonnées de santé, jamais les blobs chiffrés. La promesse zero-knowledge tient jusque dans la supervision.
+> **Perspective :** remplacer le raisonnement LLM par un modèle entraîné (Isolation Forest) pour passer du diagnostic à la **prédiction**.
 
 <!-- SPEAKER NOTES
-"Ma spécialité IA & Big Data ne reste pas théorique. J'ai implémenté un agent : il analyse en temps réel les métriques des clusters ET de mon propre serveur éditeur, via un modèle de langage Mistral, et rend un verdict — niveau de risque, score, diagnostic, recommandation — avec un rapport PDF. Il a un repli local pour rester démontrable même hors-ligne. Et il ne voit que des métriques d'infrastructure, jamais de données métier. La prochaine étape, que j'assume comme perspective, est de remplacer le raisonnement du LLM par un modèle entraîné sur l'historique pour passer du diagnostic à la prédiction."
+"Ma spécialité IA & Big Data ne reste pas théorique. J'ai implémenté un agent qui supervise les trois acteurs de mon architecture : mon serveur éditeur, le relais zero-knowledge, et les clusters des PME. Point crucial sur le relais : l'agent ne lit que des métadonnées de santé — disponibilité, uptime, nombre de sauvegardes — jamais le contenu, qui reste chiffré. La souveraineté est respectée jusque dans la supervision. L'agent rend un verdict via Mistral, avec un repli local pour rester démontrable hors-ligne, et produit un rapport PDF. La prochaine étape, que j'assume comme perspective, est un modèle entraîné sur l'historique pour prédire les pannes."
 -->
 
 ---
@@ -447,7 +452,7 @@ Idée : plus on descend, plus on est au cœur du système → couches de protect
 | Zero-knowledge | Hiérarchie de clés DEK prouvée cross-OS |
 | Réplication | PostgreSQL primaire/standby + détection de panne |
 | Reporting véridique | Le SaaS reflète l'état réel de la réplication |
-| Supervision IA | Agent implémenté (Mistral) : clusters + serveur éditeur, temps réel, rapport PDF |
+| Supervision IA | Agent implémenté (Mistral) : supervise les 3 acteurs (éditeur, relais, clusters), temps réel, rapport PDF |
 
 **Valeur pour AL BARAA CONSULTING** — framework réutilisable pour vendre tout logiciel métier en SaaS souverain · argument commercial fort (conformité AUDPF par design) · différenciation sur le marché africain.
 
@@ -536,8 +541,8 @@ Pause. Regarder le jury.
 | Données collectées | Séries temporelles en base (`ClusterMetricSample`) : heartbeats, streaming_standby_count, WAL lag, failover_count + métriques serveur éditeur (CPU, RAM, disque, base) |
 | Moteur | Agent LLM **Mistral** (free tier) ; repli local déterministe si indisponible |
 | Sortie | Verdict JSON : risque (sain/surveiller/critique) + score /100 + diagnostic + recommandation + raisonnement détaillé |
-| Périmètre | Clusters PME **et** serveur éditeur · page temps réel animée · rapport PDF |
-| Zero-knowledge | Seules des métriques d'infrastructure sont transmises — aucune donnée métier |
+| Périmètre | **Les 3 acteurs** : serveur éditeur · relais zero-knowledge · clusters PME · page temps réel animée · rapport PDF |
+| Zero-knowledge | Métriques d'infrastructure uniquement ; pour le relais, métadonnées de santé seules — le contenu chiffré n'est jamais lu |
 | Perspective | Remplacer le LLM par un modèle entraîné (Isolation Forest / z-score) pour la **prédiction** sur longues séries |
 
 > L'agent est fonctionnel et démontrable. La perspective honnête restante : passer du diagnostic (LLM) à la prédiction (modèle entraîné sur l'historique).

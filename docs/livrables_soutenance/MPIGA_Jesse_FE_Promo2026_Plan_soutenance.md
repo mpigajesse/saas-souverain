@@ -67,7 +67,7 @@
 - **O2** — Prouver sur banc réel multi-OS la réplication PostgreSQL primaire/standby et la résilience à la panne d'un nœud.
 - **O3** — Valider la cohérence des données métier (transactions, contraintes, concurrence) répliquées sans divergence.
 - **O4** — Livrer un packaging déployable (image Docker) et un SaaS éditeur gérant comptes, licences et suivi du parc.
-- **O5** — Implémenter une supervision intelligente (agent IA) qui analyse en temps réel les métriques d'infrastructure (clusters PME **et** serveur éditeur), produit des diagnostics et des rapports exploitables.
+- **O5** — Implémenter une supervision intelligente (agent IA) qui analyse en temps réel les métriques d'infrastructure des **3 acteurs** (serveur éditeur, relais zero-knowledge, clusters PME), produit des diagnostics et des rapports exploitables — sans jamais accéder aux données chiffrées.
 
 ---
 
@@ -123,9 +123,9 @@
 5. Coupure du standby → SaaS détecte « Réplication interrompue »
 6. Redémarrage → rattrapage WAL automatique + retour « sain »
 7. **Tableau de bord** : KPI temps réel (nœuds en ligne, réplication active, occupation licences, santé du serveur éditeur)
-8. **Agent IA** : clic sur « Analyser » → verdict (risque + score + diagnostic) sur le cluster en panne, puis « Diagnostic IA serveur » sur le serveur éditeur · téléchargement du rapport PDF
+8. **Agent IA** : clic sur « Analyser » → verdict (risque + score + diagnostic) sur le cluster en panne, puis « Diagnostic IA serveur » et « Diagnostic IA relais » (les 3 acteurs) · téléchargement du rapport PDF
 
-*Message clé :* Deux machines réelles, réplication transparente, un SaaS qui ne ment jamais sur l'état réel — et un agent IA qui supervise le tout en direct.
+*Message clé :* Deux machines réelles, réplication transparente, un SaaS qui ne ment jamais sur l'état réel — et un agent IA qui supervise les 3 acteurs en direct, sans jamais lire de donnée chiffrée.
 
 ---
 
@@ -143,14 +143,14 @@
 ### Partie 8 — Supervision Intelligente : Agent IA (3 min — Slide 12)
 
 **Slide 12 — L'angle Big Data & IA** *(implémenté et démontrable)*
-- Le cluster émet des séries temporelles : heartbeats (~60 s), streaming_standby_count, WAL lag, failover_count — collectées en base (`ClusterMetricSample`)
-- **Agent implémenté** : un agent LLM (Mistral, free tier) analyse ces métriques + l'état du serveur éditeur et rend un verdict structuré — niveau de risque (sain/surveiller/critique), score d'anomalie /100, diagnostic et recommandation
-- **Double périmètre** : supervise les clusters PME **et le serveur éditeur lui-même** (CPU, RAM, disque, base SaaS) — page temps réel animée
-- **Robustesse** : repli local déterministe si l'IA est indisponible → démontrable même hors-ligne · garantie zero-knowledge (métriques d'infra uniquement, aucune donnée métier)
+- Les métriques sont collectées en base (`ClusterMetricSample`) : heartbeats (~60 s), streaming_standby_count, WAL lag, failover_count
+- **Agent implémenté** : un agent LLM (Mistral, free tier) analyse ces métriques et rend un verdict structuré — niveau de risque (sain/surveiller/critique), score d'anomalie /100, diagnostic et recommandation
+- **Supervision des 3 acteurs** : (1) serveur éditeur SaaS (CPU, RAM, disque, base) · (2) **relais zero-knowledge** (disponibilité, uptime, nombre de blobs — jamais le contenu) · (3) clusters PME (réplication, heartbeats, failover) — page temps réel animée
+- **Robustesse** : repli local déterministe si l'IA est indisponible → démontrable même hors-ligne · zero-knowledge respecté jusque dans la supervision (métriques d'infra / métadonnées uniquement, aucune donnée métier ni blob chiffré)
 - **Livrables** : rapport PDF détaillé (méthodologie + raisonnement de l'agent par métrique) + KPI au tableau de bord
 - **Perspective restante (honnête)** : remplacer/compléter le raisonnement LLM par un modèle non supervisé entraîné (Isolation Forest / z-score glissant) sur de longues séries → **prédiction** de panne avant franchissement de seuil
 
-*Message clé :* Ma spécialité IA & Big Data ne reste pas théorique — l'agent est branché, supervise en temps réel les clusters et le serveur éditeur, et produit des rapports. L'étape suivante est un modèle prédictif entraîné sur l'historique accumulé.
+*Message clé :* L'agent supervise toute l'architecture — éditeur, relais, clusters — en respectant la souveraineté jusque dans le monitoring : sur le relais, il ne lit que la santé, jamais le contenu chiffré. L'étape suivante est un modèle prédictif entraîné sur l'historique accumulé.
 
 ---
 
@@ -205,6 +205,7 @@ Citation de clôture (optionnelle) :
 | En quoi votre projet relève-t-il de l'IA & Big Data ? | Le cluster produit des séries temporelles de métriques (heartbeats, état de réplication, bascules) stockées en base. J'ai **implémenté** un agent de supervision : il analyse en temps réel ces métriques et l'état du serveur éditeur via un LLM (Mistral), et rend un verdict (risque, score d'anomalie, diagnostic, recommandation) avec rapport PDF. Honnêtement, l'étape suivante est un modèle non supervisé entraîné (Isolation Forest / z-score glissant) sur l'historique accumulé, pour passer du diagnostic à la **prédiction** de panne. |
 | Pourquoi un LLM (Mistral) et pas directement un modèle ML entraîné ? | Pragmatisme et délai : un modèle supervisé exigeait un historique labellisé de pannes que je n'avais pas. Le LLM raisonne immédiatement sur les métriques et produit une explication lisible par l'admin. L'agent est conçu pour basculer vers un modèle entraîné quand l'historique sera suffisant — l'infrastructure de collecte est déjà en place. |
 | L'agent IA peut-il voir les données métier ? | Non. Il ne reçoit que des métriques d'infrastructure (CPU, RAM, réplication, heartbeats). Aucune donnée métier ne lui est transmise — la garantie zero-knowledge est préservée jusque dans la supervision. |
+| L'agent supervise-t-il aussi le relais ? Ne risque-t-il pas de lire les sauvegardes ? | Oui, il supervise les 3 acteurs (éditeur, relais, clusters), mais pour le relais il interroge uniquement l'endpoint de santé `/health` qui ne renvoie que des métadonnées : disponibilité, uptime, *nombre* de tenants ayant des blobs. Le contenu des blobs est chiffré et inaccessible par conception — l'agent n'a aucun chemin pour le lire. La souveraineté est structurelle, pas déclarative. |
 | Le zero-knowledge ralentit-il les performances ? | Le chiffrement se fait côté client (XChaCha20-Poly1305, très rapide). La réplication PostgreSQL n'est pas affectée : elle réplique le journal chiffré. Réplication confirmée en < 1 s sur le banc. |
 | Avez-vous eu des échecs lors des tests ? | 0 échec sur les 6 scénarios. Le scénario de panne (T6) a même validé deux choses : le rattrapage WAL et la détection de panne par le SaaS. |
 
