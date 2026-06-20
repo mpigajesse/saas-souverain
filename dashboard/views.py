@@ -1,6 +1,18 @@
+from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
+
+
+def logout_view(request):
+    """Déconnexion acceptant GET et POST.
+
+    Depuis Django 5, LogoutView refuse GET (405). Les liens de déconnexion de
+    l'interface sont des <a href> (GET) : cette vue les rend de nouveau valides
+    tout en restant compatible avec une soumission POST.
+    """
+    auth_logout(request)
+    return redirect('login')
 
 from tenants.models import Tenant
 from licenses.models import License
