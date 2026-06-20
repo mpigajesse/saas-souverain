@@ -4,6 +4,73 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 
+PRICING_PLANS = [
+    {
+        'key': 'starter', 'name': 'Starter', 'seats': '1 – 5 postes',
+        'price': 149, 'highlight': False,
+        'features': [
+            'Logiciel métier complet (Docker)',
+            'Réplication 2 nœuds (bascule manuelle)',
+            'Sauvegarde chiffrée sur le relais',
+            'Mises à jour incluses',
+        ],
+    },
+    {
+        'key': 'pro', 'name': 'Pro', 'seats': '6 – 20 postes',
+        'price': 119, 'highlight': True,
+        'features': [
+            'Tout Starter +',
+            'Failover automatique par quorum (≥ 3 nœuds)',
+            'Supervision IA temps réel',
+            'Support prioritaire',
+        ],
+    },
+    {
+        'key': 'enterprise', 'name': 'Enterprise', 'seats': '21 postes et +',
+        'price': 89, 'highlight': False,
+        'features': [
+            'Tout Pro +',
+            'Relais dédié',
+            'Accompagnement déploiement',
+            'SLA contractuel',
+        ],
+    },
+]
+
+# Tarifs publics constatés des SaaS classiques (par poste/mois), juin 2026.
+# Conversion indicative ≈ 10 DH / USD. Sources citées en bas de page.
+COMPETITORS = [
+    {'name': 'Odoo (Standard)', 'usd': '≈ 24,90 $', 'dh': '≈ 250 DH'},
+    {'name': 'Zoho One', 'usd': '≈ 37 $', 'dh': '≈ 370 DH'},
+    {'name': 'Sage Business Cloud', 'usd': '≈ 25 – 50 $', 'dh': '≈ 280 – 550 DH'},
+    {'name': 'Microsoft Dynamics 365 BC', 'usd': '70 – 110 $', 'dh': '≈ 700 – 1 100 DH'},
+]
+
+
+@login_required
+def pricing(request):
+    """Page Tarifs / modèle économique des licences (interne éditeur)."""
+    # Exemple PME 10 postes, plan Pro
+    pro_price = next(p['price'] for p in PRICING_PLANS if p['key'] == 'pro')
+    example_seats = 10
+    souverain_year = pro_price * example_seats * 12
+    classic_ref = 400  # DH/poste/mois, milieu de fourchette concurrents
+    classic_year = classic_ref * example_seats * 12
+    economy_pct = round((classic_year - souverain_year) / classic_year * 100)
+
+    return render(request, 'dashboard/pricing.html', {
+        'plans': PRICING_PLANS,
+        'competitors': COMPETITORS,
+        'example': {
+            'seats': example_seats,
+            'souverain_year': souverain_year,
+            'classic_year': classic_year,
+            'economy_pct': economy_pct,
+            'classic_ref': classic_ref,
+        },
+    })
+
+
 def logout_view(request):
     """Déconnexion acceptant GET et POST.
 

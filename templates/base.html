@@ -44,6 +44,13 @@
         </svg>
         Licences
       </a>
+      <a href="{% url 'pricing' %}" class="nav-link {% if request.resolver_match.url_name == 'pricing' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <circle cx="8" cy="8" r="6.5"/>
+          <path d="M10 6q-2-1.5-3.5 0t1.5 2q3 .5 1.5 2t-3.5 0M8 4.5v1M8 10.5v1" stroke-linecap="round"/>
+        </svg>
+        Tarifs
+      </a>
       <a href="{% url 'device-list' %}" class="nav-link {% if request.resolver_match.url_name == 'device-list' %}active{% endif %}">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
           <rect x="1" y="4" width="14" height="9" rx="1"/>

@@ -177,7 +177,7 @@ Le SaaS souverain **n'héberge pas les données du client** : elles restent sur 
 | **Pro** | 6 – 20 | **119 DH** | 350 – 550 DH |
 | **Enterprise** | 21 + | **89 DH** + relais dédié | 600 – 1 100 DH |
 
-\* *Ordres de grandeur publics constatés : Odoo, Sage, Zoho, Microsoft Dynamics 365 (250–1 100 DH/poste/mois selon l'éditeur).*
+\* *Prix publics vérifiés (juin 2026) : Odoo ≈ 250 DH, Zoho One ≈ 370 DH, Sage ≈ 280–550 DH, Microsoft Dynamics 365 ≈ 700–1 100 DH par poste/mois.*
 
 **Exemple — PME de 10 postes (plan Pro) :**
 
@@ -596,7 +596,7 @@ Pause. Regarder le jury.
 
 > L'éditeur a un coût marginal **faible par client** (il ne stocke que des métadonnées et des blobs chiffrés). Il peut donc baisser le prix par poste **tout en gardant sa marge**. La PME gagne sur les deux tableaux : moins cher et souverain.
 
-**Hypothèses de la grille** (à affiner avec AL BARAA) : 1 € ≈ 11 DH ; tarifs classiques = ordres de grandeur publics (Odoo ~24 €/poste, Sage 30–50 €, Dynamics 365 65–100 €). Modèle dégressif par volume de postes.
+**Hypothèses de la grille** (à affiner avec AL BARAA) : conversion ≈ 10 DH/USD ; tarifs concurrents = **prix publics vérifiés (juin 2026)** : Odoo Standard ≈ 24,90 $/poste, Zoho One ≈ 37 $, Sage 25–50 $, Microsoft Dynamics 365 BC 70–110 $/poste/mois. Modèle dégressif par volume de postes.
 
 ---
 
