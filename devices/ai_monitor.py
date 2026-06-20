@@ -338,3 +338,77 @@ def analyze_host(metrics: dict) -> MonitorVerdict:
     except Exception as exc:
         logger.warning("Analyse hôte Mistral échouée (%s) — repli local", exc)
         return _host_fallback(metrics)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Supervision du serveur relais zero-knowledge
+# ─────────────────────────────────────────────────────────────────────────────
+
+_RELAY_SYSTEM_PROMPT = (
+    "Tu es un agent SRE supervisant un SERVEUR RELAIS ZERO-KNOWLEDGE qui stocke "
+    "des sauvegardes CHIFFRÉES opaques pour des PME. IMPORTANT : tu ne vois et "
+    "n'évalues QUE des métadonnées de santé (disponibilité, uptime, nombre de "
+    "tenants ayant des blobs, réseaux) — jamais le contenu, qui est chiffré et "
+    "inaccessible par conception. Évalue uniquement si le service est sain et "
+    "disponible. Réponds STRICTEMENT en JSON : "
+    '{"risk_level": "sain|surveiller|critique", "anomaly_score": 0-100, '
+    '"summary": "diagnostic en une à deux phrases", '
+    '"recommendation": "action concrète en une phrase", '
+    '"details": "explication en 3 à 5 phrases : disponibilité, uptime, stockage, '
+    'et confirmation que la souveraineté (zero-knowledge) est préservée"}. '
+    "Pas de texte hors JSON. Réponds en français."
+)
+
+
+def _relay_fallback(metrics: dict) -> MonitorVerdict:
+    from .relay_monitor import relay_health
+
+    health = relay_health(metrics)
+    if not metrics.get('reachable', False):
+        return MonitorVerdict(
+            "critique", 95,
+            "Le serveur relais est injoignable : les sauvegardes chiffrées ne sont plus accessibles.",
+            "Vérifier le service relais et la connectivité réseau sans délai.",
+            "local",
+            details=(
+                f"Le relais ({metrics.get('relay_url', '?')}) ne répond pas à son endpoint "
+                "de santé. Aucune donnée métier n'est exposée (les blobs restent chiffrés), "
+                "mais la disponibilité de la récupération de sinistre n'est plus garantie."
+            ),
+        )
+    if not metrics.get('zero_knowledge', True):
+        return MonitorVerdict(
+            "critique", 100,
+            "Anomalie de sécurité : le relais ne signale plus son mode zero-knowledge.",
+            "Suspendre le relais et auditer sa configuration immédiatement.",
+            "local",
+            details="Le drapeau zero_knowledge est faux — incohérent avec la promesse de souveraineté.",
+        )
+    return MonitorVerdict(
+        "sain", 5,
+        "Relais zero-knowledge opérationnel : service disponible, stockage chiffré intact.",
+        "Aucune action requise.",
+        "local",
+        details=(
+            f"Le relais répond (uptime {metrics.get('uptime_h', 0)} h, version "
+            f"{metrics.get('version', '?')}) et conserve les blobs de {metrics.get('blob_tenants', 0)} "
+            "tenant(s). Seules des métadonnées sont lues : le contenu reste chiffré et "
+            "inaccessible — souveraineté totale préservée."
+        ),
+    )
+
+
+def analyze_relay(metrics: dict) -> MonitorVerdict:
+    """Analyse l'état du relais zero-knowledge. Repli local si Mistral indisponible."""
+    if not getattr(settings, "MISTRAL_API_KEY", ""):
+        return _relay_fallback(metrics)
+    try:
+        data = _chat_json(
+            _RELAY_SYSTEM_PROMPT,
+            "Serveur relais zero-knowledge. Métadonnées de santé (aucun contenu de blob) :\n"
+            f"{json.dumps(metrics, ensure_ascii=False, indent=2)}",
+        )
+        return _verdict_from_data(data)
+    except Exception as exc:
+        logger.warning("Analyse relais Mistral échouée (%s) — repli local", exc)
+        return _relay_fallback(metrics)

@@ -9,6 +9,7 @@ urlpatterns = [
     path('agent/', views_web.agent_monitoring, name='agent-monitoring'),
     path('agent/live/', views_web.agent_live, name='agent-live'),
     path('agent/host-analyze/', views_web.agent_host_analyze, name='agent-host-analyze'),
+    path('agent/relay-analyze/', views_web.agent_relay_analyze, name='agent-relay-analyze'),
     path('agent/analyze-all/', views_web.agent_analyze_all, name='agent-analyze-all'),
     path('agent/report/', views_web.agent_report_download, name='agent-report-download'),
     path('agent/report.pdf', views_web.agent_report_pdf, name='agent-report-pdf'),

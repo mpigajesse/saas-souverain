@@ -115,6 +115,15 @@
 .spin{animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .live-clock{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+
+.relay-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);position:relative;z-index:2}
+.relay-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.relay-name{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.92rem;color:#E8EEF5}
+.relay-state{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:#9DB4CC}
+.relay-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:.76rem;color:#9DB4CC}
+.relay-meta b{color:#E8EEF5}
+.zk-badge{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:#86EFAC;background:rgba(34,197,94,.14);border-radius:20px;padding:3px 10px}
+.relay-note{font-size:.7rem;color:#7FA8D0;margin-top:8px;position:relative;z-index:2;font-style:italic}
 </style>
 
 <div class="agent-header">
@@ -184,6 +193,27 @@
   </div>
 
   <div class="host-verdict" id="hostVerdict"></div>
+
+  {# ── Relais zero-knowledge ───────────────────────────────────────────── #}
+  <div class="relay-row">
+    <div class="relay-left">
+      <span class="relay-name">
+        <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="6" width="11" height="6" rx="1.5"/><path d="M8 6V3.5M6 3.5h4M5 9h.01M8 9h.01" stroke-linecap="round"/><circle cx="11" cy="9" r=".6" fill="currentColor"/></svg>
+        Relais zero-knowledge
+      </span>
+      <span class="relay-state" id="relayState">
+        {% if relay.reachable %}<span class="live-dot" style="background:#22C55E"></span> Joignable{% else %}<span class="live-dot" style="background:#EF4444;animation:none"></span> Injoignable{% endif %}
+      </span>
+    </div>
+    <div class="relay-meta">
+      <span>Uptime <b id="relayUptime">{{ relay.uptime_h }} h</b></span>
+      <span>Tenants avec blobs <b id="relayBlobs">{{ relay.blob_tenants }}</b></span>
+      <span class="zk-badge">{% if relay.zero_knowledge %}<svg class="ico-sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="6.5" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg> Zero-knowledge actif{% else %}<svg class="ico-sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg> ANOMALIE{% endif %}</span>
+      <button type="button" class="btn btn-host btn-sm" style="padding:4px 10px" onclick="analyzeRelay(this)"><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M6.5 1.5V4M9.5 1.5V4M6.5 12v2.5M9.5 12v2.5M1.5 6.5H4M1.5 9.5H4M12 6.5h2.5M12 9.5h2.5"/></svg>Diagnostic IA relais</button>
+    </div>
+  </div>
+  <div class="host-verdict" id="relayVerdict" style="margin-top:8px"></div>
+  <div class="relay-note">L'agent ne lit que des métadonnées de santé — jamais le contenu des blobs chiffrés. Souveraineté totale préservée.</div>
 
   <div class="live-clusters" id="liveClusters">
     {% for r in rows %}
@@ -313,6 +343,26 @@ function analyzeHost(btn){
     .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }
 
+// ── Diagnostic IA du relais zero-knowledge (à la demande) ─────────────────
+function analyzeRelay(btn){
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = SPINNER + 'Analyse…';
+  const panel = document.getElementById('relayVerdict');
+  fetch("{% url 'agent-relay-analyze' %}", {headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(d => {
+      panel.classList.add('show');
+      const src = d.source === 'mistral' ? 'Mistral AI' : 'Analyse locale';
+      panel.innerHTML =
+        '<span class="hv-badge hv-'+d.risk_level+'">Risque : '+d.risk_level+' · '+d.anomaly_score+'/100</span>' +
+        '<div style="margin-top:8px;color:#E8EEF5">'+d.summary+'</div>' +
+        '<div style="margin-top:6px;color:#9DB4CC"><b>Recommandation :</b> '+d.recommendation+'</div>' +
+        '<div style="margin-top:6px;font-size:.68rem;color:#7FA8D0">Source : '+src+'</div>';
+    })
+    .catch(() => { panel.classList.add('show'); panel.innerHTML='<span style="color:#FCA5A5">Diagnostic indisponible.</span>'; })
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
 // ── Flux temps réel : polling léger + animations ──────────────────────────
 (function(){
   const lvlClass = p => p >= 90 ? 'g-crit' : (p >= 75 ? 'g-warn' : 'g-ok');
@@ -340,6 +390,15 @@ function analyzeHost(btn){
         document.getElementById('mTenants').textContent = h.tenants_actifs;
         document.getElementById('mOnline').textContent = h.devices_en_ligne+'/'+h.devices_actifs;
         document.getElementById('mProc').textContent = h.process_count;
+        // Relais zero-knowledge
+        if(d.relay){
+          const rs = document.getElementById('relayState');
+          if(rs) rs.innerHTML = d.relay.reachable
+            ? '<span class="live-dot" style="background:#22C55E"></span> Joignable'
+            : '<span class="live-dot" style="background:#EF4444;animation:none"></span> Injoignable';
+          const ru = document.getElementById('relayUptime'); if(ru) ru.textContent = d.relay.uptime_h+' h';
+          const rb = document.getElementById('relayBlobs'); if(rb) rb.textContent = d.relay.blob_tenants;
+        }
         const t = new Date(d.ts);
         document.getElementById('liveClock').textContent = t.toLocaleTimeString('fr-FR');
         // Clusters : mettre à jour la couleur des pastilles + flash si changement

@@ -181,8 +181,11 @@ def agent_monitoring(request):
     last_verdict = AgentVerdict.objects.order_by('-created_at').first()
 
     from .host_monitor import collect_host_metrics, host_health
+    from .relay_monitor import collect_relay_metrics, relay_health
     host = collect_host_metrics()
     host['health'] = host_health(host)
+    relay = collect_relay_metrics()
+    relay['health'] = relay_health(relay)
 
     return render(request, 'devices/agent_monitoring.html', {
         'rows': rows,
@@ -191,6 +194,7 @@ def agent_monitoring(request):
         'mistral_active': bool(getattr(settings, 'MISTRAL_API_KEY', '')),
         'last_run': last_verdict.created_at if last_verdict else None,
         'host': host,
+        'relay': relay,
     })
 
 
@@ -202,8 +206,10 @@ def agent_live(request):
     secondes par le dashboard pour animer la supervision en direct.
     """
     from .host_monitor import collect_host_metrics, host_health
+    from .relay_monitor import collect_relay_metrics, relay_health
 
     metrics = collect_host_metrics()
+    relay = collect_relay_metrics()
     threshold = timezone.now() - ONLINE_THRESHOLD
 
     tenants = Tenant.objects.filter(is_active=True).order_by('name')
@@ -233,6 +239,7 @@ def agent_live(request):
     return JsonResponse({
         'ts': metrics['captured_at'],
         'host': {**metrics, 'health': host_health(metrics)},
+        'relay': {**relay, 'health': relay_health(relay)},
         'clusters': clusters,
         'counts': counts,
     })
@@ -246,6 +253,20 @@ def agent_host_analyze(request):
 
     metrics = collect_host_metrics()
     verdict = analyze_host(metrics)
+    return JsonResponse({'metrics': metrics, **verdict.as_dict()})
+
+
+@login_required
+def agent_relay_analyze(request):
+    """Diagnostic IA à la demande du serveur relais zero-knowledge (JSON).
+
+    Ne lit que des métadonnées de santé — jamais le contenu des blobs chiffrés.
+    """
+    from .ai_monitor import analyze_relay
+    from .relay_monitor import collect_relay_metrics
+
+    metrics = collect_relay_metrics()
+    verdict = analyze_relay(metrics)
     return JsonResponse({'metrics': metrics, **verdict.as_dict()})
 
 
@@ -482,8 +503,38 @@ def agent_report_pdf(request):
     story.append(detail_table(explain_host(metrics), with_threshold=True))
     story.append(Spacer(1, 10))
 
+    # ── Relais zero-knowledge ────────────────────────────────────────────────
+    from .ai_monitor import analyze_relay
+    from .relay_monitor import collect_relay_metrics
+
+    story.append(Paragraph('2. Serveur relais zero-knowledge', h2))
+    relay = collect_relay_metrics()
+    relay_verdict = analyze_relay(relay)
+    verdict_block(relay_verdict.risk_level, relay_verdict.anomaly_score,
+                  relay_verdict.summary, relay_verdict.recommendation, relay_verdict.details)
+    story.append(Paragraph(
+        "Souveraineté : seules des métadonnées de santé sont analysées — "
+        "le contenu des blobs chiffrés n'est jamais accédé.", note))
+    relay_rows = [
+        ['Disponibilité', 'Joignable' if relay['reachable'] else 'INJOIGNABLE', 'Version', str(relay['version'])],
+        ['Uptime', f"{relay['uptime_h']} h", 'Tenants avec blobs', str(relay['blob_tenants'])],
+        ['Réseaux', str(relay['networks_count']), 'Zero-knowledge', 'Oui' if relay['zero_knowledge'] else 'NON'],
+    ]
+    rt = Table(relay_rows, colWidths=[32 * mm, 52 * mm, 36 * mm, 48 * mm])
+    rt.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('TEXTCOLOR', (0, 0), (0, -1), NAVY), ('TEXTCOLOR', (2, 0), (2, -1), NAVY),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'), ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#F4F6F9')]),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#E0E0E0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(rt)
+    story.append(Spacer(1, 10))
+
     # ── Clusters PME ─────────────────────────────────────────────────────────
-    story.append(Paragraph('2. Clusters PME', h2))
+    story.append(Paragraph('3. Clusters PME', h2))
     tenants = (
         Tenant.objects.prefetch_related('agent_verdicts')
         .filter(is_active=True).order_by('name')
