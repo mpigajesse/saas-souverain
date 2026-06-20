@@ -21,7 +21,7 @@
 |---|--------|-------|--------|
 | 1 | Présentation de l'entreprise et contexte | 2 min | 1–3 |
 | 2 | Problématique : la souveraineté des données métier | 3 min | 4 |
-| 3 | La solution : un framework à trois acteurs | 3 min | 5–6 |
+| 3 | La solution : trois acteurs + modèle économique | 3 min | 5–6bis |
 | 4 | Architecture & garantie zero-knowledge | 4 min | 7–9 |
 | 5 | Le cœur technique : réplication & résilience | 2 min | 8 |
 | 6 | Démonstration live — cluster PME 2 nœuds | 5 min | 10 |
@@ -82,7 +82,13 @@
 - vs SaaS cloud classique (expose les données) · vs logiciel installé (perd le SaaS)
 - 3 différenciateurs : SaaS complet sans accès données / résilience BDD / souveraineté cryptographique
 
-*Message clé :* On découpe le rôle en trois pour séparer ce qui peut être vu de ce qui ne doit jamais l'être.
+**Slide 6 bis — Modèle économique (prix des licences)**
+- Plans Starter / Pro / Enterprise par sièges (postes) — grille **dégressive** par volume
+- Estimation : **149 / 119 / 89 DH** par poste/mois vs **250–1 100 DH** pour les SaaS classiques (Odoo, Sage, Zoho, Dynamics)
+- Exemple PME 10 postes : **≈ 14 280 DH/an** vs **≈ 48 000 DH/an** → **~70 % d'économie**
+- Logique : l'éditeur n'héberge pas les données (elles restent chez la PME) → coût marginal faible → prix par poste plus bas, marge préservée
+
+*Message clé :* On découpe le rôle en trois pour séparer ce qui peut être vu de ce qui ne doit jamais l'être — et ce découpage rend le produit **moins cher** pour la PME, pas plus cher : la souveraineté n'est pas un surcoût.
 
 ---
 
@@ -207,6 +213,8 @@ Citation de clôture (optionnelle) :
 | L'agent IA peut-il voir les données métier ? | Non. Il ne reçoit que des métriques d'infrastructure (CPU, RAM, réplication, heartbeats). Aucune donnée métier ne lui est transmise — la garantie zero-knowledge est préservée jusque dans la supervision. |
 | L'agent supervise-t-il aussi le relais ? Ne risque-t-il pas de lire les sauvegardes ? | Oui, il supervise les 3 acteurs (éditeur, relais, clusters), mais pour le relais il interroge uniquement l'endpoint de santé `/health` qui ne renvoie que des métadonnées : disponibilité, uptime, *nombre* de tenants ayant des blobs. Le contenu des blobs est chiffré et inaccessible par conception — l'agent n'a aucun chemin pour le lire. La souveraineté est structurelle, pas déclarative. |
 | Le zero-knowledge ralentit-il les performances ? | Le chiffrement se fait côté client (XChaCha20-Poly1305, très rapide). La réplication PostgreSQL n'est pas affectée : elle réplique le journal chiffré. Réplication confirmée en < 1 s sur le banc. |
+| Quel est le modèle économique / prix ? | Licences par sièges, 3 plans dégressifs : Starter 149 DH, Pro 119 DH, Enterprise 89 DH par poste/mois. C'est 2 à 5 fois moins cher que les SaaS classiques (Odoo, Sage, Dynamics : 250–1 100 DH/poste/mois). Raison structurelle : l'éditeur n'héberge pas les données du client (elles restent sur ses machines), donc son coût marginal est faible — il peut baisser le prix par poste tout en gardant sa marge. Pour une PME de 10 postes : ~14 000 DH/an au lieu de ~48 000, soit 70 % d'économie, données souveraines en plus. Chiffres = estimations cohérentes à affiner avec AL BARAA. |
+| Comment l'éditeur gagne-t-il de l'argent s'il ne vend pas d'hébergement ? | Il facture la valeur réelle : le logiciel métier, les mises à jour centralisées, le support, la gestion du parc et la sauvegarde chiffrée sur le relais. Il économise les coûts d'infrastructure cloud (compute + stockage des données clients), ce qui améliore sa marge à prix de vente plus bas. Modèle gagnant-gagnant. |
 | Avez-vous eu des échecs lors des tests ? | 0 échec sur les 6 scénarios. Le scénario de panne (T6) a même validé deux choses : le rattrapage WAL et la détection de panne par le SaaS. |
 
 ---

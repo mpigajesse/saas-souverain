@@ -165,6 +165,36 @@ Séparer ce qui **peut être vu** de ce qui **ne doit jamais l'être** :
 
 ---
 
+## Modèle économique — des prix pensés pour les PME
+
+Le SaaS souverain **n'héberge pas les données du client** : elles restent sur ses machines. L'éditeur ne facture que la licence, les mises à jour et la sauvegarde chiffrée — **pas le stockage cloud**. D'où un prix par poste **structurellement plus bas**.
+
+**Grille tarifaire proposée (par poste / mois, en DH HT) :**
+
+| Plan | Postes | SaaS Souverain | SaaS cloud classique* |
+|------|:---:|:---:|:---:|
+| **Starter** | 1 – 5 | **149 DH** | 250 – 400 DH |
+| **Pro** | 6 – 20 | **119 DH** | 350 – 550 DH |
+| **Enterprise** | 21 + | **89 DH** + relais dédié | 600 – 1 100 DH |
+
+\* *Ordres de grandeur publics constatés : Odoo, Sage, Zoho, Microsoft Dynamics 365 (250–1 100 DH/poste/mois selon l'éditeur).*
+
+**Exemple — PME de 10 postes (plan Pro) :**
+
+| | SaaS Souverain | SaaS cloud (≈ 400 DH) |
+|---|:---:|:---:|
+| Coût annuel | **14 280 DH** | 48 000 DH |
+| Données | **chez la PME (souveraines)** | cloud étranger |
+| Économie | **≈ 70 %** | — |
+
+> Moins cher **et** souverain : la PME paie le logiciel, pas l'hébergement de ses propres données. Aucun coût caché (pas de frais de stockage au Go, pas de sortie de données).
+
+<!-- SPEAKER NOTES
+"Le modèle économique découle directement de l'architecture. Comme les données restent chez le client, l'éditeur n'a pas à payer un cloud pour les héberger — il ne facture que la licence, les mises à jour et la sauvegarde chiffrée. Résultat : un prix par poste nettement plus bas que les SaaS classiques comme Odoo, Sage ou Dynamics, qui tournent entre 250 et 1100 dirhams par poste et par mois. Pour une PME de 10 postes, on passe d'environ 48 000 à 14 000 dirhams par an, soit 70 % d'économie — tout en gardant ses données chez elle. Ces chiffres sont des estimations cohérentes, à affiner, mais l'ordre de grandeur est solide : la souveraineté n'est pas un surcoût, c'est l'inverse."
+-->
+
+---
+
 ## Architecture & garantie zero-knowledge — la hiérarchie de clés
 
 <!-- DIAGRAMME À DESSINER (arbre vertical centré, remplace le bloc de code, NE PAS afficher ce commentaire) :
@@ -552,6 +582,21 @@ Pause. Regarder le jury.
 ## RÉSERVE F — Sécurité : que se passe-t-il si le relais est saisi ?
 
 > Rien d'exploitable. Le relais ne stocke que des **blobs chiffrés** et une copie de la DEK **scellée sous le code de récupération du client**. Sans ce code (que l'éditeur ne connaît pas), aucun déchiffrement n'est possible.
+
+---
+
+## RÉSERVE G — Pourquoi le SaaS souverain peut être moins cher
+
+| Poste de coût | SaaS cloud classique | SaaS Souverain |
+|---------------|:---:|:---:|
+| Hébergement des données métier | À la charge de l'éditeur (cloud) → répercuté | **Chez la PME** (machines déjà possédées) |
+| Stockage au Go / sortie de données | Facturé, souvent en surcoût | **Aucun** |
+| Calcul / exécution du logiciel | Cloud de l'éditeur | **Cluster PME (Docker)** |
+| Ce que facture l'éditeur | Logiciel + hébergement + marge | **Licence + MAJ + sauvegarde chiffrée** |
+
+> L'éditeur a un coût marginal **faible par client** (il ne stocke que des métadonnées et des blobs chiffrés). Il peut donc baisser le prix par poste **tout en gardant sa marge**. La PME gagne sur les deux tableaux : moins cher et souverain.
+
+**Hypothèses de la grille** (à affiner avec AL BARAA) : 1 € ≈ 11 DH ; tarifs classiques = ordres de grandeur publics (Odoo ~24 €/poste, Sage 30–50 €, Dynamics 365 65–100 €). Modèle dégressif par volume de postes.
 
 ---
 
