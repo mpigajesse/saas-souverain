@@ -27,6 +27,11 @@ class Device(models.Model):
         help_text="Nb de standbys réellement en streaming, rapporté par le primaire "
                   "(pg_stat_replication). Source de vérité de la réplication.",
     )
+    epoch = models.IntegerField(
+        default=0,
+        help_text="Époque du nœud = timeline PostgreSQL (incrémenté à chaque promotion). "
+                  "Sert au fencing : un primaire avec une époque périmée est clôturé.",
+    )
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

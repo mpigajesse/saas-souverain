@@ -42,12 +42,18 @@ def cluster_status(request):
     devices = list(
         tenant.devices
         .filter(is_active=True)
-        .values('node_addr', 'node_role', 'hostname', 'os')
+        .values('node_addr', 'node_role', 'hostname', 'os', 'epoch')
         .order_by('node_role')  # primary avant standby
     )
+
+    # Époque courante du cluster = timeline PostgreSQL la plus élevée connue.
+    # Le nœud s'en sert pour le fencing : si sa propre époque est inférieure,
+    # c'est un ancien primaire déchu qui doit se clôturer.
+    cluster_epoch = max((d['epoch'] or 0 for d in devices), default=0)
 
     return Response({
         'tenant_name': tenant.name,
         'node_count': len(devices),
+        'cluster_epoch': cluster_epoch,
         'active_nodes': devices,
     })

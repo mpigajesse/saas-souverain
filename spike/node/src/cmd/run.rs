@@ -93,6 +93,11 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     Ok("active") => "primary",
                     _            => "standby",
                 };
+
+                // Époque de ce nœud = timeline PostgreSQL (monotone, +1 à chaque promotion).
+                let my_epoch = supervision::current_timeline(&pool).await.unwrap_or(1);
+                println!("  Époque   : timeline PostgreSQL = {}", my_epoch);
+
                 if !actual_role.is_empty() && actual_role != declared_role {
                     println!(
                         "  Rôle PG réel ({}) ≠ NODE_MODE ({}) — re-déclaration au portail",
@@ -103,7 +108,22 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     } else {
                         None
                     };
-                    register_with_saas_role(&config, actual_role, streaming).await;
+                    register_with_saas_role(&config, actual_role, streaming, Some(my_epoch)).await;
+                }
+
+                // ── FENCING : auto-clôture d'un ancien primaire déchu ──────────────
+                // Si ce nœud est primaire mais que le cluster a une époque supérieure
+                // (un autre nœud a été promu depuis), c'est un primaire périmé. Il
+                // REFUSE de servir (pas de serveur web → aucune écriture métier) pour
+                // empêcher le split-brain, et attend un re-clone manuel.
+                if actual_role == "primary" {
+                    if let Some(cluster_epoch) = cluster_epoch_from_saas().await {
+                        if my_epoch < cluster_epoch {
+                            run_fenced_idle_loop(&config, my_epoch, cluster_epoch).await;
+                            return Ok(()); // inatteignable (boucle infinie), mais explicite
+                        }
+                        println!("  Fencing  : OK (époque {} ≥ cluster {})", my_epoch, cluster_epoch);
+                    }
                 }
 
                 // Migrations uniquement sur le primaire — le standby est en lecture
@@ -271,10 +291,22 @@ async fn run_supervision_loop(
                     (RunMode::Active, true) => {
                         let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
                         if tick % 12 == 1 {
+                            let my_epoch = supervision::current_timeline(&pool).await.unwrap_or(1);
+                            // Fencing à chaud : un primaire plus récent est-il apparu pendant
+                            // qu'on tournait ? Si oui, ce nœud est devenu un primaire périmé.
+                            if let Some(cluster_epoch) = cluster_epoch_from_saas().await {
+                                if my_epoch < cluster_epoch {
+                                    println!(
+                                        "  [tick {tick}] ⛔ CLÔTURE À CHAUD : époque {my_epoch} < cluster {cluster_epoch} \
+                                         — arrêt immédiat pour éviter le split-brain (re-clone requis)."
+                                    );
+                                    return Ok(()); // le process sort → au redémarrage, clôture au démarrage
+                                }
+                            }
                             println!("  [tick {tick}] PG primaire OK — {} standby(s) connecté(s)", standbys);
                             // Re-registration périodique : corrige les cas où le SaaS a rétrogradé
                             // ce nœud en "standby" suite à un split-brain détecté ailleurs.
-                            register_with_saas_role(config, "primary", Some(standbys)).await;
+                            register_with_saas_role(config, "primary", Some(standbys), Some(my_epoch)).await;
                         }
                         wal_miss = 0;
                     }
@@ -285,8 +317,9 @@ async fn run_supervision_loop(
                         // Déjà promu (failover précédent dans cette session)
                         let standbys = supervision::connected_standby_count(&pool).await.unwrap_or(0);
                         if tick % 12 == 1 {
-                            println!("  [tick {tick}] Ce nœud est désormais primaire.");
-                            register_with_saas_role(config, "primary", Some(standbys)).await;
+                            let my_epoch = supervision::current_timeline(&pool).await.unwrap_or(1);
+                            println!("  [tick {tick}] Ce nœud est désormais primaire (époque {my_epoch}).");
+                            register_with_saas_role(config, "primary", Some(standbys), Some(my_epoch)).await;
                         }
                         wal_miss = 0;
                     }
@@ -296,8 +329,9 @@ async fn run_supervision_loop(
                         if wal_ok {
                             wal_miss = 0;
                             if tick % 12 == 1 {
+                                let my_epoch = supervision::current_timeline(&pool).await.unwrap_or(1);
                                 println!("  [tick {tick}] PG standby : réplication active");
-                                register_with_saas_role(config, "standby", None).await;
+                                register_with_saas_role(config, "standby", None, Some(my_epoch)).await;
                             }
                         } else {
                             wal_miss += 1;
@@ -318,9 +352,11 @@ async fn run_supervision_loop(
                                         println!("  [tick {tick}] Cluster ≥3 nœuds — FAILOVER AUTOMATIQUE par quorum");
                                         match supervision::promote_standby(&pool).await {
                                             Ok(true) => {
-                                                println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire !");
+                                                // Promotion → PostgreSQL a incrémenté le timeline : nouvelle époque.
+                                                let new_epoch = supervision::current_timeline(&pool).await.unwrap_or(1);
+                                                println!("  [tick {tick}] ✓ FAILOVER : nœud promu en primaire (époque {new_epoch}) !");
                                                 // Fraîchement promu : aucun standby encore rattaché → 0.
-                                                register_with_saas_role(config, "primary", Some(0)).await;
+                                                register_with_saas_role(config, "primary", Some(0), Some(new_epoch)).await;
                                                 wal_miss = 0;
                                             }
                                             Ok(false) => {
@@ -402,6 +438,63 @@ async fn cluster_node_count() -> Option<usize> {
     json["node_count"].as_u64().map(|n| n as usize)
 }
 
+/// Interroge le SaaS pour l'époque courante du cluster (timeline PostgreSQL max).
+///
+/// Sert au fencing : si l'époque de ce nœud est inférieure à celle du cluster,
+/// c'est un primaire périmé qui doit se clôturer. Retourne `None` si le SaaS est
+/// injoignable → fail-safe : pas de clôture sur une simple panne réseau du SaaS.
+async fn cluster_epoch_from_saas() -> Option<i64> {
+    let saas_url = match std::env::var("SAAS_URL") {
+        Ok(u) if !u.is_empty() => u,
+        _ => return None,
+    };
+    let reg_token = match std::env::var("REGISTRATION_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => return None,
+    };
+
+    let url = format!(
+        "{}/api/devices/cluster-status/?token={}",
+        saas_url.trim_end_matches('/'),
+        reg_token
+    );
+
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let json: serde_json::Value = resp.json().await.ok()?;
+    json["cluster_epoch"].as_i64()
+}
+
+/// Boucle de clôture (fencing) — un ancien primaire déchu attend un re-clone manuel.
+///
+/// Ne lance JAMAIS le serveur web : aucune écriture métier n'est possible, donc
+/// pas de split-brain. Re-déclare périodiquement son état pour rester visible
+/// dans le portail éditeur. Ne se termine pas (l'opérateur doit re-cloner).
+async fn run_fenced_idle_loop(config: &NodeConfig, my_epoch: i64, cluster_epoch: i64) {
+    println!("\n========================================================");
+    println!("  ⛔ NŒUD CLÔTURÉ (FENCED)");
+    println!("  Époque de ce nœud (timeline PG) : {my_epoch}");
+    println!("  Époque courante du cluster       : {cluster_epoch}");
+    println!("  Un primaire plus récent existe. Ce nœud est un ancien");
+    println!("  primaire déchu : il REFUSE de servir pour éviter le split-brain.");
+    println!("  → Action opérateur : re-cloner ce nœud en standby.");
+    println!("========================================================\n");
+
+    loop {
+        // Visibilité portail : on se signale en standby clôturé (jamais primaire).
+        register_with_saas_role(config, "standby", None, Some(my_epoch)).await;
+        println!("  [fenced] En attente de re-clone manuel (époque {my_epoch} < {cluster_epoch}).");
+        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+    }
+}
+
 /// Enregistre le nœud avec le rôle détecté depuis NODE_MODE.
 /// Retourne le nom du tenant si le SaaS le fournit.
 async fn register_with_saas(config: &NodeConfig) -> Option<String> {
@@ -412,7 +505,8 @@ async fn register_with_saas(config: &NodeConfig) -> Option<String> {
     // Au démarrage, un primaire n'a encore aucun standby rattaché ; le compte réel
     // sera transmis aux ticks suivants. Un standby ne rapporte pas cette métrique.
     let streaming = if role == "primary" { Some(0) } else { None };
-    register_with_saas_role(config, role, streaming).await
+    // Époque inconnue à ce stade (PostgreSQL pas encore interrogé) → None.
+    register_with_saas_role(config, role, streaming, None).await
 }
 
 /// Enregistre le nœud avec un rôle explicite — utilisé après failover automatique.
@@ -421,6 +515,7 @@ async fn register_with_saas_role(
     config: &NodeConfig,
     node_role: &str,
     streaming_standbys: Option<i64>,
+    epoch: Option<i64>,
 ) -> Option<String> {
     let saas_url = match std::env::var("SAAS_URL") {
         Ok(u) if !u.is_empty() => u,
@@ -457,7 +552,10 @@ async fn register_with_saas_role(
         "node_role": node_role,
         // Vérité de réplication mesurée localement (pg_stat_replication).
         // Renseigné uniquement par un primaire ; `null` côté standby → le SaaS n'y touche pas.
-        "streaming_standby_count": streaming_standbys
+        "streaming_standby_count": streaming_standbys,
+        // Époque = timeline PostgreSQL. Sert au fencing : le SaaS conserve le max
+        // et refuse qu'un ancien primaire (époque périmée) rétrograde le primaire légitime.
+        "epoch": epoch
     });
 
     match reqwest::Client::new()
