@@ -52,6 +52,10 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
         .open_sealed_dek(&sealed)
         .context("Impossible de déchiffrer la DEK — config corrompue ?")?;
 
+    // Copie des 32 octets de la DEK avant que le journal ne la consomme — sert au
+    // dépôt du blob de récupération zero-knowledge sur le relais (voir plus bas).
+    let dek_bytes: [u8; 32] = *dek.as_bytes();
+
     // Ouvrir le journal chiffré
     let journal_path = config_path
         .parent()
@@ -65,6 +69,13 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
 
     println!("=== Noeud {} démarré en mode {:?} ===", config.node_id, mode);
     println!("  Journal : {} entrée(s)", journal.len());
+
+    // Dépôt zero-knowledge du blob de récupération sur le relais (best-effort).
+    // Le relais reçoit la DEK emballée sous un code de récupération (Argon2id) :
+    // des bytes chiffrés opaques qu'il ne peut PAS déchiffrer. Cela donne au
+    // tenant un blob réel sur le relais — l'éditeur sait qu'il EXISTE, sans
+    // jamais pouvoir le lire.
+    ensure_recovery_blob(&config, &dek_bytes).await;
 
     // Connexion PostgreSQL anticipée — nécessaire pour le module stock
     let web_port: u16 = std::env::var("WEB_PORT")
@@ -402,6 +413,74 @@ fn node_addr(config: &NodeConfig) -> String {
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .unwrap_or_else(|_| "unknown".to_string());
     format!("{}:{}", host, config.port)
+}
+
+/// Génère un code de récupération haute entropie (160 bits) au format groupé.
+/// S'appuie sur 2 UUID v4 (aléatoire cryptographique via getrandom) — pas de
+/// dépendance supplémentaire.
+fn generate_recovery_code() -> String {
+    let raw = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().to_string().replace('-', ""),
+        uuid::Uuid::new_v4().to_string().replace('-', "")
+    )
+    .to_uppercase();
+    raw.as_bytes()
+        .chunks(4)
+        .take(10) // 10 groupes de 4 = 40 hex = 160 bits
+        .map(|c| std::str::from_utf8(c).unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+/// Dépose, si absent, le blob de récupération du tenant sur le relais.
+///
+/// Zero-knowledge : le relais reçoit la DEK emballée sous un code de récupération
+/// (Argon2id + XChaCha20-Poly1305). Sans ce code — que le relais ne connaît pas —
+/// le blob est indéchiffrable. Idempotent : ne re-pousse pas si le blob existe.
+/// Best-effort : toute erreur est loguée, jamais bloquante.
+async fn ensure_recovery_blob(config: &NodeConfig, dek_bytes: &[u8; 32]) {
+    let tenant_id = match config.tenant_id {
+        Some(t) => t,
+        None => return,
+    };
+    let relay = crate::relay_client::RelayClient::new(&config.relay_url);
+
+    if relay.blob_exists(tenant_id, "recovery-dek").await {
+        return; // déjà présent → idempotent
+    }
+
+    let salt = ss_crypto::generate_salt();
+    let code = generate_recovery_code();
+    let recovery_key = match ss_crypto::derive_recovery_key(&code, &salt) {
+        Ok(k) => k,
+        Err(e) => {
+            println!("  Relais : dérivation clé de récupération échouée — {e}");
+            return;
+        }
+    };
+
+    let wrapper = ss_crypto::Dek::from_bytes(recovery_key);
+    let wrapped = match wrapper.encrypt(dek_bytes) {
+        Ok(w) => w,
+        Err(e) => {
+            println!("  Relais : emballage DEK échoué — {e}");
+            return;
+        }
+    };
+
+    // Blob = sel(16) ‖ (nonce ‖ ciphertext). Opaque pour le relais.
+    let mut blob = Vec::with_capacity(16 + wrapped.len());
+    blob.extend_from_slice(&salt);
+    blob.extend_from_slice(&wrapped);
+
+    match relay.put_blob(tenant_id, "recovery-dek", blob).await {
+        Ok(_) => {
+            println!("  Relais : blob de récupération déposé (chiffré, opaque — zero-knowledge).");
+            println!("  ⚠️  CODE DE RÉCUPÉRATION (à conserver HORS-LIGNE, affiché une fois) : {code}");
+        }
+        Err(e) => println!("  Relais : dépôt du blob de récupération échoué — {e} (non bloquant)"),
+    }
 }
 
 /// Interroge le SaaS pour connaître le nombre de nœuds actifs du cluster.

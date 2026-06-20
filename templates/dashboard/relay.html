@@ -303,9 +303,9 @@
     <div class="stat-sublabel">clusters enregistrés</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Blobs stockés</div>
-    <div class="stat-value" style="color:var(--text-primary);">{{ health.blob_tenants }}</div>
-    <div class="stat-sublabel">tenants avec données chiffrées</div>
+    <div class="stat-label">Blobs chiffrés stockés</div>
+    <div class="stat-value" style="color:var(--text-primary);">{{ blobs_total }}</div>
+    <div class="stat-sublabel">sur {{ blobs_tenants_count }} tenant(s) — métadonnées seules</div>
   </div>
 </div>
 
@@ -317,9 +317,22 @@
       <span style="font-weight:700;">{{ entry.tenant.name }}</span>
       <span style="font-family:monospace; font-size:0.72rem; color:var(--text-muted); background:#F3F4F6; padding:2px 8px; border-radius:4px;">{{ entry.tenant.id }}</span>
     </div>
-    <span style="background:{% if entry.nodes %}#D1FAE5{% else %}#F3F4F6{% endif %}; color:{% if entry.nodes %}#065F46{% else %}var(--text-muted){% endif %}; border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
-      {{ entry.nodes|length }} nœud{% if entry.nodes|length != 1 %}s{% endif %}
-    </span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      {% if entry.blobs and entry.blobs.count %}
+      <span title="Blobs chiffrés stockés sur le relais — métadonnées seules, contenu jamais lu"
+            style="background:#EEF2FF; color:#4338CA; border:1px solid #C7D2FE; border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+        🔒 {{ entry.blobs.count }} blob{% if entry.blobs.count != 1 %}s{% endif %} · {{ entry.blobs.size_fmt }} · {{ entry.blobs.last_fmt }}
+      </span>
+      {% else %}
+      <span title="Aucun blob chiffré déposé pour ce tenant sur le relais"
+            style="background:#F3F4F6; color:var(--text-muted); border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
+        🔒 0 blob
+      </span>
+      {% endif %}
+      <span style="background:{% if entry.nodes %}#D1FAE5{% else %}#F3F4F6{% endif %}; color:{% if entry.nodes %}#065F46{% else %}var(--text-muted){% endif %}; border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
+        {{ entry.nodes|length }} nœud{% if entry.nodes|length != 1 %}s{% endif %}
+      </span>
+    </div>
   </div>
   {% if entry.nodes %}
   <div class="card-body" style="padding:0;">

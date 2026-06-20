@@ -232,6 +232,63 @@ async fn blob_delete(
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/blob-stats — métadonnées des blobs PAR TENANT (zero-knowledge)
+//
+// Ne renvoie QUE des métadonnées : tenant_id, nombre de blobs, taille totale,
+// date du dernier dépôt. JAMAIS le contenu. Permet à l'éditeur de SAVOIR qu'un
+// blob existe, sans pouvoir le lire — promesse zero-knowledge préservée.
+// ---------------------------------------------------------------------------
+
+async fn blob_stats() -> Json<serde_json::Value> {
+    use std::time::UNIX_EPOCH;
+
+    let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
+
+    let mut tenants: Vec<serde_json::Value> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&blobs_dir) {
+        for tenant_entry in rd.flatten() {
+            let path = tenant_entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let tenant_id = tenant_entry.file_name().to_string_lossy().to_string();
+
+            let mut blob_count: u64 = 0;
+            let mut total_bytes: u64 = 0;
+            let mut last_modified_secs: u64 = 0;
+
+            if let Ok(files) = std::fs::read_dir(&path) {
+                for f in files.flatten() {
+                    if let Ok(meta) = f.metadata() {
+                        if meta.is_file() {
+                            blob_count += 1;
+                            total_bytes += meta.len();
+                            if let Ok(m) = meta.modified() {
+                                if let Ok(d) = m.duration_since(UNIX_EPOCH) {
+                                    last_modified_secs = last_modified_secs.max(d.as_secs());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            tenants.push(serde_json::json!({
+                "tenant_id": tenant_id,
+                "blob_count": blob_count,
+                "total_bytes": total_bytes,
+                "last_modified_secs": last_modified_secs,
+            }));
+        }
+    }
+
+    Json(serde_json::json!({
+        "tenants": tenants,
+        "zero_knowledge": true,
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // GET /health  — retourne hostname, uptime, interfaces réseau, stockage blobs
 // ---------------------------------------------------------------------------
 
@@ -300,6 +357,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/health", get(health))
+        .route("/api/blob-stats", get(blob_stats))
         .route("/api/nodes/announce", post(announce))
         .route("/api/nodes", get(get_nodes))
         .route(
