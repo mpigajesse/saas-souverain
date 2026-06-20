@@ -62,11 +62,11 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 |---|--------|---|
 | 1 | AL BARAA CONSULTING & contexte du stage | 2 min |
 | 2 | Problématique : la souveraineté des données métier | 3 min |
-| 3 | La solution : un framework à trois acteurs | 3 min |
-| 4 | Architecture & garantie zero-knowledge | 4 min |
-| 5 | Le cœur technique : réplication & résilience | 4 min |
+| 3 | La solution : un framework à trois acteurs + **modèle économique** | 4 min |
+| 4 | Architecture & garantie zero-knowledge | 3 min |
+| 5 | Le cœur technique : réplication, résilience & **fencing** | 4 min |
 | 6 | **Démonstration live** — cluster PME 2 nœuds | 5 min |
-| 7 | **Supervision intelligente — agent IA** | 3 min |
+| 7 | **Supervision intelligente — agent IA (3 acteurs)** | 3 min |
 | 8 | Difficultés & posture ingénieur | 3 min |
 | 9 | Bilan, compétences & perspectives | 3 min |
 
@@ -242,6 +242,55 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6B — MODÈLE ÉCONOMIQUE & LICENCES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 6B — Modèle Économique & Licences
+
+**[Design : 3 cartes de plans, plan "Pro" en surbrillance ; tableau concurrents ; bandeau économie]**
+
+---
+
+## Une licence par poste — pensée pour la PME
+
+| Plan | Postes | Prix / poste / mois |
+|------|--------|:---:|
+| Starter | 1 – 5 | **149 DH** HT |
+| **Pro** ⭐ *(recommandé PME)* | 6 – 20 | **119 DH** HT |
+| Enterprise | 21 et + | **89 DH** HT |
+
+> Le prix **baisse** avec la taille du parc — l'inverse des SaaS classiques qui facturent souvent plus cher à mesure qu'on monte en gamme.
+
+---
+
+## Pourquoi structurellement moins cher ?
+
+> L'éditeur **n'héberge pas** le cloud des données clients (elles restent chez la PME). Il n'a donc **pas** le coût d'infrastructure d'un SaaS classique → un prix par poste plus bas, **sans rogner la marge**.
+
+| Solution (réf. marché) | Prix indicatif / poste / mois |
+|------------------------|:---:|
+| Odoo (Standard) | ≈ 250 DH |
+| Zoho One | ≈ 370 DH |
+| Sage Business Cloud | ≈ 280 – 550 DH |
+| Microsoft Dynamics 365 BC | ≈ 700 – 1 100 DH |
+| **✅ SaaS Souverain (Pro)** | **119 DH** |
+
+---
+
+### Exemple — PME de 10 postes (plan Pro)
+
+> **14 280 DH/an** (souverain) **vs ≈ 48 000 DH/an** (SaaS classique milieu de gamme)
+> → **≈ 70 % d'économie**, **et** les données ne quittent jamais la PME.
+
+*Prix concurrents vérifiés par recherche web · page « Tarifs » intégrée à l'application SaaS éditeur.*
+
+---
+
+*Notes présentateur :*
+> "Le modèle est simple : une licence par poste, dégressive — plus la PME grandit, moins le poste coûte. Et c'est viable parce que l'éditeur ne paie pas le cloud des données clients : elles restent chez la PME. Résultat, à 10 postes, une PME économise environ 70 % par rapport à un SaaS classique — tout en gardant la souveraineté. J'ai vérifié les prix concurrents par recherche, et la page Tarifs est intégrée directement dans l'application."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- SLIDE 7 — ARCHITECTURE & ZERO-KNOWLEDGE -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 
@@ -309,9 +358,10 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 | Mécanisme | Garantie |
 |-----------|----------|
 | Réplication par opération | Synchrone pour les invariants forts (stock, facturation) |
+| **Slot de réplication** | Le primaire conserve le WAL pour le standby → pas de rupture |
 | Journal append-only (CBOR) | Écritures sérialisées, chiffrées DEK avant disque |
 | `standby.signal` | Le standby refuse toute écriture → ne peut pas diverger |
-| Failover | 2 nœuds = bascule manuelle · ≥ 3 nœuds = quorum automatique |
+| Failover + **fencing** | 2 nœuds = manuel · ≥ 3 nœuds = quorum · ancien primaire clôturé |
 
 ---
 
@@ -436,6 +486,44 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11B — TESTS DE RÉSILIENCE HA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+# SLIDE 11B — Résilience : 4 Protections Prouvées sur Banc
+
+**[Design : 4 cartes/lignes vertes, bannière ⛔ "FENCED" pour le test 3]**
+
+---
+
+## Campagne haute disponibilité — Kali (primaire) + Ubuntu (standby)
+
+| # | Protection | Garantie démontrée | Verdict |
+|---|-----------|--------------------|:------:|
+| 1 | **Slot de réplication** | Le primaire ne recycle plus le WAL du standby (`active=t`) | ✅ |
+| 2 | **Anti auto-promotion** | À 2 nœuds, jamais de bascule auto → pas de split-brain | ✅ |
+| 3 | **Fencing par timeline** | Ancien primaire déchu **se clôture** (timeline 1 < cluster 2) | ✅ |
+| 4 | **Auto-réparation** | Tout re-clone recrée le slot **automatiquement** | ✅ |
+
+---
+
+### Preuve du fencing (logs réels du nœud déchu)
+
+```
+⛔ NŒUD CLÔTURÉ (FENCED)
+Époque de ce nœud (timeline PG) : 1
+Époque courante du cluster       : 2
+→ REFUSE de servir pour éviter le split-brain.
+```
+
+> **4 / 4 protections validées — 0 échec.** Époque = `timeline_id` natif de PostgreSQL : aucun consensus réinventé.
+
+---
+
+*Notes présentateur :*
+> "Au-delà des tests métier, j'ai mené une campagne de résilience. Quatre protections, toutes prouvées sur les deux machines réelles. La plus marquante : le fencing. Je promeus le standby, je rallume l'ancien primaire — et il se clôture tout seul, en lisant le timeline de PostgreSQL. Plus de split-brain. Et le cluster se répare automatiquement à chaque re-clone, sans intervention manuelle."
+
+---
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- SLIDE 12 — AGENT IA DE MONITORING ⭐ -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 
@@ -445,37 +533,38 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
-## Le système produit déjà la matière première (Big Data)
+## Un agent IA qui supervise les **3 acteurs** — implémenté
 
 ```
   Heartbeats (~60 s) ┐
-  streaming_standby   ├─▶  Séries temporelles  ─▶  (Agent IA)  ─▶  Score d'anomalie
-  WAL lag             │      collectées             à concevoir     + alerte préventive
-  failover_count     ┘       par le SaaS
+  streaming_standby   ├─▶ Séries temporelles ─▶ AGENT IA ─▶ Score de risque 0–100
+  WAL lag / époque    │     (SaaS, Big Data)    (Mistral)    + diagnostic + reco
+  failover_count     ┘                                       sain / surveiller / critique
 ```
 
-> Chaque nœud émet déjà ses métriques au SaaS toutes les ~60 s. Sur la durée, cela formerait un **historique exploitable** — terrain naturel du Big Data et de l'IA.
+> L'agent analyse **l'éditeur SaaS, le relais zero-knowledge et les clusters PME**. Il produit un diagnostic en langage naturel via **Mistral AI**, persisté à chaque analyse (`AgentVerdict`).
 
 ---
 
-## La supervision actuelle, et ce qu'une couche IA apporterait
+## Garanties de l'agent
 
-| Aujourd'hui (implémenté) | Couche IA (conception / perspective) |
-|-------------------|----------------------|
-| Seuil binaire : streaming = 0 → alerte | **Détection d'anomalie** sur la dynamique des métriques |
-| Réaction *après* la panne | **Prédiction** : lag qui dérive, heartbeats qui s'espacent |
-| Une règle par symptôme | Modèle non supervisé (ex. Isolation Forest / z-score glissant) |
+| Principe | Mise en œuvre |
+|----------|---------------|
+| 🔒 **Zero-knowledge préservé** | Seules des **métriques d'infrastructure** sont transmises au modèle — aucune donnée métier ne sort jamais |
+| 🛰️ **Relais supervisé sans intrusion** | L'agent lit la **santé** du relais (`/health` : uptime, nb de tenants avec blobs) — **jamais le contenu** des blobs chiffrés |
+| 🛟 **Fail-safe** | Clé API absente / quota épuisé / réseau coupé → **repli local déterministe** : le dashboard ne casse jamais |
+| 📈 **Big Data** | Historique de métriques (`ClusterMetricSample`) → détection de dérives (lag, heartbeats espacés) |
 
 ---
 
-### Une évolution naturelle, pas encore déployée
+### Au cœur de ma spécialité IA & Big Data
 
-> Le système est **déjà instrumenté** pour produire ces données. La supervision intelligente est présentée ici comme la **prochaine brique cohérente** avec ma spécialité IA & Big Data — conçue, non encore implémentée. C'est une perspective assumée, pas un acquis.
+> L'agent ne se contente plus d'un seuil binaire : il **interprète la dynamique** des métriques et recommande une action préventive. La supervision intelligente est **implémentée et opérationnelle**, dans le respect strict de la souveraineté.
 
 ---
 
 *Notes présentateur :*
-> "Ma spécialité est l'IA et le Big Data. Je veux être transparent : cet agent n'est pas déployé. Mais le système produit déjà les bonnes données — battements de cœur, état de réplication, compteurs de bascule. La suite logique est une couche qui apprend le comportement normal et alerte AVANT la panne, plutôt que de constater après. C'est une perspective que j'assume comme conception, cohérente avec ma formation."
+> "Ma spécialité, c'est l'IA et le Big Data — et c'est ici qu'elle s'incarne. L'agent supervise les trois acteurs : l'éditeur, le relais, et les clusters PME. Point crucial : il respecte la souveraineté. Pour le relais, il ne lit que la santé du service — uptime, nombre de tenants ayant des blobs — jamais le contenu chiffré. Il s'appuie sur Mistral AI, avec un repli local si l'API est indisponible. C'est une supervision qui interprète, pas qui constate."
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -516,7 +605,7 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 ---
 
 *Notes présentateur :*
-> "La sécurité est architecturale. Le point le plus subtil est le fencing : quand un standby est promu après une panne, l'ancien primaire doit être bloqué par un jeton d'époque pour éviter deux primaires en parallèle — un piège classique des systèmes distribués que j'ai rencontré en vrai."
+> "La sécurité est architecturale. Le point le plus subtil est le fencing : quand un standby est promu après une panne, l'ancien primaire doit être bloqué pour éviter deux primaires en parallèle. Je l'ai implémenté en m'appuyant sur le timeline natif de PostgreSQL — incrémenté à chaque promotion — et je l'ai prouvé sur le banc : l'ancien primaire revenu se clôture tout seul. Un piège classique des systèmes distribués, résolu sans réinventer de consensus."
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -601,10 +690,12 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 | ✅ | Résultat |
 |----|---------|
 | 6/6 | Scénarios métier validés sur banc réel |
+| 4/4 | Tests de résilience HA (slot, anti-promotion, **fencing**, auto-réparation) |
 | Zero-knowledge | Hiérarchie de clés DEK prouvée cross-OS |
-| Réplication | PostgreSQL primaire/standby + détection de panne |
+| Réplication | PostgreSQL primaire/standby + slot + détection de panne |
+| Fencing | Timeline PostgreSQL — split-brain neutralisé, prouvé sur banc |
 | Reporting véridique | Le SaaS reflète l'état réel de la réplication |
-| Supervision IA (conçue) | Métriques déjà collectées — agent à implémenter |
+| Supervision IA | **Implémentée** — agent Mistral sur les 3 acteurs, zero-knowledge préservé |
 
 ---
 
@@ -620,14 +711,14 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 | Horizon court | Horizon moyen |
 |---------------|---------------|
-| Fencing par jeton d'époque (failover sûr) | Implémenter l'agent IA (alerte prédictive) |
-| IP statiques sur réseau de réplication | Quorum ≥ 3 nœuds (failover automatique) |
-| Module métier v1 (gestion de stock) | Frontend Tauri + mobile (UniFFI) |
+| Quorum ≥ 3 nœuds (failover automatique sûr) | Couche IA **prédictive** (apprentissage des dérives) |
+| IP statiques sur le réseau de réplication | Module métier v1 (gestion de stock) |
+| Durcissement production & audit sécurité | Frontend Tauri + mobile (cœur Rust via UniFFI) |
 
 ---
 
 *Notes présentateur :*
-> "C'est un socle prouvé, pas un produit fini. La priorité technique suivante est le fencing, pour sécuriser le failover automatique. Et l'agent IA, aujourd'hui en preuve de concept, a vocation à devenir une supervision prédictive en production."
+> "C'est un socle prouvé, pas un produit fini. Pendant le stage, j'ai poussé deux briques jusqu'au bout : le fencing — validé sur le banc — et l'agent IA de supervision. La suite logique, c'est le quorum à 3 nœuds pour un failover automatique sûr, et une couche IA prédictive qui apprend les dérives pour alerter encore plus tôt."
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -722,22 +813,28 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
-## RÉSERVE D — Le split-brain : comment l'éviter définitivement
+## RÉSERVE D — Le split-brain : évité définitivement (implémenté)
 
-> **Fencing par jeton d'époque monotone** : à chaque promotion, l'époque s'incrémente. Un ancien primaire qui revient avec une époque inférieure est isolé — il ne peut plus accepter d'écritures. C'est la prochaine étape technique.
+> **Fencing par timeline PostgreSQL** : l'époque = le `timeline_id` natif de PostgreSQL, incrémenté à chaque `pg_promote()` (aucun consensus maison). Un ancien primaire revenu avec un timeline inférieur **se clôture lui-même** : il ne lance pas son serveur web → aucune écriture métier possible.
+>
+> **Défense en profondeur (2 couches)** : (1) le SaaS refuse qu'une époque périmée rétrograde le primaire légitime (`409 fenced`) ; (2) le nœud s'auto-clôture au démarrage et à chaud.
+>
+> **Validé sur banc réel** : ancien primaire (timeline 1) face au cluster (timeline 2) → bannière `⛔ NŒUD CLÔTURÉ`, service refusé. Voir l'annexe *Tests résilience HA* (4/4).
 
 ---
 
-## RÉSERVE E — L'agent IA : quelle conception ? *(perspective, non déployé)*
+## RÉSERVE E — L'agent IA : comment il fonctionne *(implémenté)*
 
-| Élément | Choix envisagé |
+| Élément | Mise en œuvre |
 |---------|-------|
-| Données (déjà collectées) | Séries temporelles : heartbeats, streaming_standby_count, WAL lag, failover_count |
-| Modèle envisagé | Détection d'anomalie non supervisée (Isolation Forest / z-score glissant) |
-| Sortie visée | Score d'anomalie + alerte prédictive avant franchissement de seuil |
-| Pourquoi | Les pannes (ex. split-brain) sont souvent précédées de dérives détectables |
+| Périmètre | Supervise les **3 acteurs** : SaaS éditeur, relais zero-knowledge (santé seule), clusters PME |
+| Données | Séries temporelles : heartbeats, `streaming_standby_count`, WAL/époque, `failover_count` (`ClusterMetricSample`) |
+| Moteur | **Mistral AI** (`mistral-small-latest`) → diagnostic langage naturel + score de risque 0–100 |
+| Sortie | Niveau `sain / surveiller / critique` + recommandation, persistée (`AgentVerdict`) |
+| Zero-knowledge | **Aucune** donnée métier transmise — uniquement des métriques d'infrastructure |
+| Fail-safe | Repli local déterministe si l'API Mistral est indisponible — le dashboard ne casse jamais |
 
-> Honnêteté : le système est instrumenté pour fournir ces données, mais l'agent n'est pas implémenté — c'est une perspective de conception.
+> Implémenté et opérationnel. La **prochaine** étape est une couche prédictive (apprentissage des dérives) qui anticiperait la panne avant le franchissement de seuil.
 
 ---
 
