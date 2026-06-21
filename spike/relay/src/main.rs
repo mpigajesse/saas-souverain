@@ -361,7 +361,8 @@ async fn main() {
         .route("/api/nodes/announce", post(announce))
         .route("/api/nodes", get(get_nodes))
         .route(
-            "/api/blobs/{tenant_id}/{key}",
+            // axum 0.7 : syntaxe `:param` (et non `{param}` qui est axum 0.8).
+            "/api/blobs/:tenant_id/:key",
             get(blob_get).put(blob_put).delete(blob_delete),
         )
         .with_state(state);
