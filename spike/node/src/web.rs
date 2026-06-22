@@ -60,8 +60,14 @@ async fn resolve_user(
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) {
-    let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port });
+pub async fn serve(
+    port: u16,
+    node_id: Uuid,
+    pool: PgPool,
+    tenant_name: String,
+    recovery_code: Option<String>,
+) {
+    let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port, recovery_code });
 
     // Public routes — no auth required
     let public_routes = Router::new()
@@ -100,6 +106,11 @@ pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) 
         .route(
             "/admin/utilisateurs/:id/mdp",
             get(auth_routes::user_mdp_form).post(auth_routes::user_mdp_change),
+        )
+        .route("/admin/recuperation", get(auth_routes::recovery_page))
+        .route(
+            "/admin/recuperation/telecharger",
+            get(auth_routes::recovery_download),
         )
         .route_layer(middleware::from_fn_with_state(state.clone(), admin_middleware));
 

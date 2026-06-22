@@ -164,6 +164,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let cat_a = if active == "catalogue" { "active" } else { "" };
     let ca = if active == "cluster" { "active" } else { "" };
     let ua = if active == "utilisateurs" { "active" } else { "" };
+    let ra = if active == "recuperation" { "active" } else { "" };
 
     let admin_section = if is_admin {
         format!(
@@ -182,9 +183,16 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
       </svg>
       Utilisateurs
     </a>
+    <a href="/admin/recuperation" class="{ra}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/>
+      </svg>
+      Clé de récupération
+    </a>
   </nav>"#,
             ca = ca,
             ua = ua,
+            ra = ra,
         )
     } else {
         String::new()
@@ -832,4 +840,73 @@ fn error_admin(msg: &str, user: &User, tenant: &str) -> Html<String> {
         tenant,
         &format!(r#"<div class="err-bar">⚠️ <strong>Erreur :</strong> {}</div><a href="/admin/utilisateurs" class="btn btn-g">← Retour</a>"#, esc(msg)),
     ))
+}
+
+// ── Clé de récupération (admin) ─────────────────────────────────────────────────
+
+pub async fn recovery_page(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
+    let content = match &state.recovery_code {
+        Some(code) => format!(
+            r#"<div class="page-title">Clé de récupération</div>
+<div class="page-sub">À conserver en lieu sûr et hors-ligne. Seule clé pour récupérer vos données chiffrées du relais en cas de sinistre.</div>
+
+<div class="panel">
+  <div class="ph"><span class="pt">Votre clé de récupération أمان (Amān)</span></div>
+  <div style="padding:24px">
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #D97706;border-radius:10px;padding:14px 18px;margin-bottom:18px;color:#78350F;font-size:.86rem;line-height:1.55">
+      🔑 Notez cette clé et gardez-la <strong>hors-ligne</strong> (coffre, gestionnaire de mots de passe).
+      Si vous perdez toutes vos machines, c'est <strong>la seule</strong> façon de récupérer vos données chiffrées stockées sur le relais.
+      <br><span style="color:#065F46;font-weight:700">🔒 Zero-knowledge : l'éditeur ne connaît JAMAIS cette clé — sans elle, personne ne peut déchiffrer vos données.</span>
+    </div>
+    <div style="font-family:monospace;font-size:1.05rem;font-weight:700;letter-spacing:.04em;background:#0D1B2A;color:#86EFAC;border-radius:10px;padding:18px 20px;word-break:break-all;user-select:all">{code}</div>
+    <div class="fa" style="margin-top:18px">
+      <a href="/admin/recuperation/telecharger" class="btn btn-p" download>⬇ Télécharger (.txt)</a>
+      <button type="button" class="btn btn-g" onclick="navigator.clipboard.writeText('{code}');this.textContent='✓ Copié';">Copier</button>
+    </div>
+  </div>
+</div>"#,
+            code = esc(code)
+        ),
+        None => r#"<div class="page-title">Clé de récupération</div>
+<div class="page-sub">Pas encore disponible.</div>
+<div class="panel"><div style="padding:24px;color:var(--text-muted)">
+  La clé sera générée dès que le coffre chiffré est déposé sur le relais (celui-ci doit être joignable au démarrage). Rechargez cette page ensuite.
+</div></div>"#
+            .to_string(),
+    };
+    Html(layout("Clé de récupération", "recuperation", &user, &state.tenant_name, &content))
+}
+
+pub async fn recovery_download(State(state): State<Arc<AppState>>) -> Response {
+    match &state.recovery_code {
+        Some(code) => {
+            let body = format!(
+                "Cle de recuperation — Aman (أمان)\nTenant : {}\n\nCODE : {}\n\n\
+                 Conservez ce fichier en lieu sur et hors-ligne.\n\
+                 C'est la seule cle qui permet de recuperer vos donnees chiffrees\n\
+                 stockees sur le relais en cas de perte de toutes vos machines.\n\
+                 L'editeur ne connait jamais cette cle (zero-knowledge).\n",
+                state.tenant_name, code
+            );
+            (
+                [
+                    (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+                    (
+                        header::CONTENT_DISPOSITION,
+                        "attachment; filename=\"cle-recuperation-aman.txt\"",
+                    ),
+                ],
+                body,
+            )
+                .into_response()
+        }
+        None => (
+            axum::http::StatusCode::NOT_FOUND,
+            "Aucune clé de récupération générée pour l'instant.",
+        )
+            .into_response(),
+    }
 }

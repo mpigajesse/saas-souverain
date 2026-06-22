@@ -75,7 +75,12 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     // des bytes chiffrés opaques qu'il ne peut PAS déchiffrer. Cela donne au
     // tenant un blob réel sur le relais — l'éditeur sait qu'il EXISTE, sans
     // jamais pouvoir le lire.
-    ensure_recovery_blob(&config, &dek_bytes).await;
+    // Seul le primaire (Active) génère/dépose le blob de récupération : le code
+    // est per-tenant (une seule DEK), deux nœuds le régénéreraient en s'écrasant.
+    // L'admin consulte la clé sur le nœud primaire (le standby redirige vers lui).
+    if mode == RunMode::Active {
+        ensure_recovery_blob(&mut config, config_path, &dek_bytes).await;
+    }
 
     // Connexion PostgreSQL anticipée — nécessaire pour le module stock
     let web_port: u16 = std::env::var("WEB_PORT")
@@ -156,7 +161,8 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                 let web_node_id = config.node_id;
                 let web_tenant = config.tenant_name.clone()
                     .unwrap_or_else(|| "PME".to_string());
-                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant));
+                let web_recovery = config.recovery_code.clone();
+                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant, web_recovery));
 
                 // Boucle de supervision
                 run_supervision_loop(mode, pool, &config, config_path).await?;
@@ -439,47 +445,69 @@ fn generate_recovery_code() -> String {
 /// (Argon2id + XChaCha20-Poly1305). Sans ce code — que le relais ne connaît pas —
 /// le blob est indéchiffrable. Idempotent : ne re-pousse pas si le blob existe.
 /// Best-effort : toute erreur est loguée, jamais bloquante.
-async fn ensure_recovery_blob(config: &NodeConfig, dek_bytes: &[u8; 32]) {
+/// Emballe la DEK sous (code, sel) → blob opaque → dépose sur le relais. true si OK.
+async fn push_recovery_blob(
+    relay_url: &str,
+    tenant_id: uuid::Uuid,
+    salt: &[u8; 16],
+    code: &str,
+    dek_bytes: &[u8; 32],
+) -> bool {
+    let recovery_key = match ss_crypto::derive_recovery_key(code, salt) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+    let wrapped = match ss_crypto::Dek::from_bytes(recovery_key).encrypt(dek_bytes) {
+        Ok(w) => w,
+        Err(_) => return false,
+    };
+    // Blob = sel(16) ‖ (nonce ‖ ciphertext). Opaque pour le relais.
+    let mut blob = Vec::with_capacity(16 + wrapped.len());
+    blob.extend_from_slice(salt);
+    blob.extend_from_slice(&wrapped);
+    crate::relay_client::RelayClient::new(relay_url)
+        .put_blob(tenant_id, "recovery-dek", blob)
+        .await
+        .is_ok()
+}
+
+async fn ensure_recovery_blob(config: &mut NodeConfig, config_path: &Path, dek_bytes: &[u8; 32]) {
     let tenant_id = match config.tenant_id {
         Some(t) => t,
         None => return,
     };
     let relay = crate::relay_client::RelayClient::new(&config.relay_url);
 
-    if relay.blob_exists(tenant_id, "recovery-dek").await {
-        return; // déjà présent → idempotent
+    // Cas 1 — code déjà généré (persisté sur cette machine PME). On ne régénère
+    // jamais : on s'assure seulement que le blob est bien présent sur le relais.
+    if let (Some(code), Some(salt_hex)) =
+        (config.recovery_code.clone(), config.recovery_salt_hex.clone())
+    {
+        if !relay.blob_exists(tenant_id, "recovery-dek").await {
+            if let Ok(v) = hex::decode(&salt_hex) {
+                if v.len() == 16 {
+                    let mut salt = [0u8; 16];
+                    salt.copy_from_slice(&v);
+                    if push_recovery_blob(&config.relay_url, tenant_id, &salt, &code, dek_bytes).await {
+                        println!("  Relais : blob de récupération re-déposé depuis la config locale.");
+                    }
+                }
+            }
+        }
+        return;
     }
 
+    // Cas 2 — première génération : créer code + sel, déposer, puis PERSISTER.
     let salt = ss_crypto::generate_salt();
     let code = generate_recovery_code();
-    let recovery_key = match ss_crypto::derive_recovery_key(&code, &salt) {
-        Ok(k) => k,
-        Err(e) => {
-            println!("  Relais : dérivation clé de récupération échouée — {e}");
-            return;
-        }
-    };
-
-    let wrapper = ss_crypto::Dek::from_bytes(recovery_key);
-    let wrapped = match wrapper.encrypt(dek_bytes) {
-        Ok(w) => w,
-        Err(e) => {
-            println!("  Relais : emballage DEK échoué — {e}");
-            return;
-        }
-    };
-
-    // Blob = sel(16) ‖ (nonce ‖ ciphertext). Opaque pour le relais.
-    let mut blob = Vec::with_capacity(16 + wrapped.len());
-    blob.extend_from_slice(&salt);
-    blob.extend_from_slice(&wrapped);
-
-    match relay.put_blob(tenant_id, "recovery-dek", blob).await {
-        Ok(_) => {
-            println!("  Relais : blob de récupération déposé (chiffré, opaque — zero-knowledge).");
-            println!("  ⚠️  CODE DE RÉCUPÉRATION (à conserver HORS-LIGNE, affiché une fois) : {code}");
-        }
-        Err(e) => println!("  Relais : dépôt du blob de récupération échoué — {e} (non bloquant)"),
+    if push_recovery_blob(&config.relay_url, tenant_id, &salt, &code, dek_bytes).await {
+        config.recovery_code = Some(code.clone());
+        config.recovery_salt_hex = Some(hex::encode(salt));
+        let _ = config.save(config_path);
+        println!("  Relais : blob de récupération déposé (chiffré, opaque — zero-knowledge).");
+        println!("  ⚠️  CODE DE RÉCUPÉRATION (aussi dans l'UI : Admin → Clé de récupération) : {code}");
+    } else {
+        println!("  Relais : dépôt du blob de récupération échoué — réessai au prochain démarrage (non bloquant).");
     }
 }
 

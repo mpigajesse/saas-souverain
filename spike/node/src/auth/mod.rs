@@ -15,6 +15,9 @@ pub struct AppState {
     pub node_id: Uuid,
     pub tenant_name: String,
     pub web_port: u16,
+    /// Code de récupération (présent uniquement sur la machine PME). Affiché à
+    /// l'admin du tenant dans l'UI. `None` si pas encore généré.
+    pub recovery_code: Option<String>,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────
