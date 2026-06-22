@@ -20,10 +20,11 @@
 
 ---
 
-## 🔐 Framework SaaS Souverain
+## 🔐 Framework SaaS Souverain — أمان (Amān)
 
 ### Conception et Implémentation d'un Framework SaaS Souverain
 ### pour Logiciels Métier Distribués
+### *Logiciel métier open source : أمان (Amān) — « sécurité, confiance »*
 
 ---
 
@@ -173,7 +174,7 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
   🏢 SaaS ÉDITEUR          🔒 RELAIS ZERO-KNOWLEDGE       🏭 CLUSTER PME
   (chez l'éditeur)          (chez l'éditeur)               (chez le client)
   ───────────────           ─────────────────              ──────────────
-  Comptes tenants           Stockage de blobs              Logiciel métier
+  Comptes tenants           Stockage de blobs              Logiciel أمان (Amān)
   Licences                  CHIFFRÉS opaques               Données EN CLAIR
   Suivi du parc             (jamais déchiffrables)         PostgreSQL répliqué
        │                          ▲                              │
@@ -245,13 +246,36 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 <!-- SLIDE 6B — MODÈLE ÉCONOMIQUE & LICENCES -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 
-# SLIDE 6B — Modèle Économique & Licences
+# SLIDE 6B — Modèle Économique : أمان (Amān)
 
-**[Design : 3 cartes de plans, plan "Pro" en surbrillance ; tableau concurrents ; bandeau économie]**
+**[Design : logo/nom أمان (Amān) en titre, 3 cartes de plans, bandeau open source + « 0 coût caché »]**
 
 ---
 
-## Une licence par poste — pensée pour la PME
+## أمان (Amān) — « la sécurité, la confiance » en arabe
+
+> **Le logiciel métier est open source.** Ce que l'éditeur facture, ce n'est **pas** le logiciel en lui-même, ni l'hébergement des données — c'est son **implémentation souveraine clé-en-main** : déploiement, licences, relais zero-knowledge, mises à jour et support.
+
+> Comme **la PME utilise ses propres équipements**, l'éditeur n'a aucun coût de cloud à répercuter → des prix structurellement **beaucoup plus bas**.
+
+---
+
+## Moins cher ET souverain
+
+> 💡 **La PME paie le logiciel, pas l'hébergement de ses propres données.**
+> **Aucun coût caché** : ni facturation au Go stocké, ni frais de sortie de données (*egress*).
+
+| Solution (réf. marché) | Modèle | Prix indicatif / poste / mois |
+|------------------------|--------|:---:|
+| Odoo (Standard) | SaaS cloud | ≈ 250 DH |
+| Zoho One | SaaS cloud | ≈ 370 DH |
+| Sage Business Cloud | SaaS cloud | ≈ 280 – 550 DH |
+| Microsoft Dynamics 365 BC | SaaS cloud | ≈ 700 – 1 100 DH |
+| **✅ Amān (implémentation Pro)** | **Open source + souverain** | **119 DH** |
+
+---
+
+## Licence par poste — dégressive, pensée PME
 
 | Plan | Postes | Prix / poste / mois |
 |------|--------|:---:|
@@ -259,35 +283,14 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 | **Pro** ⭐ *(recommandé PME)* | 6 – 20 | **119 DH** HT |
 | Enterprise | 21 et + | **89 DH** HT |
 
-> Le prix **baisse** avec la taille du parc — l'inverse des SaaS classiques qui facturent souvent plus cher à mesure qu'on monte en gamme.
+> Exemple — PME de 10 postes : **≈ 14 280 DH/an** vs **≈ 48 000 DH/an** (SaaS cloud milieu de gamme) → **≈ 70 % d'économie**, et les données **ne quittent jamais** la PME.
 
----
-
-## Pourquoi structurellement moins cher ?
-
-> L'éditeur **n'héberge pas** le cloud des données clients (elles restent chez la PME). Il n'a donc **pas** le coût d'infrastructure d'un SaaS classique → un prix par poste plus bas, **sans rogner la marge**.
-
-| Solution (réf. marché) | Prix indicatif / poste / mois |
-|------------------------|:---:|
-| Odoo (Standard) | ≈ 250 DH |
-| Zoho One | ≈ 370 DH |
-| Sage Business Cloud | ≈ 280 – 550 DH |
-| Microsoft Dynamics 365 BC | ≈ 700 – 1 100 DH |
-| **✅ SaaS Souverain (Pro)** | **119 DH** |
-
----
-
-### Exemple — PME de 10 postes (plan Pro)
-
-> **14 280 DH/an** (souverain) **vs ≈ 48 000 DH/an** (SaaS classique milieu de gamme)
-> → **≈ 70 % d'économie**, **et** les données ne quittent jamais la PME.
-
-*Prix concurrents vérifiés par recherche web · page « Tarifs » intégrée à l'application SaaS éditeur.*
+*Prix concurrents vérifiés par recherche web · page « Tarifs » intégrée à l'application.*
 
 ---
 
 *Notes présentateur :*
-> "Le modèle est simple : une licence par poste, dégressive — plus la PME grandit, moins le poste coûte. Et c'est viable parce que l'éditeur ne paie pas le cloud des données clients : elles restent chez la PME. Résultat, à 10 postes, une PME économise environ 70 % par rapport à un SaaS classique — tout en gardant la souveraineté. J'ai vérifié les prix concurrents par recherche, et la page Tarifs est intégrée directement dans l'application."
+> "Le logiciel s'appelle Amān — أمان — qui veut dire la sécurité, la confiance en arabe. Point important : Amān est open source. Nous ne vendons pas d'abord le logiciel, et nous ne vendons surtout pas d'hébergement : la PME tourne sur ses propres équipements. Ce que l'éditeur facture, c'est l'implémentation souveraine clé-en-main — licences, relais zero-knowledge, mises à jour, support. Comme il n'y a pas de cloud à payer, le prix par poste est très bas : à 10 postes, environ 70 % moins cher qu'un SaaS classique. Et aucun coût caché : ni stockage au Go, ni frais de sortie de données — ces frais qui enferment les PME chez les éditeurs cloud."
 
 ---
 <!-- ═══════════════════════════════════════════════════════════ -->
