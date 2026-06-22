@@ -196,7 +196,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{title} — {tenant_esc}</title>
+<title>{title} — {tenant_esc} · Amān</title>
 <style>{CSS}</style>
 </head>
 <body>
@@ -206,7 +206,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     <div class="sb-sq">{initial}</div>
     <div>
       <div class="sb-name">{tenant_esc}</div>
-      <div class="sb-sub">Gestion PME</div>
+      <div class="sb-sub">أمان (Amān) · souverain</div>
     </div>
   </div>
 
@@ -350,7 +350,7 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Connexion — {tenant_esc}</title>
+<title>Connexion — {tenant_esc} · Amān</title>
 <style>{CSS}</style>
 <style>
 .pw-wrap{{position:relative}}
@@ -365,7 +365,7 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
     <div class="sb-sq">{initial}</div>
     <div>
       <div class="login-name">{tenant_esc}</div>
-      <div class="login-sub">Gestion PME</div>
+      <div class="login-sub">أمان (Amān) · souverain</div>
     </div>
   </div>
   {err_block}
