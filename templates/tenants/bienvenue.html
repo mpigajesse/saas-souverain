@@ -107,8 +107,8 @@
     <div class="onboarding-header-left">
       <img src="{% static 'frontend/public/logoentreprise.png' %}" alt="EL BARAA CONSULT" onerror="this.style.display='none'">
       <div>
-        <div class="onboarding-header-brand-name">EL BARAA CONSULT</div>
-        <div class="onboarding-header-tenant">{{ tenant.name }}</div>
+        <div class="onboarding-header-brand-name">أمان <span style="font-weight:500;">(Amān)</span></div>
+        <div class="onboarding-header-tenant">par EL BARAA CONSULT · espace {{ tenant.name }}</div>
       </div>
     </div>
     <a href="{% url 'logout' %}" style="color:rgba(255,255,255,.6); font-size:0.85rem; text-decoration:none;">
@@ -151,6 +151,29 @@
         <span>Aucune licence active. Contactez l'équipe EL BARAA CONSULT.</span>
       </div>
     {% endif %}
+
+    <!-- ═══════════════════════════════════════════════
+         ENCART — Clé de récupération (zero-knowledge)
+    ════════════════════════════════════════════════ -->
+    <div style="background:#FFFBEB; border:1px solid #FDE68A; border-left:4px solid #D97706; border-radius:10px; padding:16px 20px; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; gap:8px; font-weight:800; color:#92400E; font-size:0.95rem; margin-bottom:8px;">
+        🔑 Important — votre clé de récupération
+      </div>
+      <p style="color:#78350F; font-size:0.86rem; line-height:1.55; margin-bottom:10px;">
+        Au premier démarrage, <strong>أمان (Amān)</strong> affiche <strong>une seule fois</strong> votre
+        <strong>clé de récupération</strong> (un long code). <strong>Notez-la et conservez-la en lieu sûr,
+        hors-ligne</strong> (coffre, gestionnaire de mots de passe).
+      </p>
+      <p style="color:#78350F; font-size:0.86rem; line-height:1.55; margin:0;">
+        C'est la <strong>seule</strong> clé qui permet de récupérer vos données — chiffrées et stockées sur
+        le relais — si vous perdez toutes vos machines (panne, vol, sinistre). En cas de récupération, vous
+        nous communiquez cette clé : nous vous restituons le coffre chiffré, et <strong>vous seul</strong> pouvez l'ouvrir.
+        <br>
+        <span style="display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-weight:700; color:#065F46;">
+          🔒 EL BARAA CONSULT ne connaît JAMAIS cette clé (zero-knowledge) — sans elle, même nous ne pouvons rien déchiffrer.
+        </span>
+      </p>
+    </div>
 
     <!-- ═══════════════════════════════════════════════
          ÉTAPE 1 — Télécharger l'installateur
