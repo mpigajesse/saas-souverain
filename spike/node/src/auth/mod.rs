@@ -18,6 +18,10 @@ pub struct AppState {
     /// Code de récupération (présent uniquement sur la machine PME). Affiché à
     /// l'admin du tenant dans l'UI. `None` si pas encore généré.
     pub recovery_code: Option<String>,
+    /// Mot de passe admin initial (généré au 1er démarrage, sur la machine PME).
+    /// Affiché sur la page de connexion pour la 1ère authentification. `None`
+    /// si déjà connu/géré. Jamais transmis à l'éditeur.
+    pub initial_admin_password: Option<String>,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────
@@ -136,14 +140,16 @@ pub async fn run_migrations(pool: &PgPool) -> Result<()> {
 
 // ── Bootstrap admin ───────────────────────────────────────────────────────────
 
-pub async fn ensure_default_admin(pool: &PgPool) -> Result<()> {
+/// Crée l'admin par défaut au premier démarrage. Retourne `Some(mot_de_passe)`
+/// si un admin vient d'être créé (à persister + afficher), `None` s'il existait déjà.
+pub async fn ensure_default_admin(pool: &PgPool) -> Result<Option<String>> {
     let (count,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM users WHERE role = 'admin'")
             .fetch_one(pool)
             .await?;
 
     if count > 0 {
-        return Ok(());
+        return Ok(None);
     }
 
     use rand::distributions::Alphanumeric;
@@ -175,7 +181,7 @@ pub async fn ensure_default_admin(pool: &PgPool) -> Result<()> {
     println!("║   → Changez-le dès la première connexion !   ║");
     println!("╚═══════════════════════════════════════════════╝");
 
-    Ok(())
+    Ok(Some(password))
 }
 
 // ── Password ──────────────────────────────────────────────────────────────────

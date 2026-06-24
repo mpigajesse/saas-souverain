@@ -23,6 +23,10 @@ pub struct NodeConfig {
     /// rester compatible avec les anciennes configs.
     #[serde(default)]
     pub recovery_code: Option<String>,
+    /// Mot de passe admin initial (en clair) — conservé sur la machine PME pour
+    /// l'afficher sur la page de connexion à la première authentification.
+    #[serde(default)]
+    pub initial_admin_password: Option<String>,
     /// Port d'écoute du nœud
     pub port: u16,
     /// Identifiant du cluster PME (reçu lors de l'inscription sur le SaaS éditeur)

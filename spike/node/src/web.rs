@@ -66,8 +66,16 @@ pub async fn serve(
     pool: PgPool,
     tenant_name: String,
     recovery_code: Option<String>,
+    initial_admin_password: Option<String>,
 ) {
-    let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port, recovery_code });
+    let state = Arc::new(AppState {
+        pool,
+        node_id,
+        tenant_name,
+        web_port: port,
+        recovery_code,
+        initial_admin_password,
+    });
 
     // Public routes — no auth required
     let public_routes = Router::new()

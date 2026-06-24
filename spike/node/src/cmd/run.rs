@@ -148,8 +148,15 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     if let Err(e) = crate::auth::run_migrations(&pool).await {
                         println!("  Auth     : migration échouée — {}", e);
                     }
-                    if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
-                        println!("  Auth     : création admin échouée — {}", e);
+                    match crate::auth::ensure_default_admin(&pool).await {
+                        Ok(Some(pwd)) => {
+                            // Persister le mot de passe initial sur la machine PME
+                            // pour l'afficher sur la page de connexion (souverain).
+                            config.initial_admin_password = Some(pwd);
+                            let _ = config.save(config_path);
+                        }
+                        Ok(None) => {}
+                        Err(e) => println!("  Auth     : création admin échouée — {}", e),
                     }
                     if let Err(e) = crate::stock::run_migrations(&pool).await {
                         println!("  Stock    : migration échouée — {}", e);
@@ -162,7 +169,8 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                 let web_tenant = config.tenant_name.clone()
                     .unwrap_or_else(|| "PME".to_string());
                 let web_recovery = config.recovery_code.clone();
-                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant, web_recovery));
+                let web_admin_pwd = config.initial_admin_password.clone();
+                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant, web_recovery, web_admin_pwd));
 
                 // Boucle de supervision
                 run_supervision_loop(mode, pool, &config, config_path).await?;

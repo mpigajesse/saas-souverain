@@ -342,15 +342,29 @@ pub async fn login_page(State(state): State<Arc<AppState>>) -> Html<String> {
         let url = primary_web_url(&state).await;
         return Html(standby_html(&state.tenant_name, url.as_deref()));
     }
-    Html(login_html(&state.tenant_name, None))
+    Html(login_html(&state.tenant_name, None, state.initial_admin_password.as_deref()))
 }
 
-fn login_html(tenant: &str, error: Option<&str>) -> String {
+fn login_html(tenant: &str, error: Option<&str>, initial_pwd: Option<&str>) -> String {
     let tenant_esc = esc(tenant);
     let initial = tenant_esc.chars().next().unwrap_or('P').to_uppercase().to_string();
     let err_block = match error {
         Some(msg) => format!(r#"<div class="login-err">⚠️ {}</div>"#, esc(msg)),
         None => String::new(),
+    };
+    // Identifiants admin de 1ère connexion — affichés UNIQUEMENT sur la machine
+    // de la PME (jamais transmis à l'éditeur). À changer après la 1ère connexion.
+    let creds_block = match initial_pwd {
+        Some(pwd) if !pwd.is_empty() => format!(
+            r#"<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-left:4px solid #2563EB;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.8rem;color:#1E3A8A;line-height:1.5">
+  <div style="font-weight:800;margin-bottom:4px">🔑 Première connexion — compte administrateur</div>
+  Identifiant : <code style="background:#DBEAFE;padding:1px 6px;border-radius:4px;font-weight:700">admin</code><br>
+  Mot de passe : <code style="background:#DBEAFE;padding:1px 6px;border-radius:4px;font-weight:700">{pwd}</code>
+  <div style="margin-top:6px;color:#1D4ED8">À changer après la première connexion.</div>
+</div>"#,
+            pwd = esc(pwd)
+        ),
+        _ => String::new(),
     };
     format!(
         r#"<!DOCTYPE html>
@@ -376,6 +390,7 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
       <div class="login-sub">أمان (Amān) · souverain</div>
     </div>
   </div>
+  {creds_block}
   {err_block}
   <form method="post" action="/login">
     <div class="fg">
@@ -433,6 +448,7 @@ pub async fn login_post(
                 Err(_) => Html(login_html(
                     &state.tenant_name,
                     Some("Erreur interne — réessayez."),
+                    state.initial_admin_password.as_deref(),
                 ))
                 .into_response(),
             }
@@ -440,6 +456,7 @@ pub async fn login_post(
         None => Html(login_html(
             &state.tenant_name,
             Some("Identifiant ou mot de passe incorrect."),
+            state.initial_admin_password.as_deref(),
         ))
         .into_response(),
     }
