@@ -81,3 +81,37 @@
 | Inscription plante | Montrer un tenant déjà créé (bienvenue) |
 
 > **Règle d'or de la démo** : ne jamais lancer en live une action non répétée. Tout ce qui est montré « à chaud » (déploiement yasmine) doit avoir été testé juste avant. Le reste (réplication MPJ) est **déjà en place** → on le parcourt, on ne le (re)construit pas.
+
+---
+
+## 🔄 Réinitialiser yasmine pour rejouer la démo « de zéro »
+
+> À exécuter **sur la VM yasmine** entre deux passages, pour repartir d'un état vierge (teste l'auto-dérivation du relais + l'encart d'identifiants + la génération de la clé).
+
+```bash
+cd /opt/elbaraa-pme
+sudo docker compose down -v
+sudo docker run --rm -v /opt/pme-node:/d alpine sh -c "rm -rf /d/* /d/.[!.]*"
+# ↑ efface pg-data ET node-data → config, DEK, clé, mot de passe admin : tout repart à zéro
+sudo systemctl disable --now elbaraa-pme.service
+sudo rm -rf /opt/elbaraa-pme /etc/systemd/system/elbaraa-pme.service
+sudo systemctl daemon-reload
+```
+
+**Puis, côté portail éditeur** : supprimer l'ancien tenant yasmine (`/admin/` Django → Tenants) **ou** réinscrire avec un autre email.
+
+**(Optionnel) Relais** : purger les blobs orphelins de l'ancien yasmine :
+```bash
+sudo ls /opt/elbaraa-relay/blobs          # repérer le(s) dossier(s) de l'ancien tenant
+sudo rm -rf /opt/elbaraa-relay/blobs/<id-orphelin>
+```
+
+**Réinstallation propre** (le test à blanc) :
+1. Inscription yasmine sur le portail → télécharger l'installateur.
+2. Sur yasmine : `chmod +x install-*.sh && sudo ./install-*.sh`
+3. Vérifier `Relais (auto) : http://192.168.10.10:8080` (auto-dérivé, **sans config**).
+4. `http://<ip-yasmine>:9001` → encart **identifiants** sur le login → connexion → **Clé de récupération** affichée.
+
+> ✅ Si les 3 (auto-dérivation, encart identifiants, clé) marchent **sans toucher à aucune adresse**, la chaîne de déploiement autonome est validée. Répétable à volonté.
+
+`★ Le point qui rend le test "de zéro" réel` : effacer **node-data** (pas seulement pg-data). Sinon l'ancienne config (tenant_id, DEK, clé, mot de passe admin) persiste et la génération fraîche n'est pas testée.
