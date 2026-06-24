@@ -196,31 +196,29 @@
   <!-- Interfaces réseau -->
   {% if health.networks %}
   <div class="net-section">
-    <div class="net-section-title">Interfaces réseau — ens33 DHCP (WAN éditeur) · ens34 statique (LAN RELAY — isolé des PME et du SaaS éditeur)</div>
+    <div class="net-section-title">Interfaces réseau du relais — une patte par segment (réseaux isolés entre eux)</div>
     <div class="net-ifaces">
       {% for net in health.networks %}
-        {% if net.role == "LAN-editeur" or net.role == "editeur" or net.role == "vers-editeur" %}
-          <div class="net-iface net-iface--editeur">
-            <span class="net-dot dot--editeur"></span>
+        {% if 'PME' in net.role %}
+          <div class="net-iface" style="background:rgba(34,197,94,.10); border:1px solid rgba(34,197,94,.4);">
+            <span class="net-dot" style="background:#22C55E;"></span>
             <span class="net-iface-name">{{ net.iface }}</span>
-            <span class="net-iface-ip net-iface-ip--editeur">{{ net.ip }}</span>
-            <span class="net-role net-role--editeur">WAN éditeur</span>
-            <span class="net-mode-tag" style="background:rgba(16,185,129,.15); color:#6EE7B7;">DHCP</span>
+            <span class="net-iface-ip" style="color:#86EFAC;">{{ net.ip }}</span>
+            <span class="net-role" style="background:rgba(34,197,94,.2); color:#BBF7D0;">{{ net.role }}</span>
           </div>
-        {% elif net.role == "LAN-relais" or net.role == "interne" or net.role == "relais" %}
+        {% elif 'diteur' in net.role or 'SaaS' in net.role %}
           <div class="net-iface net-iface--relais">
             <span class="net-dot dot--relais"></span>
             <span class="net-iface-name">{{ net.iface }}</span>
             <span class="net-iface-ip net-iface-ip--relais">{{ net.ip }}</span>
-            <span class="net-role net-role--relais">LAN RELAY isolé</span>
-            <span class="net-mode-tag" style="background:rgba(245,158,11,.15); color:#FCD34D;">Statique</span>
+            <span class="net-role net-role--relais">{{ net.role }}</span>
           </div>
         {% else %}
-          <div class="net-iface net-iface--autre">
-            <span class="net-dot dot--autre"></span>
+          <div class="net-iface net-iface--editeur">
+            <span class="net-dot dot--editeur"></span>
             <span class="net-iface-name">{{ net.iface }}</span>
-            <span class="net-iface-ip net-iface-ip--autre">{{ net.ip }}</span>
-            {% if net.role %}<span class="net-role net-role--autre">{{ net.role }}</span>{% endif %}
+            <span class="net-iface-ip net-iface-ip--editeur">{{ net.ip }}</span>
+            {% if net.role %}<span class="net-role net-role--editeur">{{ net.role }}</span>{% endif %}
           </div>
         {% endif %}
       {% endfor %}
@@ -267,20 +265,19 @@
     </div>
   </div>
 
-  <!-- Zone relay (réseau propre) -->
-  <div class="net-zone net-zone--relay" style="max-width:220px; flex:0 0 220px;">
-    <div class="net-zone-title">LAN RELAY — isolé des PME et du SaaS éditeur</div>
-    <span class="net-badge-subnet subnet--relay">{% if relay_subnet %}{{ relay_subnet }}{% else %}LAN relais{% endif %}</span>
-    <div class="net-server" style="border-color:#6366F1; background:#EEF2FF;">
-      <span class="net-server-icon">🔒</span>
-      <div>
-        <div class="net-server-name" style="color:#4338CA;">
-          ens34
-          <span style="font-size:.62rem; font-weight:600; background:rgba(245,158,11,.15); color:#B45309; border-radius:4px; padding:1px 5px; margin-left:4px;">Statique</span>
-        </div>
-        <div class="net-server-ip">{% for net in health.networks %}{% if net.role == "LAN-relais" or net.role == "interne" or net.role == "relais" %}{{ net.ip }}{% endif %}{% endfor %}/24</div>
-        <div style="font-size:.65rem; color:#6366F1; margin-top:3px;">{{ health.hostname }}</div>
+  <!-- Zone relay (multi-segments) -->
+  <div class="net-zone net-zone--relay" style="max-width:280px; flex:0 0 280px;">
+    <div class="net-zone-title">Relais multi-segments — 1 patte par réseau (isolés)</div>
+    <div class="net-server" style="border-color:#6366F1; background:#EEF2FF; display:block;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <span class="net-server-icon">🔒</span>
+        <span class="net-server-name" style="color:#4338CA;">{{ health.hostname }}</span>
       </div>
+      {% for net in health.networks %}
+      <div style="font-family:monospace; font-size:.7rem; color:#4338CA; padding:3px 0; border-top:1px solid rgba(99,102,241,.12);">
+        {{ net.iface }} · <strong>{{ net.ip }}</strong>{% if net.role %}<br><span style="color:#6366F1;">{{ net.role }}</span>{% endif %}
+      </div>
+      {% endfor %}
     </div>
     <div style="font-size:.68rem; color:#6366F1; line-height:1.5; margin-top:4px; padding:6px 8px; background:rgba(99,102,241,.06); border-radius:6px;">
       Blobs chiffrés : {{ health.blob_tenants }} tenant(s)<br>
