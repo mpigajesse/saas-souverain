@@ -31,6 +31,12 @@ for /f "usebackq delims=" %%A in (`powershell -NoProfile -Command "(Get-NetIPAdd
 if "!NODE_IP!"=="" set NODE_IP=127.0.0.1
 echo       IP : !NODE_IP!
 
+:: Adresse du relais : convention « relais en .10 sur le segment PME »
+:: (le relais a une patte .10 sur chaque segment isole) -> derivation auto, sans WiFi
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -Command "$ip='!NODE_IP!'; if($ip -ne '127.0.0.1'){($ip -replace '\.\d+$','.10')}"`) do set RELAY_PREFIX=%%A
+if not "!RELAY_PREFIX!"=="" set "RELAY_URL=http://!RELAY_PREFIX!:8080"
+echo       Relais (auto) : !RELAY_URL!
+
 :: [1/4] Docker
 echo [1/4] Verification de Docker...
 docker info >nul 2>&1
