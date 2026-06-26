@@ -342,7 +342,37 @@ pub async fn login_page(State(state): State<Arc<AppState>>) -> Html<String> {
         let url = primary_web_url(&state).await;
         return Html(standby_html(&state.tenant_name, url.as_deref()));
     }
-    Html(login_html(&state.tenant_name, None, state.initial_admin_password.as_deref()))
+    let initial_pwd = current_initial_pwd(&state);
+    Html(login_html(&state.tenant_name, None, initial_pwd.as_deref()))
+}
+
+/// Lit le mot de passe admin initial encore à afficher (None une fois l'admin
+/// connecté une 1ʳᵉ fois).
+fn current_initial_pwd(state: &AppState) -> Option<String> {
+    state.initial_admin_password.lock().ok().and_then(|g| g.clone())
+}
+
+/// Efface l'encart d'identifiants initiaux dès la 1ʳᵉ connexion d'un admin :
+/// en mémoire (toutes les requêtes suivantes) ET sur disque (survit au
+/// redémarrage). Sécurité : ne plus exposer le mot de passe admin sur /login.
+fn clear_initial_admin_password(state: &AppState) {
+    {
+        let mut guard = match state.initial_admin_password.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        if guard.is_none() {
+            return; // déjà effacé — rien à persister
+        }
+        *guard = None;
+    }
+    // Recharge la config du disque puis ré-écrit sans le mot de passe initial
+    // (évite d'écraser d'autres champs avec une copie en mémoire potentiellement
+    // périmée).
+    if let Ok(mut cfg) = crate::config::NodeConfig::load(&state.config_path) {
+        cfg.initial_admin_password = None;
+        let _ = cfg.save(&state.config_path);
+    }
 }
 
 fn login_html(tenant: &str, error: Option<&str>, initial_pwd: Option<&str>) -> String {
@@ -438,6 +468,11 @@ pub async fn login_post(
 
     match super::authenticate(&state.pool, username, password).await {
         Some(user) => {
+            // 1ʳᵉ connexion d'un admin : l'admin connaît désormais ses
+            // identifiants → on retire l'encart de la page de login (sécurité).
+            if user.role == "admin" {
+                clear_initial_admin_password(&state);
+            }
             let redirect_to = if user.role == "admin" { "/admin" } else { "/" };
             match super::create_session(&state.pool, user.id).await {
                 Ok(sid) => (
@@ -448,7 +483,7 @@ pub async fn login_post(
                 Err(_) => Html(login_html(
                     &state.tenant_name,
                     Some("Erreur interne — réessayez."),
-                    state.initial_admin_password.as_deref(),
+                    current_initial_pwd(&state).as_deref(),
                 ))
                 .into_response(),
             }
@@ -456,7 +491,7 @@ pub async fn login_post(
         None => Html(login_html(
             &state.tenant_name,
             Some("Identifiant ou mot de passe incorrect."),
-            state.initial_admin_password.as_deref(),
+            current_initial_pwd(&state).as_deref(),
         ))
         .into_response(),
     }

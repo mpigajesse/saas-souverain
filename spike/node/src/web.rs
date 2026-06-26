@@ -67,6 +67,7 @@ pub async fn serve(
     tenant_name: String,
     recovery_code: Option<String>,
     initial_admin_password: Option<String>,
+    config_path: std::path::PathBuf,
 ) {
     let state = Arc::new(AppState {
         pool,
@@ -74,7 +75,8 @@ pub async fn serve(
         tenant_name,
         web_port: port,
         recovery_code,
-        initial_admin_password,
+        initial_admin_password: Arc::new(std::sync::Mutex::new(initial_admin_password)),
+        config_path,
     });
 
     // Public routes — no auth required

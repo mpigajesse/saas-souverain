@@ -170,7 +170,8 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
                     .unwrap_or_else(|| "PME".to_string());
                 let web_recovery = config.recovery_code.clone();
                 let web_admin_pwd = config.initial_admin_password.clone();
-                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant, web_recovery, web_admin_pwd));
+                let web_config_path = config_path.to_path_buf();
+                tokio::spawn(crate::web::serve(web_port, web_node_id, web_pool, web_tenant, web_recovery, web_admin_pwd, web_config_path));
 
                 // Boucle de supervision
                 run_supervision_loop(mode, pool, &config, config_path).await?;

@@ -19,9 +19,14 @@ pub struct AppState {
     /// l'admin du tenant dans l'UI. `None` si pas encore généré.
     pub recovery_code: Option<String>,
     /// Mot de passe admin initial (généré au 1er démarrage, sur la machine PME).
-    /// Affiché sur la page de connexion pour la 1ère authentification. `None`
-    /// si déjà connu/géré. Jamais transmis à l'éditeur.
-    pub initial_admin_password: Option<String>,
+    /// Affiché sur la page de connexion pour la 1ère authentification, puis
+    /// **effacé (→ None) dès la 1ʳᵉ connexion d'un admin** pour ne plus exposer
+    /// le mot de passe sur la page de login. Interior mutability (partagé entre
+    /// requêtes). Jamais transmis à l'éditeur.
+    pub initial_admin_password: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    /// Chemin du `config.toml` — permet de persister sur disque l'effacement du
+    /// mot de passe admin initial une fois l'admin connecté.
+    pub config_path: std::path::PathBuf,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────
