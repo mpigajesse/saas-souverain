@@ -1,16 +1,30 @@
 # Comptes PME — Accès et Tests de Cluster
 
+> ⚠️ **Schéma réel** (à connaître pour toutes les commandes ci-dessous) :
+> - Table **`articles`** : clé métier = **`code`** (contrainte `UNIQUE`), `nom`, `unite`,
+>   `categorie`, `prix_unitaire`, `seuil_alerte`, `actif`. **Pas** de colonne `quantite`
+>   ni `reference` sur l'article.
+> - Table **`mouvements_stock`** : `article_id`, **`type_mvt`** (`entree` / `sortie` /
+>   `ajustement`), `quantite`, `reference`, `notes`, `created_at`.
+> - **Stock courant** = somme des mouvements : `COALESCE(SUM(m.quantite),0)`.
+>   Une **sortie est stockée en négatif** (l'UI le fait automatiquement ; en SQL brut,
+>   insérer une quantité négative pour une sortie).
+> - Connexion psql : `-U metier -d metier`.
+
 ## Comptes utilisateurs
 
 | Identifiant    | Nom complet        | Rôle          | Mot de passe | URL de connexion                    |
 |----------------|--------------------|---------------|--------------|-------------------------------------|
-| `admin`        | Administrateur PME | Administrateur| *(voir logs)*| http://192.168.200.128:9001/login   |
+| `admin`        | Administrateur PME | Administrateur| *(voir encart)*| http://192.168.200.128:9001/login   |
 | `alice.martin` | Alice Martin       | Employé       | `Employe1!`  | http://192.168.200.128:9001/login   |
 | `bob.dupont`   | Bob Dupont         | Employé       | `Employe2!`  | http://192.168.200.128:9001/login   |
 
-> **Mot de passe admin** : affiché au premier démarrage dans les logs Kali.
-> Récupérer avec : `docker compose logs ss-node | grep -A5 "PREMIER DÉMARRAGE"`
-> Le changer via : Administration → Utilisateurs → Mot de passe
+> **Mot de passe admin** : au tout premier démarrage, il s'affiche dans un encart
+> « 🔑 Première connexion » directement sur la page de login (et dans les logs Kali :
+> `docker compose logs ss-node | grep -A5 "PREMIER DÉMARRAGE"`).
+> L'encart **disparaît automatiquement dès la première connexion d'un admin**
+> (sécurité : le mot de passe n'est plus exposé aux employés). Le changer via :
+> Administration → Utilisateurs → Mot de passe.
 
 ---
 
@@ -45,10 +59,11 @@
 docker exec pg-node psql -U metier -d metier -c "SELECT COUNT(*) FROM articles;"
 
 # Alice se connecte sur http://192.168.200.128:9001
-# → Articles → Créer un article : "Cahiers A5", REF-CAH-A5, qté 100, seuil 10
+# → Articles → Créer un article : code "REF-CAH-A5", nom "Cahiers A5", seuil 10
+# → Mouvements → Entrée : REF-CAH-A5, quantité 100
 
 # Sur Ubuntu — vérifier réplication (~1 seconde)
-docker exec pg-node psql -U metier -d metier -c "SELECT nom, reference, quantite FROM articles ORDER BY created_at DESC LIMIT 3;"
+docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
 ```
 
 **Résultat attendu** : même article visible sur Ubuntu sans aucune action.
@@ -63,39 +78,51 @@ docker exec pg-node psql -U metier -d metier -c "SELECT nom, reference, quantite
 # Bob se connecte sur http://192.168.200.128:9001
 # → Mouvements → Sortie : REF-CAH-A5, quantité 15, note "Distribué formation"
 
-# Vérifier sur Kali
+# Vérifier sur Kali — les mouvements et le stock courant calculé
 docker exec pg-node psql -U metier -d metier -c "
-SELECT a.nom, a.quantite, m.type_mouvement, m.quantite AS qte_mvt, m.notes
-FROM mouvements m JOIN articles a ON a.id = m.article_id
+SELECT a.code, a.nom, m.type_mvt, m.quantite AS qte_mvt, m.notes
+FROM mouvements_stock m JOIN articles a ON a.id = m.article_id
 ORDER BY m.created_at DESC LIMIT 5;"
+
+# Stock courant de l'article (somme des mouvements)
+docker exec pg-node psql -U metier -d metier -c "
+SELECT a.code, a.nom, COALESCE(SUM(m.quantite),0) AS stock
+FROM articles a LEFT JOIN mouvements_stock m ON m.article_id = a.id
+WHERE a.code = 'REF-CAH-A5'
+GROUP BY a.code, a.nom;"
 
 # Vérifier réplication sur Ubuntu
 docker exec pg-node psql -U metier -d metier -c "
-SELECT a.nom, a.quantite FROM articles WHERE reference = 'REF-CAH-A5';"
+SELECT a.code, a.nom, COALESCE(SUM(m.quantite),0) AS stock
+FROM articles a LEFT JOIN mouvements_stock m ON m.article_id = a.id
+WHERE a.code = 'REF-CAH-A5'
+GROUP BY a.code, a.nom;"
 ```
+
+**Résultat attendu** : stock = 100 − 15 = **85**, identique sur Kali et Ubuntu.
 
 ---
 
 ### Test 3 — Contrainte d'unicité (doublons impossibles)
 
-**Objectif** : la base empêche deux articles avec la même référence.
+**Objectif** : la base empêche deux articles avec le même code.
 
 ```bash
-# Tenter d'insérer une référence déjà existante
+# Tenter d'insérer un code déjà existant
 docker exec pg-node psql -U metier -d metier -c "
-INSERT INTO articles (nom, reference, quantite, seuil_alerte, actif)
-VALUES ('Cahiers copie', 'REF-CAH-A5', 50, 5, true);"
+INSERT INTO articles (code, nom, unite, seuil_alerte, actif)
+VALUES ('REF-CAH-A5', 'Cahiers copie', 'unité', 5, true);"
 ```
 
 **Résultat attendu** :
 ```
-ERROR:  duplicate key value violates unique constraint "articles_reference_key"
-DETAIL:  Key (reference)=(REF-CAH-A5) already exists.
+ERROR:  duplicate key value violates unique constraint "articles_code_key"
+DETAIL:  Key (code)=(REF-CAH-A5) already exists.
 ```
 
-> La contrainte `UNIQUE(reference)` est définie au niveau PostgreSQL — elle s'applique
+> La contrainte `UNIQUE(code)` est définie au niveau PostgreSQL — elle s'applique
 > sur le primaire **avant** toute réplication. Aucun doublon ne peut exister, même si
-> Alice et Bob essaient d'insérer la même référence simultanément.
+> Alice et Bob essaient d'insérer le même code simultanément.
 
 ---
 
@@ -105,24 +132,25 @@ DETAIL:  Key (reference)=(REF-CAH-A5) already exists.
 
 ```bash
 # Simuler deux sorties simultanées (lancer les deux rapidement)
+# Rappel : une SORTIE est stockée en quantité NÉGATIVE.
 docker exec pg-node psql -U metier -d metier -c "
-INSERT INTO mouvements (article_id, type_mouvement, quantite, notes)
-SELECT id, 'sortie', 5, 'Alice — bureau 1' FROM articles WHERE reference='REF-CAH-A5';"
+INSERT INTO mouvements_stock (article_id, type_mvt, quantite, notes)
+SELECT id, 'sortie', -5, 'Alice — bureau 1' FROM articles WHERE code='REF-CAH-A5';"
 
 docker exec pg-node psql -U metier -d metier -c "
-INSERT INTO mouvements (article_id, type_mouvement, quantite, notes)
-SELECT id, 'sortie', 3, 'Bob — bureau 2' FROM articles WHERE reference='REF-CAH-A5';"
+INSERT INTO mouvements_stock (article_id, type_mvt, quantite, notes)
+SELECT id, 'sortie', -3, 'Bob — bureau 2' FROM articles WHERE code='REF-CAH-A5';"
 
 # Vérifier les deux mouvements enregistrés
 docker exec pg-node psql -U metier -d metier -c "
-SELECT type_mouvement, quantite, notes, created_at
-FROM mouvements m JOIN articles a ON a.id = m.article_id
-WHERE a.reference = 'REF-CAH-A5'
-ORDER BY created_at DESC LIMIT 5;"
+SELECT m.type_mvt, m.quantite, m.notes, m.created_at
+FROM mouvements_stock m JOIN articles a ON a.id = m.article_id
+WHERE a.code = 'REF-CAH-A5'
+ORDER BY m.created_at DESC LIMIT 5;"
 ```
 
 > PostgreSQL traite les transactions en série via MVCC — les deux INSERTs
-> réussissent, les deux mouvements sont horodatés séparément.
+> réussissent, les deux mouvements sont horodatés séparément (stock = 85 − 5 − 3 = 77).
 
 ---
 
@@ -132,11 +160,11 @@ ORDER BY created_at DESC LIMIT 5;"
 
 ```bash
 # Terminal 1 — Ubuntu : surveiller le count en continu
-watch -n 1 "docker exec pg-node psql -U metier -d metier -c 'SELECT COUNT(*) as articles, (SELECT COUNT(*) FROM mouvements) as mouvements FROM articles;'"
+watch -n 1 "docker exec pg-node psql -U metier -d metier -c 'SELECT (SELECT COUNT(*) FROM articles) AS articles, (SELECT COUNT(*) FROM mouvements_stock) AS mouvements;'"
 
 # Terminal 2 — Kali : faire une modification
 docker exec pg-node psql -U metier -d metier -c "
-INSERT INTO mouvements (article_id, type_mouvement, quantite, notes)
+INSERT INTO mouvements_stock (article_id, type_mvt, quantite, notes)
 SELECT id, 'entree', 100, 'Réappro test temps réel' FROM articles LIMIT 1;"
 ```
 
@@ -154,14 +182,14 @@ docker compose down   # sur Ubuntu
 
 # 2. Sur Kali : insérer des données pendant l'absence
 docker exec pg-node psql -U metier -d metier -c "
-INSERT INTO articles (nom, reference, quantite, seuil_alerte, actif)
-VALUES ('Article absent', 'REF-ABSENT-01', 50, 5, true);"
+INSERT INTO articles (code, nom, unite, seuil_alerte, actif)
+VALUES ('REF-ABSENT-01', 'Article absent', 'unité', 5, true);"
 
 # 3. Rallumer Ubuntu (pg_basebackup si pg-data effacé, sinon WAL replay)
 docker compose up -d   # sur Ubuntu
 
 # 4. Vérifier le rattrapage
-docker exec pg-node psql -U metier -d metier -c "SELECT nom, reference FROM articles WHERE reference='REF-ABSENT-01';"
+docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles WHERE code='REF-ABSENT-01';"
 ```
 
 > Si la réplication streaming reprend (standby.signal présent), le WAL manquant
@@ -185,15 +213,15 @@ Kali (Primaire PG)                Ubuntu (Standby PG)
 
 | Mécanisme          | Ce qu'il garantit                                              |
 |--------------------|----------------------------------------------------------------|
-| `UNIQUE(reference)`| Aucun doublon de référence, même en concurrence               |
-| `NOT NULL` + `CHECK`| Données obligatoires et valides avant insertion              |
+| `UNIQUE(code)`     | Aucun doublon de code article, même en concurrence            |
+| `NOT NULL` + `CHECK`| Données obligatoires et valides avant insertion (`quantite != 0`, `type_mvt` contrôlé) |
 | Transactions ACID  | Pas de lecture partielle, pas de corruption                   |
 | WAL streaming sync | Ubuntu reçoit chaque écriture de Kali en < 100 ms             |
 | `standby.signal`   | Ubuntu refuse les écritures — ne peut pas diverger            |
 | Epoch token        | L'ancien primaire est bloqué après promotion du standby       |
 
 **Cas du doublon concurrent** :
-- Alice tente d'insérer REF-001 à T=0ms
-- Bob tente d'insérer REF-001 à T=1ms
+- Alice tente d'insérer le code REF-001 à T=0ms
+- Bob tente d'insérer le code REF-001 à T=1ms
 - PostgreSQL sérialise : Alice réussit, Bob reçoit une erreur de contrainte
 - Aucun doublon n'atteint jamais le WAL → Ubuntu ne reçoit jamais le doublon
