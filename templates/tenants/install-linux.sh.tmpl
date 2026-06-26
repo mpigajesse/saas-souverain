@@ -358,6 +358,14 @@ fi
 # ── 6. Démarrer le stack ─────────────────────────────────────────────────────
 echo "[5/5] Démarrage du stack PME (${NODE_ROLE})..."
 cd "${INSTALL_DIR}"
+# IMPORTANT : le tag ss-node:dev est mutable. `compose up` ne re-télécharge pas
+# une image déjà en cache → on force le pull de la DERNIÈRE image depuis le
+# registre éditeur, sinon une PME re-testée tournerait un ancien binaire (sans
+# l'encart d'identifiants de 1ère connexion, etc.). Non bloquant si hors-ligne :
+# on retombe alors sur le cache local.
+echo "      Récupération de la dernière image ss-node (${NODE_IMAGE})..."
+docker compose pull ss-node 2>/dev/null || docker pull "${NODE_IMAGE}" 2>/dev/null || \
+    echo "      (registre injoignable — utilisation de l'image en cache local)"
 docker compose up -d
 
 # Initialisation du nœud primaire

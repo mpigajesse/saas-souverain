@@ -116,6 +116,11 @@ netsh advfirewall firewall add rule name="ElBaraaConsult-PME-Node" protocol=TCP 
 :: [3/4] Demarrage
 echo [3/4] Demarrage du logiciel PME...
 cd /d "%INSTALL_DIR%"
+:: Le tag ss-node:dev est mutable : `compose up` ne re-telecharge pas une image
+:: deja en cache. On force le pull de la DERNIERE image depuis le registre
+:: editeur (sinon une PME re-testee tournerait un ancien binaire). Non bloquant.
+echo       Recuperation de la derniere image ss-node...
+docker compose pull ss-node 2>nul
 docker compose up -d
 if %ERRORLEVEL% NEQ 0 goto START_ERROR
 echo       Logiciel demarre.
