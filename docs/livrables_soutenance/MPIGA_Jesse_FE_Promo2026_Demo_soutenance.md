@@ -164,6 +164,33 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 ⚠️ **Sécurité démo :** ne couper **que le standby** (Ubuntu). Ne jamais couper le primaire en direct (le fencing n'est pas encore en place — risque de split-brain).
 
+### ▸ Atomicité & cohérence (optionnel — si le jury creuse)
+
+> Toutes ces commandes se lancent **sur Kali** (primaire), sauf la dernière vérif sur Ubuntu. ⚠️ Schéma réel : `articles.code` (UNIQUE), table `mouvements_stock`, colonne `type_mvt`.
+
+**a) Unicité en concurrence** — deux fois la même référence `code` : la 1ʳᵉ passe, la 2ᵉ est rejetée.
+```bash
+# Alice crée l'article REF-DEMO
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO articles (code, nom, unite, seuil_alerte, actif) VALUES ('REF-DEMO','Cahier A5','unité',5,true);"
+# Bob tente la MÊME référence → ERREUR de contrainte UNIQUE
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO articles (code, nom, unite, seuil_alerte, actif) VALUES ('REF-DEMO','Cahier A5 (doublon)','unité',5,true);"
+```
+→ attendu : `ERROR: duplicate key value violates unique constraint "articles_code_key"`.
+
+**b) Deux mouvements simultanés** sur le même article — aucune corruption, les deux sont horodatés.
+```bash
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO mouvements_stock (article_id,type_mvt,quantite,notes) SELECT id,'sortie',5,'Alice — bureau 1' FROM articles WHERE code='REF-DEMO';"
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO mouvements_stock (article_id,type_mvt,quantite,notes) SELECT id,'sortie',3,'Bob — bureau 2' FROM articles WHERE code='REF-DEMO';"
+docker exec pg-node psql -U metier -d metier -c "SELECT type_mvt,quantite,notes,created_at FROM mouvements_stock m JOIN articles a ON a.id=m.article_id WHERE a.code='REF-DEMO' ORDER BY created_at DESC;"
+```
+
+**c) Le doublon n'a jamais été répliqué** — sur **Ubuntu** : un seul `REF-DEMO`.
+```bash
+docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles WHERE code='REF-DEMO';"
+```
+
+> **Narration :** *« La contrainte d'unicité est vérifiée sur le primaire AVANT l'écriture du journal WAL. Le doublon est donc rejeté à la source : il n'entre jamais dans le journal, donc n'est jamais répliqué. Le standby ne peut pas diverger. C'est PostgreSQL natif, éprouvé — nous n'avons réimplémenté aucune logique de cohérence à la main. »*
+
 ---
 
 ## ACTE 5 — Chute · ~15 s
