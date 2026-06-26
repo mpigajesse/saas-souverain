@@ -36,6 +36,13 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 - [ ] **Registre joignable** : `curl http://192.168.10.1:5000/v2/_catalog` depuis la Debian doit répondre (le registre écoute sur 0.0.0.0:5000).
 - [ ] `ens33` (192.168.1.57, Internet) reste actif — utile pour installer Docker.
 
+> 🛠️ **AVANT LA SOUTENANCE — reconstruire et republier l'image (à NE PAS oublier).**
+> Le tag `ss-node:dev` est mutable : si l'image du registre n'a pas été reconstruite après une modif du cœur Rust, la PME tournera un **ancien binaire** (c'est exactement ce qui faisait disparaître l'encart d'identifiants au login). Depuis l'hôte Windows, dans `E:\SaaS souverain\spike\` :
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File build-node.ps1 --no-cache
+> ```
+> Cela reconstruit `192.168.200.1:5000/ss-node:dev` **et** le pousse. Vérifier ensuite côté registre PME : `curl http://192.168.10.1:5000/v2/ss-node/tags/list`. L'installateur fait désormais `docker compose pull ss-node` au démarrage, donc la PME prendra automatiquement cette image fraîche.
+
 ### Préparation Docker (sur la Debian)
 
 - [ ] **Installer Docker à l'avance** (via Internet ens33) : `curl -fsSL https://get.docker.com | sh`.
@@ -129,15 +136,28 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 > Transition : *« La PME MPJ, elle, a deux machines. Voici la réplication en action. »*
 
 1. **SaaS Clusters → MPJ** : « ✓ Cluster sain · Réplication streaming → ».
-2. **Réplication live** — sur **Kali**, créer une donnée (UI métier ou SQL), puis sur **Ubuntu** :
+2. **Créer les deux employés (manuel, depuis l'admin MPJ)** — sur **Kali** (primaire), connecté en **admin** sur `http://192.168.200.128:9001`, menu **Utilisateurs → « + Nouvel utilisateur »**. Créer ces deux comptes :
+
+   | Identifiant | Nom complet | Rôle | Mot de passe |
+   |---|---|---|---|
+   | `alice.martin` | Alice Martin | Employé | `Employe1!` |
+   | `bob.dupont` | Bob Dupont | Employé | `Employe2!` |
+
+   → **Réplication des comptes** : sur **Ubuntu** (standby), sans aucune action, vérifier qu'ils sont déjà là :
+   ```bash
+   docker exec pg-node psql -U metier -d metier -c \
+     "SELECT username, role FROM users ORDER BY username;"
+   ```
+   → `admin`, `alice.martin`, `bob.dupont` — identiques sur le standby. *Même les comptes employés sont répliqués instantanément.*
+3. **Réplication métier live** — sur **Kali**, se reconnecter en **Alice** (`alice.martin` / `Employe1!`) → créer **1 article** + **1 entrée** de stock ; puis en **Bob** (`bob.dupont` / `Employe2!`) → **1 sortie** de stock *(base partagée : Bob agit sur les données saisies par Alice)*. Sur **Ubuntu** :
    ```bash
    docker exec pg-node psql -U metier -d metier -c \
      "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
    ```
    → la donnée créée sur Kali apparaît sur Ubuntu en < 1 s.
-3. **Panne du standby** — sur **Ubuntu** : `cd /opt/elbaraa-pme && docker compose down`
+4. **Panne du standby** — sur **Ubuntu** : `cd /opt/elbaraa-pme && docker compose down`
    → après ~60 s, **SaaS Clusters** : « **✗ Réplication interrompue** » *(détection honnête — notre correctif)*.
-4. **Reprise** — sur **Ubuntu** : `docker compose up -d`
+5. **Reprise** — sur **Ubuntu** : `docker compose up -d`
    → logs : `started streaming WAL from primary` ; **SaaS** repasse « ✓ Cluster sain » ; rattrapage WAL automatique.
 
 > **Narration :** *« Toute écriture est répliquée en moins d'une seconde. Si une machine tombe, les données sont déjà ailleurs, et le tableau de bord de l'éditeur le détecte immédiatement — il ne ment jamais. Au redémarrage, la machine rattrape automatiquement ce qu'elle a manqué. »*
@@ -172,7 +192,10 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 sudo bash install-yasmine-argan.sh
 docker compose -f /opt/elbaraa-pme/docker-compose.yml logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
 
-# MPJ — vérif réplication (sur Ubuntu .130)
+# MPJ — vérif réplication des COMPTES employés (sur Ubuntu .130)
+docker exec pg-node psql -U metier -d metier -c "SELECT username, role FROM users ORDER BY username;"
+
+# MPJ — vérif réplication MÉTIER (sur Ubuntu .130)
 docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
 
 # MPJ — panne / reprise du standby (sur Ubuntu .130)
@@ -203,15 +226,19 @@ docker compose up -d
 
 ```bash
 cd /opt/elbaraa-pme
-docker compose down                 # stoppe pg-node, ss-node, pgadmin
+sudo docker compose down                 # stoppe pg-node, ss-node, pgadmin
 sudo systemctl disable elbaraa-pme.service 2>/dev/null || true
 sudo rm -f /etc/systemd/system/elbaraa-pme.service
 sudo systemctl daemon-reload
 # Purge des données (DEK, base, config) → force un "premier install" propre
 sudo rm -rf /opt/pme-node/pg-data /opt/pme-node/node-data
 sudo rm -rf /opt/elbaraa-pme
+# ⚠️ Rafraîchir l'image : le tag :dev est mutable. Si on garde un ancien cache,
+# yasmine tournerait un binaire périmé (encart d'identifiants absent, etc.).
+sudo docker rmi 192.168.10.1:5000/ss-node:dev 2>/dev/null || true
+sudo docker pull 192.168.10.1:5000/ss-node:dev
 ```
-> On garde Docker et l'image pré-tirée (`192.168.10.1:5000/ss-node:dev`) — pas besoin de les réinstaller.
+> On garde Docker, mais on **re-tire l'image** : depuis la correction de l'installateur, `install-*.sh` fait de toute façon `docker compose pull ss-node` avant de démarrer, donc la dernière image du registre est toujours utilisée. **Pré-requis absolu** : que le registre contienne bien la dernière image (voir l'encadré « Avant la soutenance » ci-dessous).
 
 ### B. Côté SaaS éditeur — supprimer le tenant de test
 
