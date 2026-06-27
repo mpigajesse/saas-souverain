@@ -83,22 +83,22 @@
   .tagline { margin-top:6mm; font-size:10mm; line-height:1.3; color:#F1E7DA; max-width:300mm; }
   .tagline b { color:var(--gold-lt); font-weight:700; }
   .hero-img {
-    width: 96mm; height: 96mm; border-radius: 7mm; object-fit: cover;
+    width: 76mm; height: 76mm; border-radius: 7mm; object-fit: cover;
     border: .6mm solid var(--card-line); box-shadow: 0 6mm 26mm rgba(0,0,0,.45);
   }
 
   .rule { height:.6mm; background:linear-gradient(90deg,var(--line),transparent); margin:7mm 24mm 0; }
 
   /* ── Corps ────────────────────────────────────────────────── */
-  main { flex:1; padding: 7mm 24mm 0; display:flex; flex-direction:column; gap:5.5mm; }
-  .section-label { color:var(--gold); font-size:7mm; font-weight:800; text-transform:uppercase; letter-spacing:1mm; margin-bottom:4.5mm; }
+  main { flex:1; padding: 5mm 24mm 0; display:flex; flex-direction:column; gap:3.5mm; }
+  .section-label { color:var(--gold); font-size:6.8mm; font-weight:800; text-transform:uppercase; letter-spacing:1mm; margin-bottom:3.5mm; }
 
-  .problem { font-size:9.5mm; line-height:1.36; color:#EFE3D6; font-style:italic; border-left:1.5mm solid var(--gold); padding-left:9mm; }
+  .problem { font-size:9mm; line-height:1.32; color:#EFE3D6; font-style:italic; border-left:1.5mm solid var(--gold); padding-left:8mm; }
 
   /* ── Schéma d'architecture (exact) ────────────────────────── */
   .arch {
     background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
-    border:.4mm solid var(--card-line); border-radius:8mm; padding:8mm 9mm 9mm;
+    border:.4mm solid var(--card-line); border-radius:8mm; padding:6mm 9mm 7mm;
   }
   .zone-label { font-size:6.6mm; font-weight:800; letter-spacing:.5mm; text-transform:uppercase; margin-bottom:4mm; display:flex; align-items:center; gap:4mm; }
   .zone-label .pin { font-size:7.5mm; }
@@ -108,7 +108,7 @@
   .zrow { display:flex; gap:8mm; }
   .node {
     flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm;
-    padding:6mm 6.5mm; display:flex; flex-direction:column; gap:2.8mm; position:relative;
+    padding:5mm 6mm; display:flex; flex-direction:column; gap:2.4mm; position:relative;
   }
   .node .ic { font-size:11mm; line-height:1; }
   .node h4 { font-size:8.6mm; font-weight:800; line-height:1.05; }
@@ -133,30 +133,46 @@
 
   /* ── Hiérarchie de clés (DEK) ─────────────────────────────── */
   .dek {
-    display:flex; gap:9mm; align-items:center;
+    display:flex; gap:7mm; align-items:center;
     background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
-    border:.4mm solid var(--card-line); border-radius:8mm; padding:7mm 9mm;
+    border:.4mm solid var(--card-line); border-radius:8mm; padding:5mm 7mm;
   }
-  .dek-img { width:42mm; height:42mm; object-fit:contain; flex:none; filter:drop-shadow(0 3mm 9mm rgba(0,0,0,.5)); }
-  .dek-flow { flex:1; display:flex; gap:6mm; align-items:stretch; }
-  .dek-step { flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:5mm; padding:5mm 5.5mm; }
+  .sup-badge { width:34mm; height:34mm; }
+  .dek-img { width:34mm; height:34mm; object-fit:contain; flex:none; filter:drop-shadow(0 3mm 9mm rgba(0,0,0,.5)); }
+  .dek-flow { flex:1; display:flex; gap:5mm; align-items:stretch; }
+  .dek-step { flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:5mm; padding:4mm 4.5mm; }
   .dek-step .t { font-size:7mm; font-weight:800; color:var(--gold-soft); margin-bottom:2mm; display:flex; align-items:center; gap:3mm; }
   .dek-step p { font-size:6.4mm; line-height:1.26; color:var(--muted); }
   .dek-step p b { color:#F1E7DA; }
   .dek-arrow { align-self:center; color:var(--gold); font-size:8mm; flex:none; }
 
+  /* Pastille agent IA */
+  .sup-badge {
+    width:42mm; height:42mm; border-radius:8mm; flex:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5mm;
+    background:radial-gradient(circle at 50% 35%, rgba(199,154,27,.35), rgba(179,18,27,.25));
+    border:.5mm solid var(--card-line);
+  }
+  .sup-badge .em { font-size:18mm; line-height:1; }
+  .sup-badge .lb { font-size:5.4mm; font-weight:800; color:var(--gold-soft); letter-spacing:.3mm; }
+  .risk { display:flex; gap:3mm; margin-top:2mm; }
+  .risk span { font-size:5mm; font-weight:700; padding:1.4mm 3.5mm; border-radius:100mm; }
+  .risk .ok { background:rgba(42,122,59,.25); color:#9FE6AE; border:.3mm solid rgba(42,122,59,.6); }
+  .risk .wt { background:rgba(216,174,53,.18); color:var(--gold-soft); border:.3mm solid rgba(216,174,53,.5); }
+  .risk .cr { background:rgba(179,18,27,.25); color:#F4A99B; border:.3mm solid rgba(179,18,27,.6); }
+
   /* ── Preuves (captures réelles) ───────────────────────────── */
   .proofs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8mm; align-items:start; }
   .shot { background:#fff; border:.4mm solid var(--card-line); border-radius:6mm; overflow:hidden; }
-  .shot img { width:100%; height:60mm; object-fit:contain; background:#fff; display:block; }
+  .shot img { width:100%; height:52mm; object-fit:contain; background:#fff; display:block; }
   .shot .cap { padding:4mm 6mm; font-size:6.6mm; color:var(--muted); line-height:1.28; background:var(--card); }
   .shot .cap b { color:#fff; }
 
   /* ── Bande résultats + stack ──────────────────────────────── */
   .results { display:grid; grid-template-columns:1.05fr .95fr; gap:10mm; align-items:start; }
   .metrics { display:flex; gap:7mm; }
-  .metric { flex:1; text-align:center; background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm; padding:6mm 3mm; }
-  .metric .big { font-size:18mm; font-weight:800; color:var(--gold); line-height:1; }
+  .metric { flex:1; text-align:center; background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm; padding:5mm 3mm; }
+  .metric .big { font-size:16mm; font-weight:800; color:var(--gold); line-height:1; }
   .metric .lbl { font-size:6mm; color:var(--muted); margin-top:2.5mm; line-height:1.2; }
   .proofs-list { display:flex; flex-direction:column; gap:3.5mm; margin-top:1mm; }
   .pl { display:flex; gap:5mm; font-size:7.4mm; line-height:1.26; }
@@ -169,7 +185,7 @@
 
   /* ── Footer ───────────────────────────────────────────────── */
   footer {
-    margin-top:8mm; padding:7mm 24mm 12mm; border-top:.5mm solid var(--line);
+    margin-top:6mm; padding:6mm 24mm 9mm; border-top:.5mm solid var(--line);
     display:flex; justify-content:space-between; align-items:flex-end; gap:12mm;
   }
   .author .name { font-size:11mm; font-weight:800; }
@@ -300,6 +316,34 @@
         </div>
       </section>
 
+      <!-- Supervision IA -->
+      <section>
+        <div class="section-label">Supervision intelligente — agent IA (Mistral) qui ne voit jamais les données</div>
+        <div class="dek">
+          <div class="sup-badge">
+            <div class="em">🧠</div>
+            <div class="lb">AGENT IA</div>
+          </div>
+          <div class="dek-flow">
+            <div class="dek-step">
+              <div class="t">📊 Analyse</div>
+              <p>Rôles PostgreSQL, réplication streaming, failover, régularité des heartbeats — <b>métriques d'infrastructure uniquement</b>.</p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🩺 Verdict</div>
+              <p>Score d'anomalie <b>0–100</b> + diagnostic et action recommandée en langage naturel.</p>
+              <div class="risk"><span class="ok">sain</span><span class="wt">surveiller</span><span class="cr">critique</span></div>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🛡️ Garanties</div>
+              <p><b>Zero-knowledge</b> : aucune donnée métier transmise. <b>Fail-safe</b> : repli local déterministe si Mistral indisponible.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Résultats + stack -->
       <section class="results">
         <div>
@@ -309,13 +353,8 @@
             <div class="pl"><span class="ck">✓</span><div><b>Journal append-only CBOR</b> chiffré (DEK) avant écriture disque.</div></div>
             <div class="pl"><span class="ck">✓</span><div>Réplication PostgreSQL primaire↔standby + <b>failover par quorum &amp; fencing</b>.</div></div>
             <div class="pl"><span class="ck">✓</span><div>Récupération <b>zero-knowledge</b> (code haute entropie · Argon2id · blob sur relais).</div></div>
-            <div class="pl"><span class="ck">✓</span><div><b>Agent IA</b> (Mistral) supervise les 3 acteurs — sans voir les données.</div></div>
+            <div class="pl"><span class="ck">✓</span><div><b>Dé-enrôlement</b> d'appareil + 2 tenants souverains indépendants.</div></div>
             <div class="pl"><span class="ck">→</span><div style="color:var(--muted)"><i>Perspective : enrôlement d'appareil par QR code (primitive sealed box X25519 prête).</i></div></div>
-          </div>
-          <div class="metrics" style="margin-top:7mm">
-            <div class="metric"><div class="big">6/6</div><div class="lbl">scénarios<br>métier</div></div>
-            <div class="metric"><div class="big">4/4</div><div class="lbl">protections<br>de résilience</div></div>
-            <div class="metric"><div class="big">2</div><div class="lbl">tenants souverains<br>indépendants</div></div>
           </div>
         </div>
         <div>
@@ -332,6 +371,11 @@
             <span class="chip">CBOR · journal append-only</span>
             <span class="chip">Django</span>
             <span class="chip">Agent IA · Mistral</span>
+          </div>
+          <div class="metrics" style="margin-top:6mm">
+            <div class="metric"><div class="big">6/6</div><div class="lbl">scénarios<br>métier</div></div>
+            <div class="metric"><div class="big">4/4</div><div class="lbl">protections<br>de résilience</div></div>
+            <div class="metric"><div class="big">2</div><div class="lbl">tenants<br>souverains</div></div>
           </div>
         </div>
       </section>
