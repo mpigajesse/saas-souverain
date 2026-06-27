@@ -83,14 +83,14 @@
   .tagline { margin-top:6mm; font-size:10mm; line-height:1.3; color:#F1E7DA; max-width:300mm; }
   .tagline b { color:var(--gold-lt); font-weight:700; }
   .hero-img {
-    width: 120mm; height: 120mm; border-radius: 7mm; object-fit: cover;
+    width: 104mm; height: 104mm; border-radius: 7mm; object-fit: cover;
     border: .6mm solid var(--card-line); box-shadow: 0 6mm 26mm rgba(0,0,0,.45);
   }
 
   .rule { height:.6mm; background:linear-gradient(90deg,var(--line),transparent); margin:7mm 24mm 0; }
 
   /* ── Corps ────────────────────────────────────────────────── */
-  main { flex:1; padding: 8mm 24mm 0; display:flex; flex-direction:column; gap:7mm; }
+  main { flex:1; padding: 7mm 24mm 0; display:flex; flex-direction:column; gap:5.5mm; }
   .section-label { color:var(--gold); font-size:7mm; font-weight:800; text-transform:uppercase; letter-spacing:1mm; margin-bottom:4.5mm; }
 
   .problem { font-size:9.5mm; line-height:1.36; color:#EFE3D6; font-style:italic; border-left:1.5mm solid var(--gold); padding-left:9mm; }
@@ -131,10 +131,24 @@
   }
   .repl span { color:var(--muted); font-weight:400; }
 
+  /* ── Hiérarchie de clés (DEK) ─────────────────────────────── */
+  .dek {
+    display:flex; gap:9mm; align-items:center;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
+    border:.4mm solid var(--card-line); border-radius:8mm; padding:7mm 9mm;
+  }
+  .dek-img { width:42mm; height:42mm; object-fit:contain; flex:none; filter:drop-shadow(0 3mm 9mm rgba(0,0,0,.5)); }
+  .dek-flow { flex:1; display:flex; gap:6mm; align-items:stretch; }
+  .dek-step { flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:5mm; padding:5mm 5.5mm; }
+  .dek-step .t { font-size:7mm; font-weight:800; color:var(--gold-soft); margin-bottom:2mm; display:flex; align-items:center; gap:3mm; }
+  .dek-step p { font-size:6.4mm; line-height:1.26; color:var(--muted); }
+  .dek-step p b { color:#F1E7DA; }
+  .dek-arrow { align-self:center; color:var(--gold); font-size:8mm; flex:none; }
+
   /* ── Preuves (captures réelles) ───────────────────────────── */
   .proofs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8mm; }
   .shot { background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm; overflow:hidden; }
-  .shot img { width:100%; height:74mm; object-fit:cover; object-position:top left; display:block; }
+  .shot img { width:100%; height:62mm; object-fit:cover; object-position:top left; display:block; }
   .shot .cap { padding:4mm 6mm; font-size:6.6mm; color:var(--muted); line-height:1.28; }
   .shot .cap b { color:#fff; }
 
@@ -243,6 +257,30 @@
               </div>
             </div>
             <div class="repl">⟲ Réplication streaming PostgreSQL &lt; 1 s &nbsp;·&nbsp; <span>fencing par jeton d'époque (anti split-brain)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hiérarchie de clés DEK -->
+      <section>
+        <div class="section-label">La clé DEK — une seule clé par entreprise, jamais vue par l'éditeur</div>
+        <div class="dek">
+          <img class="dek-img" src="images/cle_dek.png" alt="Clé DEK et bouclier cryptographique">
+          <div class="dek-flow">
+            <div class="dek-step">
+              <div class="t">🔑 DEK</div>
+              <p>Clé symétrique unique par entreprise. Chiffre <b>les données métier + le journal CBOR</b> avant tout écrit disque.</p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">📲 Par appareil</div>
+              <p>La DEK est emballée en <b>sealed box (X25519)</b> pour chaque appareil autorisé — enrôlement par QR code.</p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🆘 Récupération</div>
+              <p>Emballée sous un <b>code haute entropie (Argon2id)</b> → blob chiffré stocké sur le relais. L'éditeur ne déchiffre rien.</p>
+            </div>
           </div>
         </div>
       </section>

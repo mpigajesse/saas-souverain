@@ -74,6 +74,14 @@ Génère une image carrée haute qualité, sans aucun texte. Description : An el
 Génère une image carrée haute qualité, fond transparent ou blanc, sans aucun texte. Description : A single elegant symbolic icon of cryptographic protection: a glowing master key merged with a shield, radiating light, with a small sealed encrypted envelope. Premium, polished, 3D soft render. Strict color palette: deep crimson red #B3121B and rich gold #C79A1B with light gold #D8AE35 highlights, on white. No blue, no green. Centered, clean, icon style. No text, no letters, no words.
 ```
 
+### ✅ Image F — Hiérarchie de clés DEK (cœur cryptographique)
+
+```
+Génère une image carrée haute qualité, fond blanc ou transparent, sans aucun texte. Description : An elegant symbolic illustration of a cryptographic key hierarchy. A single large glowing master key at the center (the DEK, one per company) radiating light; from it, branches lead to: business data files and an append-only journal being wrapped into sealed luminous envelopes; several smaller keys, one per authorized device; and a separate locked safe holding an encrypted recovery blob. Premium polished 3D soft render, refined. Strict color palette: deep crimson red #B3121B, dark red #8E0E15, rich gold #C79A1B, light gold #D8AE35, on white. No blue, no green. Centered, balanced composition. No text, no letters, no words.
+```
+
+> Sur l'affiche, la clé DEK est illustrée par l'icône **`images/cle_dek.png`** + un encadré « DEK → par appareil (sealed box X25519) → récupération (Argon2id) ». Tu peux remplacer cette icône par l'image F si tu préfères une illustration plus complète de la hiérarchie de clés.
+
 ### ✅ (Bonus) Image E — Afrique / souveraineté
 
 ```
