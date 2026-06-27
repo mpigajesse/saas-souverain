@@ -83,7 +83,7 @@
   .tagline { margin-top:6mm; font-size:10mm; line-height:1.3; color:#F1E7DA; max-width:300mm; }
   .tagline b { color:var(--gold-lt); font-weight:700; }
   .hero-img {
-    width: 104mm; height: 104mm; border-radius: 7mm; object-fit: cover;
+    width: 96mm; height: 96mm; border-radius: 7mm; object-fit: cover;
     border: .6mm solid var(--card-line); box-shadow: 0 6mm 26mm rgba(0,0,0,.45);
   }
 
@@ -146,10 +146,10 @@
   .dek-arrow { align-self:center; color:var(--gold); font-size:8mm; flex:none; }
 
   /* ── Preuves (captures réelles) ───────────────────────────── */
-  .proofs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8mm; }
-  .shot { background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm; overflow:hidden; }
-  .shot img { width:100%; height:62mm; object-fit:cover; object-position:top left; display:block; }
-  .shot .cap { padding:4mm 6mm; font-size:6.6mm; color:var(--muted); line-height:1.28; }
+  .proofs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8mm; align-items:start; }
+  .shot { background:#fff; border:.4mm solid var(--card-line); border-radius:6mm; overflow:hidden; }
+  .shot img { width:100%; height:60mm; object-fit:contain; background:#fff; display:block; }
+  .shot .cap { padding:4mm 6mm; font-size:6.6mm; color:var(--muted); line-height:1.28; background:var(--card); }
   .shot .cap b { color:#fff; }
 
   /* ── Bande résultats + stack ──────────────────────────────── */
@@ -274,7 +274,7 @@
             <div class="dek-arrow">→</div>
             <div class="dek-step">
               <div class="t">📲 Par appareil</div>
-              <p>La DEK est emballée en <b>sealed box (X25519)</b> pour chaque appareil autorisé — enrôlement par QR code.</p>
+              <p>La DEK est emballée en <b>sealed box (X25519)</b> pour chaque appareil autorisé. <i>Enrôlement par QR code : perspective.</i></p>
             </div>
             <div class="dek-arrow">→</div>
             <div class="dek-step">
@@ -290,11 +290,11 @@
         <div class="section-label">Preuves — le logiciel tourne (banc multi-OS réel)</div>
         <div class="proofs-grid">
           <div class="shot">
-            <img src="images/capture_stock.png" alt="Tableau de bord stock du logiciel métier">
+            <img src="images/stock_crop.png" alt="Tableau de bord stock du logiciel métier">
             <div class="cap"><b>Logiciel métier en service</b> — tableau de bord stock (nœud PME, données en clair, alertes de seuil).</div>
           </div>
           <div class="shot">
-            <img src="images/capture_replication.png" alt="Réplication des comptes vérifiée sur le standby">
+            <img src="images/repl_crop.png" alt="Réplication des comptes vérifiée sur le standby">
             <div class="cap"><b>Réplication vérifiée</b> — les comptes créés sur le primaire apparaissent sur le standby (Ubuntu).</div>
           </div>
         </div>
@@ -306,9 +306,11 @@
           <div class="section-label">Validé sur banc multi-OS</div>
           <div class="proofs-list">
             <div class="pl"><span class="ck">✓</span><div>Chiffrement <b>DEK cross-OS</b> (Windows · Ubuntu · Kali · Debian) — libsodium.</div></div>
-            <div class="pl"><span class="ck">✓</span><div>Enrôlement d'appareil par <b>QR code</b> (sealed box X25519).</div></div>
-            <div class="pl"><span class="ck">✓</span><div>Récupération <b>zero-knowledge</b> (code haute entropie · Argon2id).</div></div>
+            <div class="pl"><span class="ck">✓</span><div><b>Journal append-only CBOR</b> chiffré (DEK) avant écriture disque.</div></div>
+            <div class="pl"><span class="ck">✓</span><div>Réplication PostgreSQL primaire↔standby + <b>failover par quorum &amp; fencing</b>.</div></div>
+            <div class="pl"><span class="ck">✓</span><div>Récupération <b>zero-knowledge</b> (code haute entropie · Argon2id · blob sur relais).</div></div>
             <div class="pl"><span class="ck">✓</span><div><b>Agent IA</b> (Mistral) supervise les 3 acteurs — sans voir les données.</div></div>
+            <div class="pl"><span class="ck">→</span><div style="color:var(--muted)"><i>Perspective : enrôlement d'appareil par QR code (primitive sealed box X25519 prête).</i></div></div>
           </div>
           <div class="metrics" style="margin-top:7mm">
             <div class="metric"><div class="big">6/6</div><div class="lbl">scénarios<br>métier</div></div>
