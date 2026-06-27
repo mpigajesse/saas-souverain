@@ -179,19 +179,15 @@
   .pl .ck { color:var(--gold-lt); font-weight:800; flex:none; }
   .pl b { color:#fff; }
 
-  .chips { display:flex; flex-wrap:wrap; gap:3.5mm; }
-  .chip { font-size:6.8mm; font-weight:600; color:#F1E7DA; background:rgba(255,255,255,.06); border:.3mm solid var(--card-line); padding:2.4mm 5mm; border-radius:100mm; }
-  .chip.k { color:#2B0508; background:var(--gold); border-color:var(--gold); font-weight:700; }
-
-  /* ── Footer ───────────────────────────────────────────────── */
-  footer {
-    margin-top:6mm; padding:6mm 24mm 9mm; border-top:.5mm solid var(--line);
-    display:flex; justify-content:space-between; align-items:flex-end; gap:12mm;
+  /* ── Carte auteur (en bas du bloc résultats) ──────────────── */
+  .author-card {
+    margin-top:6mm; padding:6mm 7mm; border-radius:6mm;
+    background:linear-gradient(135deg, rgba(179,18,27,.20), rgba(199,154,27,.12));
+    border:.5mm solid var(--card-line);
   }
-  .author .name { font-size:11mm; font-weight:800; }
-  .author .meta { font-size:7mm; color:var(--muted); margin-top:2.5mm; line-height:1.38; }
-  .badge { text-align:right; font-size:7mm; color:var(--gold-soft); font-weight:700; line-height:1.38; }
-  .badge .yr { font-size:10mm; color:#fff; }
+  .author-card .name { font-size:11mm; font-weight:800; color:#fff; }
+  .author-card .meta { font-size:6.8mm; color:var(--muted); margin-top:3mm; line-height:1.42; }
+  .author-card .meta b { color:var(--gold-soft); }
 </style>
 </head>
 <body>
@@ -358,43 +354,23 @@
           </div>
         </div>
         <div>
-          <div class="section-label">Pile technique</div>
-          <div class="chips">
-            <span class="chip k">Rust</span>
-            <span class="chip k">libsodium</span>
-            <span class="chip">XChaCha20-Poly1305</span>
-            <span class="chip">X25519</span>
-            <span class="chip">Argon2id</span>
-            <span class="chip k">PostgreSQL</span>
-            <span class="chip">réplication primaire/standby</span>
-            <span class="chip k">Docker</span>
-            <span class="chip">CBOR · journal append-only</span>
-            <span class="chip">Django</span>
-            <span class="chip">Agent IA · Mistral</span>
-          </div>
-          <div class="metrics" style="margin-top:6mm">
+          <div class="section-label">Résultats</div>
+          <div class="metrics">
             <div class="metric"><div class="big">6/6</div><div class="lbl">scénarios<br>métier</div></div>
             <div class="metric"><div class="big">4/4</div><div class="lbl">protections<br>de résilience</div></div>
             <div class="metric"><div class="big">2</div><div class="lbl">tenants<br>souverains</div></div>
+          </div>
+          <div class="author-card">
+            <div class="name">MPIGA-ODOUMBA Jesse</div>
+            <div class="meta">
+              EIGSI Casablanca — Spécialité Big Data &amp; Intelligence Artificielle · Promotion 2026<br>
+              Stage de fin d'études · AL BARAA CONSULTING, Casablanca · <b>Soutenance 2026</b>
+            </div>
           </div>
         </div>
       </section>
 
     </main>
-
-    <footer>
-      <div class="author">
-        <div class="name">MPIGA Jesse</div>
-        <div class="meta">
-          EIGSI Casablanca — Spécialité Big Data &amp; Intelligence Artificielle<br>
-          Stage de fin d'études · AL BARAA CONSULTING, Casablanca
-        </div>
-      </div>
-      <div class="badge">
-        <div class="yr">Soutenance 2026</div>
-        Promotion 2026
-      </div>
-    </footer>
 
   </div>
 </body>
