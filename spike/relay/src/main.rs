@@ -289,6 +289,70 @@ async fn blob_stats() -> Json<serde_json::Value> {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/blobs/:tenant_id — liste les blobs d'UN tenant (zero-knowledge)
+//
+// Énumère chaque blob (clé, taille, date) SANS jamais lire le contenu. Permet
+// à l'éditeur de MONTRER que des blobs existent, blob par blob, tout en restant
+// incapable de les déchiffrer. La promesse zero-knowledge est préservée.
+// ---------------------------------------------------------------------------
+
+async fn blob_list(Path(tenant_id): Path<String>) -> impl IntoResponse {
+    use std::time::UNIX_EPOCH;
+
+    // Valider l'UUID du tenant (anti-traversée de répertoire).
+    let tenant_uuid = match tenant_id.parse::<Uuid>() {
+        Ok(u) => u,
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "tenant_id invalide").into_response();
+        }
+    };
+
+    let blobs_dir = std::env::var("BLOBS_DIR").unwrap_or_else(|_| "/data/blobs".to_string());
+    let dir = std::path::Path::new(&blobs_dir).join(tenant_uuid.to_string());
+
+    let mut blobs: Vec<serde_json::Value> = Vec::new();
+    let mut total_bytes: u64 = 0;
+
+    if let Ok(files) = std::fs::read_dir(&dir) {
+        for f in files.flatten() {
+            if let Ok(meta) = f.metadata() {
+                if meta.is_file() {
+                    let key = f.file_name().to_string_lossy().to_string();
+                    let size = meta.len();
+                    total_bytes += size;
+                    let last_modified_secs = meta
+                        .modified()
+                        .ok()
+                        .and_then(|m| m.duration_since(UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    blobs.push(serde_json::json!({
+                        "key": key,                       // ex. "recovery-dek"
+                        "size_bytes": size,               // taille du blob opaque
+                        "last_modified_secs": last_modified_secs,
+                    }));
+                }
+            }
+        }
+    }
+
+    // Tri déterministe par clé (lisibilité de la démonstration).
+    blobs.sort_by(|a, b| {
+        a["key"].as_str().unwrap_or("").cmp(b["key"].as_str().unwrap_or(""))
+    });
+
+    Json(serde_json::json!({
+        "tenant_id": tenant_uuid.to_string(),
+        "blob_count": blobs.len(),
+        "total_bytes": total_bytes,
+        "blobs": blobs,
+        // On liste, on ne lit jamais : aucun champ de contenu n'est exposé.
+        "zero_knowledge": true,
+    }))
+    .into_response()
+}
+
+// ---------------------------------------------------------------------------
 // GET /health  — retourne hostname, uptime, interfaces réseau, stockage blobs
 // ---------------------------------------------------------------------------
 
@@ -360,8 +424,10 @@ async fn main() {
         .route("/api/blob-stats", get(blob_stats))
         .route("/api/nodes/announce", post(announce))
         .route("/api/nodes", get(get_nodes))
+        // axum 0.7 : syntaxe `:param` (et non `{param}` qui est axum 0.8).
+        // Liste des blobs d'un tenant (métadonnées seules, zero-knowledge).
+        .route("/api/blobs/:tenant_id", get(blob_list))
         .route(
-            // axum 0.7 : syntaxe `:param` (et non `{param}` qui est axum 0.8).
             "/api/blobs/:tenant_id/:key",
             get(blob_get).put(blob_put).delete(blob_delete),
         )

@@ -326,9 +326,11 @@
         🔒 0 blob
       </span>
       {% endif %}
-      <span style="background:{% if entry.nodes %}#D1FAE5{% else %}#F3F4F6{% endif %}; color:{% if entry.nodes %}#065F46{% else %}var(--text-muted){% endif %}; border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
+      {% if entry.nodes %}
+      <span style="background:#D1FAE5; color:#065F46; border-radius:12px; padding:3px 12px; font-size:0.78rem; font-weight:600;">
         {{ entry.nodes|length }} nœud{% if entry.nodes|length != 1 %}s{% endif %}
       </span>
+      {% endif %}
     </div>
   </div>
   {% if entry.nodes %}
@@ -350,9 +352,30 @@
       </tbody>
     </table>
   </div>
-  {% else %}
-  <div class="card-body" style="color:var(--text-muted); font-size:0.875rem; text-align:center; padding:24px;">
-    Aucun nœud annoncé pour ce tenant.
+  {% endif %}
+
+  <!-- ── Liste des blobs chiffrés (zero-knowledge : on liste, on ne lit jamais) ── -->
+  {% if entry.blob_list %}
+  <div class="card-body" style="padding:0; border-top:1px solid var(--border);">
+    <div style="padding:10px 16px; font-size:0.78rem; font-weight:600; color:#4338CA; background:#EEF2FF; display:flex; align-items:center; gap:6px;">
+      🔒 Blobs chiffrés stockés sur le relais — métadonnées seules, contenu jamais lu
+    </div>
+    <table>
+      <thead>
+        <tr><th>Blob (clé)</th><th>Taille</th><th>Dernier dépôt</th><th>Contenu</th></tr>
+      </thead>
+      <tbody>
+        {% for blob in entry.blob_list %}
+        <tr>
+          <td style="font-family:monospace; font-size:0.82rem;">{{ blob.key }}</td>
+          <td style="font-family:monospace; font-size:0.82rem;">{{ blob.size_fmt }}</td>
+          <td style="color:var(--text-muted); font-size:0.82rem;">{{ blob.last_fmt }}</td>
+          <td><span title="Octets chiffrés opaques — l'éditeur ne peut pas déchiffrer"
+                    style="background:#F3F4F6; color:var(--text-muted); border-radius:6px; padding:2px 8px; font-size:0.74rem; font-family:monospace;">🔒 opaque</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% endif %}
 </div>

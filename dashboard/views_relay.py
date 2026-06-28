@@ -132,11 +132,27 @@ def relay_monitor(request):
         except Exception:
             pass
 
+        # ── Liste détaillée des blobs du tenant (zero-knowledge) ──
+        # Énumère chaque blob (clé, taille, date) SANS jamais lire le contenu.
+        # Sert à MONTRER au jury que les blobs existent, un par un.
+        blob_list = []
+        try:
+            detail = _fetch_json(f"{relay_url}/api/blobs/{tenant.id}")
+            for b in detail.get("blobs", []):
+                blob_list.append({
+                    "key": b.get("key", "—"),
+                    "size_fmt": _format_bytes(b.get("size_bytes", 0) or 0),
+                    "last_fmt": _ts_ago(b.get("last_modified_secs", 0) or 0),
+                })
+        except Exception:
+            pass
+
         total_nodes += len(nodes)
         tenants_data.append({
             "tenant": tenant,
             "nodes": nodes,
             "blobs": blobs_by_tenant.get(str(tenant.id)),
+            "blob_list": blob_list,
         })
 
     # Dériver les labels de sous-réseau depuis les IPs réelles du relais
