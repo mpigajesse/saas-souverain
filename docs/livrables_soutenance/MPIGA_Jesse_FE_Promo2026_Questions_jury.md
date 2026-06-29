@@ -113,6 +113,21 @@
 **Q. Avez-vous travaillé en équipe ?**
 > J'ai porté la conception et le développement, avec des échanges réguliers (encadrante entreprise, tuteur EIGSI). La collaboration s'est surtout faite sur les besoins métier et les références clients.
 
+**Q. Avez-vous suivi une méthode agile ?**
+> Oui, dans l'esprit, pas en Scrum « par le livre » (je travaillais seul). J'ai appliqué les principes agiles : itérations courtes, logiciel qui marche à chaque étape, et surtout *« répondre au changement plutôt que suivre un plan »*. Mes points hebdomadaires avec Mme Chokri jouaient le rôle de **revues de sprint** (démo + réajustement), mon journal technique celui du **backlog**, et le suivi des tâches passait par un tableau **Kanban (Trello)**.
+
+**Q. Comment articulez-vous « agile » et « planning par phases » ? N'est-ce pas contradictoire ?**
+> Non, c'est complémentaire. Le **WBS et le Gantt** donnaient le cap (6 macro-tâches, 6 jalons J1→J6, une semaine tampon en fin de parcours). À l'intérieur de ce cadre, j'avançais de façon **itérative**, en validant chaque brique avant la suivante. Le plan fixe les jalons ; l'agilité gère *comment* on les atteint et *quoi* on corrige en chemin.
+
+**Q. Comment était structuré votre planning ?**
+> Un **WBS** en 6 macro-tâches sur 24 semaines : cadrage & conception (S1–S4), mise en place de l'environnement (S5–S8), socle de stockage/persistance (S7–S10), réplication & résilience (S11–S14), sécurité & API (S15–S18), tests & documentation (S19–S24). Chaque macro-tâche se terminait par un **jalon** daté avec critères de validation. Un **diagramme de Gantt** matérialisait les dépendances.
+
+**Q. Comment avez-vous réparti les rôles (RACI) ?**
+> Une matrice **RACI** : moi **Responsable (R)** de la réalisation technique de toutes les briques ; Mme Chokri **Approbateur (A)** de la cohérence technique et des livrables ; M. Amrani **Approbateur** des livrables de fin de cycle (rapport, soutenance) ; l'équipe IT d'AL BARAA **Consultée (C)** pour l'interopérabilité. Un seul A par tâche — pas de dilution de responsabilité.
+
+**Q. Comment avez-vous géré les jalons et le risque de retard ?**
+> Chaque jalon avait des **critères objectifs** (ex. « réplication validée sur le banc, 0 perte »). Pour les risques de calendrier (Plan Directeur, rapport final), j'ai prévu des **buffers** et une rédaction progressive dès le début de chaque phase, pas en fin de parcours. Les risques techniques critiques étaient attaqués **tôt**, via le spike Phase 0.
+
 ---
 
 ## 6. Difficultés & posture ingénieur
@@ -148,6 +163,68 @@
 
 **Q. Si c'était à refaire, que changeriez-vous ?**
 > Je figerais plus tôt les conventions réseau (adresses stables, déploiement auto-adaptatif) — j'ai perdu du temps sur des adresses qui changeaient. Et j'aurais écrit certains tests d'intégration encore plus tôt.
+
+---
+
+## 9. Évolution du sujet depuis le Plan Directeur ⭐ (à préparer absolument)
+
+> ⚠️ Le jury a lu le **Plan Directeur** (déposé le 19/02/2026), qui parlait d'un *« Coffre-Fort Data P2P / Brique Universelle BaaS »* avec Syncthing, DuckDB, CRDT, mTLS, FastAPI. Le projet livré est un **SaaS Souverain** (Rust, libsodium, PostgreSQL, zero-knowledge). Il **faut** assumer et expliquer cette évolution avec aplomb.
+
+**Q. Le sujet déposé et le projet final ne sont pas les mêmes. Le thème a-t-il été mélangé / changé en cours de route ?**
+> Le **thème** n'a pas changé : la **souveraineté des données** est restée le fil rouge du premier au dernier jour. Ce qui a évolué, c'est la **solution technique**, après le spike de dérisquage. Le Plan Directeur posait une *hypothèse* — une brique de stockage P2P générique. En la confrontant au besoin réel d'AL BARAA et de ses clients, j'ai compris que la vraie valeur n'était pas la réplication de fichiers, mais un **modèle** : vendre un logiciel métier en SaaS sans pouvoir lire les données. C'est ça, le déclic.
+
+**Q. Quel a été précisément le déclic ?**
+> Deux constats pendant la Phase 0. (1) Les données métier — stock, facturation — exigent une **cohérence forte** : un CRDT « last-write-wins » peut *perdre* une écriture, ce qui est inacceptable pour un stock. PostgreSQL et sa réplication transactionnelle se sont imposés. (2) Le besoin client n'était pas « stocker des fichiers », mais « acheter un logiciel géré **sans confier ses données** ». D'où la bascule vers le **zero-knowledge cryptographique**. Le spike a donc joué pleinement son rôle : dérisquer **et réorienter** avant d'investir dans le mauvais socle.
+
+**Q. Qu'avez-vous gardé du Plan Directeur ?**
+> Beaucoup : la thèse de souveraineté et l'alignement **AUDPF**, le principe d'**orchestration de briques éprouvées** plutôt que du from-scratch, le **packaging Docker**, le **local-first**, l'**analyse fonctionnelle** (bête à cornes, pieuvre, FAST), toute la **structure de planification** (WBS, RACI, Gantt, jalons) et l'**approche pilotée par le risque**. La méthode est restée ; l'implémentation a mûri.
+
+**Q. Qu'avez-vous abandonné, et pourquoi ?**
+> Syncthing/CRDT (cohérence éventuelle inadaptée aux invariants métier → PostgreSQL streaming) ; DuckDB (l'OLAP n'était pas le cœur du besoin → priorité à l'intégrité transactionnelle) ; Python/FastAPI **pour le cœur** (→ Rust, pour un cœur unique, sûr en mémoire, réutilisable desktop/mobile) ; mTLS/x509 « fait maison » (→ libsodium + zero-knowledge, qui tient mieux la promesse). Chaque abandon est justifié par une leçon du terrain — Django (Python) reste, lui, pour le SaaS éditeur.
+
+**Q. N'est-ce pas un aveu d'échec de la planification initiale ?**
+> Au contraire : c'est **exactement** ce qu'un spike de dérisquage doit produire. On planifie pour **apprendre**, pas pour s'enfermer. « Répondre au changement plutôt que suivre un plan » est un principe agile. La planification a tenu — phases, jalons, livrables ; ce sont les **hypothèses techniques** qui ont été corrigées par la preuve. C'est de l'ingénierie, pas de l'improvisation.
+
+**Q. Théorème CAP : où vous situez-vous, et qu'est-ce que ça change vs le sujet initial ?**
+> Pour les données métier, je choisis **CP** (Cohérence + tolérance au Partitionnement) : en cas de coupure, le primaire **bloque** plutôt que de diverger — un stock faux est pire qu'un stock momentanément indisponible. C'est précisément pourquoi j'ai écarté l'approche **AP/éventuelle** (CRDT) du Plan Directeur pour les invariants forts. Le pivot, au fond, c'est un choix CAP assumé.
+
+---
+
+## 10. Positionnement : SaaS classique, On-Premise, BYOC ⭐
+
+**Q. Quelle différence entre un SaaS classique, de l'On-Premise, du BYOC et votre modèle ?**
+> - **SaaS classique** : l'éditeur héberge tout et détient les données **et les clés**. Pratique, mais souveraineté nulle.
+> - **On-Premise** : le client héberge et gère tout lui-même. Souverain, mais il perd le service géré (mises à jour, support) et porte toute la charge d'exploitation.
+> - **BYOC (Bring Your Own Cloud)** : l'éditeur déploie dans le **compte cloud du client**. Mieux pour la localisation, mais l'éditeur garde souvent un accès admin ou des clés, et ça reste du cloud.
+> - **Notre modèle (SaaS Souverain)** : le client garde ses données sur **ses** machines **et** reçoit un service géré (comptes, licences, MAJ), pendant que l'éditeur est **cryptographiquement aveugle**. On combine le **contrôle de l'On-Premise** avec le **confort du SaaS** — et on va plus loin que le BYOC, car l'éditeur ne peut **jamais** lire.
+
+**Q. Pourquoi pas simplement du BYOC, qui est très à la mode (Snowflake, Databricks…) ?**
+> Le BYOC résout la **localisation** (les données restent dans le cloud du client), mais pas la **confiance** : l'éditeur opère l'instance, souvent avec des clés ou un accès admin. Notre promesse est plus forte : l'éditeur ne détient **aucune** clé. La garantie est **cryptographique**, pas contractuelle ni organisationnelle. Et notre cible — des PME africaines — n'a pas forcément de compte cloud à « apporter » : on s'appuie sur leurs propres machines.
+
+**Q. Et face aux « sovereign cloud » des géants (AWS European Sovereign Cloud, Azure, Oracle régions souveraines) ?**
+> Ces offres améliorent la localisation et la gouvernance, mais le **fournisseur reste l'opérateur** — donc potentiellement soumis à des lois extraterritoriales (ex. US CLOUD Act). Notre approche **déplace la confiance** : les données ne sont jamais lisibles par l'éditeur, où qu'il soit. C'est complémentaire pour les organisations qui veulent une garantie **technique**, pas seulement juridique.
+
+**Q. Votre modèle est-il viable économiquement face au SaaS classique ?**
+> Oui, et c'est même un avantage : l'éditeur n'a **pas** le coût du cloud des données clients (ni stockage, ni egress, ni scaling). On facture l'**implémentation souveraine** (déploiement, licences par poste, relais, support), pas l'hébergement. Le prix par poste est structurellement plus bas, **sans coût caché**.
+
+---
+
+## 11. Actualité & tendances (montre que tu suis le secteur)
+
+**Q. En quoi votre sujet est-il d'actualité en 2026 ?**
+> La souveraineté numérique est un sujet brûlant : l'**AUDPF** validé par l'Union Africaine fin 2025, la multiplication des **lois de localisation** des données en Afrique (Nigéria, Kenya, Afrique du Sud…), les inquiétudes persistantes sur l'**extraterritorialité** (CLOUD Act, Schrems II), et la vague des offres « **sovereign cloud** ». Mon projet répond à cette demande avec une garantie **technique**, pas seulement réglementaire.
+
+**Q. Le zero-knowledge / chiffrement de bout en bout, est-ce une vraie tendance ou un effet de mode ?**
+> Une tendance de fond : **confidential computing**, chiffrement de bout en bout généralisé (messageries, sauvegardes), « **bring your own key** ». Les fournisseurs cherchent tous à **prouver** qu'ils ne peuvent pas voir les données de leurs clients. Mon projet applique ce principe à un **logiciel métier complet**, pas juste à du stockage ou de la messagerie.
+
+**Q. Quel est le lien avec l'IA, au cœur de l'actualité ?**
+> Double lien. (1) À l'ère de l'IA, la **gouvernance des données** devient critique — *où entraîne-t-on, avec quelles données, qui y accède ?* La souveraineté est un **prérequis**. (2) J'utilise un **agent IA (Mistral)** pour superviser l'infrastructure : ça démontre qu'on peut faire de l'IA **utile** sans jamais aspirer les données métier. La souveraineté et l'IA ne s'opposent pas.
+
+**Q. Pourquoi Mistral et pas OpenAI / un modèle américain ?**
+> Cohérence avec la thèse : **Mistral est un modèle européen**, et l'agent ne traite **que des métriques d'infrastructure**, jamais des données métier. Utiliser un modèle souverain pour parler de souveraineté, c'est aligné. Cela dit, l'architecture reste **agnostique au fournisseur** : on pourrait basculer vers un modèle local auto-hébergé sans rien changer au principe.
+
+**Q. Votre solution pourrait-elle s'appliquer hors d'Afrique ?**
+> Oui — la problématique est universelle (santé, finance, secteur public en Europe comme ailleurs). J'ai centré le discours sur l'Afrique parce que c'est le contexte d'AL BARAA et l'impulsion de l'AUDPF, mais le **modèle zero-knowledge** est transposable à toute organisation soumise à des exigences fortes de confidentialité ou de localisation.
 
 ---
 
