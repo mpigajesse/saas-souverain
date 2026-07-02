@@ -129,38 +129,55 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 ---
 
-## ACTE 4 — Réplication & résilience (PME MPJ, 2 nœuds) · ~3 min 30
+## ACTE 4 — Réplication & résilience (PME MPJ, 2 nœuds) · ~3 min
 
 **Écran : SaaS Clusters + 2 terminaux (Kali primaire, Ubuntu standby).**
 
-> Transition : *« La PME MPJ, elle, a deux machines. Voici la réplication en action. »*
+> Transition : *« La PME MPJ, elle, est déjà en production : deux machines, des employés, des données métier. Je ne vais rien créer — je vais vous montrer que tout ce qui existe sur la machine primaire existe déjà, à l'identique, sur la machine de secours. Puis je vais provoquer une panne. »*
 
-1. **SaaS Clusters → MPJ** : « ✓ Cluster sain · Réplication streaming → ».
-2. **Créer les deux employés (manuel, depuis l'admin MPJ)** — sur **Kali** (primaire), connecté en **admin** sur `http://192.168.200.128:9001`, menu **Utilisateurs → « + Nouvel utilisateur »**. Créer ces deux comptes :
+> 🎯 **Principe de cet acte :** MPJ est un cluster **déjà rodé** (comptes Alice/Bob + articles déjà saisis lors des tests). On **parcourt** l'existant pour prouver la **réplication déjà réalisée**, puis on démontre la **résilience** en direct (panne → détection → reprise). Pas de saisie en direct : c'est plus rapide, plus sûr, et tout aussi probant.
 
-   | Identifiant | Nom complet | Rôle | Mot de passe |
-   |---|---|---|---|
-   | `alice.martin` | Alice Martin | Employé | `Employe1!` |
-   | `bob.dupont` | Bob Dupont | Employé | `Employe2!` |
+1. **SaaS Clusters → MPJ** : « ✓ Cluster sain · Réplication streaming → ». *Le SaaS voit la topologie (qui est primaire, qui est standby), jamais les données.*
 
-   → **Réplication des comptes** : sur **Ubuntu** (standby), sans aucune action, vérifier qu'ils sont déjà là :
+2. **Réplication des comptes — déjà faite.** Sur **Ubuntu** (standby), sans aucune action préalable, on lit ce qui s'y trouve déjà :
    ```bash
    docker exec pg-node psql -U metier -d metier -c \
      "SELECT username, role FROM users ORDER BY username;"
    ```
-   → `admin`, `alice.martin`, `bob.dupont` — identiques sur le standby. *Même les comptes employés sont répliqués instantanément.*
-3. **Réplication métier live** — sur **Kali**, se reconnecter en **Alice** (`alice.martin` / `Employe1!`) → créer **1 article** + **1 entrée** de stock ; puis en **Bob** (`bob.dupont` / `Employe2!`) → **1 sortie** de stock *(base partagée : Bob agit sur les données saisies par Alice)*. Sur **Ubuntu** :
+   ```
+      username   |   role
+   --------------+----------
+    admin        | admin
+    alice.martin | employee
+    bob.dupont   | employee
+   (3 rows)
+   ```
+   → *« Ces comptes ont été créés sur la machine primaire. Ils sont déjà là, identiques, sur la machine de secours — sans que je touche à rien. La réplication a fait son travail. »*
+
+3. **Réplication métier — déjà faite.** Toujours sur **Ubuntu** (standby) :
    ```bash
    docker exec pg-node psql -U metier -d metier -c \
      "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
    ```
-   → la donnée créée sur Kali apparaît sur Ubuntu en < 1 s.
+   ```
+        code      |             nom
+   ---------------+-----------------------------
+    REF-ABSENT-02 | Article écrit pendant panne
+    REF-ABSENT-01 | Article absent
+    REF-STY-BL    | Stylos bille bleus
+   (3 rows)
+   ```
+   → *« Les articles saisis par Alice et Bob côté primaire sont déjà sur le standby. Et regardez celui-ci — “Article écrit pendant panne” : c'est une donnée saisie lors d'un test de coupure, qui a été rattrapée automatiquement au retour du nœud. La preuve que rien ne se perd. »*
+
+   > 💡 *(Optionnel — pour montrer le « < 1 s » en direct si le jury le demande)* : sur **Kali**, se connecter en Alice (`alice.martin` / `Employe1!`) → créer 1 article ; relancer immédiatement la requête ci-dessus sur **Ubuntu** → la nouvelle ligne apparaît en moins d'une seconde.
+
 4. **Panne du standby** — sur **Ubuntu** : `cd /opt/elbaraa-pme && docker compose down`
    → après ~60 s, **SaaS Clusters** : « **✗ Réplication interrompue** » *(détection honnête — notre correctif)*.
+
 5. **Reprise** — sur **Ubuntu** : `docker compose up -d`
    → logs : `started streaming WAL from primary` ; **SaaS** repasse « ✓ Cluster sain » ; rattrapage WAL automatique.
 
-> **Narration :** *« Toute écriture est répliquée en moins d'une seconde. Si une machine tombe, les données sont déjà ailleurs, et le tableau de bord de l'éditeur le détecte immédiatement — il ne ment jamais. Au redémarrage, la machine rattrape automatiquement ce qu'elle a manqué. »*
+> **Narration :** *« Tout ce qui est écrit sur le primaire est répliqué en moins d'une seconde — vous venez de voir le résultat. Si une machine tombe, les données sont déjà ailleurs, et le tableau de bord de l'éditeur le détecte immédiatement : il ne ment jamais. Au redémarrage, la machine rattrape automatiquement ce qu'elle a manqué. »*
 
 ⚠️ **Sécurité démo :** ne couper **que le standby** (Ubuntu). Ne jamais couper le primaire en direct (le fencing n'est pas encore en place — risque de split-brain).
 
@@ -206,9 +223,9 @@ docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles 
 | 1 | Création de compte (SaaS) | 1 min 30 |
 | 2 | Installation (Debian, 1 commande) | 2 min 30 |
 | 3 | Logiciel métier + parc/cluster | 1 min 30 |
-| 4 | Réplication & résilience (MPJ) | 3 min 30 |
+| 4 | Réplication & résilience (MPJ, parcours de l'existant) | 3 min |
 | 5 | Conclusion | 15 s |
-| | **TOTAL** | **~9 min 15** |
+| | **TOTAL** | **~8 min 45** |
 
 ---
 

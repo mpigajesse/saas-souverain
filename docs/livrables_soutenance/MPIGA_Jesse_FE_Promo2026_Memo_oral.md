@@ -131,6 +131,13 @@ Tout ton oral n'est que le déroulé de cette phrase.
   **Récupérer** = même PME ruinée, l'éditeur rend un blob chiffré qu'**elle seule** ouvre (son code de récup).
 - 📖 **En clair :** deux scénarios qui prouvent que le zero-knowledge tient en pratique, pas juste sur le papier. **Enrôler** un appareil = lui transmettre la DEK de façon chiffrée, via un QR + un jeton à usage unique : même filmé, ça ne fuit rien. **Récupérer** = le filet de sécurité ultime : si la PME perd toutes ses machines, l'éditeur lui rend la sauvegarde chiffrée qu'il a gardée — et qu'il n'a jamais pu lire — que la PME seule rouvre avec son code. L'éditeur aide sans jamais accéder au contenu.
 
+- 🆘 **LE SINISTRE — à savoir expliquer par cœur.** Le « sinistre » = le **scénario catastrophe** où la PME perd l'accès à **toutes** ses machines d'un coup : incendie, vol, panne matérielle totale, ransomware. C'est *le* cas qui semble impossible à gérer dans un modèle zero-knowledge — et c'est justement là que ta solution brille.
+  - **Le piège :** dans un SaaS classique, le sinistre est trivial (l'éditeur a une copie, il restaure). **Chez toi, l'éditeur ne peut PAS lire les données** — donc il ne peut pas « simplement restaurer ». Pire : en perdant ses machines, la PME a aussi perdu la **DEK** qui y vivait. Tout semble perdu.
+  - **La réponse en 4 temps :** ① la PME contacte l'éditeur → ② l'éditeur lui restitue le **blob de récupération** chiffré qu'il gardait sur le relais (et qu'il n'a *jamais* pu ouvrir) → ③ la PME ouvre ce blob avec **son code de récupération** (160 bits, Argon2id) → elle retrouve la **DEK** → ④ nouvelle machine + DEK = toutes les données métier redéchiffrées. **L'éditeur a aidé sans jamais voir.**
+  - **La phrase qui tue (à dire au jury) :** *« Le sinistre, c'est quand la PME perd toutes ses machines. Un SaaS classique restaure depuis ses serveurs ; nous, on ne peut physiquement pas lire les données. La récupération passe donc par un blob chiffré que nous gardons pour la PME mais que seul son code de récupération peut ouvrir. On aide sans jamais voir : c'est la preuve ultime du zero-knowledge — même le pire scénario ne nous donne pas accès aux données. »*
+  - **⚠️ Ne JAMAIS confondre (le jury le fera) :** **SINISTRE** = perte de *toutes* les machines → procédure manuelle de récupération via le relais + code. **FAILOVER** = perte d'*une seule* machine sur un cluster → bascule automatique par quorum, transparente (slide 11B). Deux problèmes, deux réponses.
+  - **Le revers à assumer franchement :** si la PME perd ses machines **ET** son code de récupération → données **définitivement** irrécupérables, *par construction*. C'est le prix de la souveraineté : aucune porte dérobée éditeur. Assume-le comme une force, pas comme un défaut.
+
 ## SLIDE 10 — Démonstration LIVE 🔴
 
 - 🔗 *« Assez de théorie — je vous montre sur deux machines réelles. »*
@@ -223,6 +230,8 @@ Tout ton oral n'est que le déroulé de cette phrase.
 - **A** : les 3 acteurs en détail · **B** : pourquoi PostgreSQL et pas un consensus maison ·
   **C** : failover 2 vs 3 nœuds · **D** : split-brain évité (fencing) ·
   **E** : fonctionnement de l'agent IA · **F** : que se passe-t-il si le relais est saisi (→ *rien d'exploitable*).
+- **G — LE SINISTRE** (perte de toutes les machines) : *« Sans porte dérobée éditeur, comment la PME récupère ? »*
+  → blob de récupération chiffré rendu par l'éditeur + **code de récupération** PME (Argon2id) → DEK retrouvée → données redéchiffrées. **Distinguer du failover.** Si machines **et** code perdus → irrécupérable, par design (le prix de la souveraineté). *Détail complet dans le « 🆘 » de la slide 9.*
 
 ---
 

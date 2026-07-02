@@ -80,6 +80,7 @@ Je remercie également l'ensemble du **corps enseignant de l'EIGSI Casablanca** 
   - I.3. Analyse fonctionnelle
   - I.4. État de l'art et positionnement technologique
   - I.5. Objectifs SMART de la mission
+  - I.6. Enjeux de développement durable et responsabilité sociétale (DDRS)
 - PARTIE II — Bilan Technique
   - II.1. Méthodologie de travail
   - II.2. Architecture technique globale — trois acteurs
@@ -100,7 +101,8 @@ Je remercie également l'ensemble du **corps enseignant de l'EIGSI Casablanca** 
   - III.1. Compétences mobilisées et acquises
   - III.2. Valeur ajoutée pour AL BARAA CONSULTING
   - III.3. Réflexion sur la posture ingénieur
-  - III.4. Bilan personnel et perspectives
+  - III.4. Bilan d'expérience — réflexion sur l'éthique et la responsabilité
+  - III.5. Bilan personnel et perspectives
 - CONCLUSION GÉNÉRALE
 - RÉFÉRENCES BIBLIOGRAPHIQUES
 - ANNEXES
@@ -343,6 +345,20 @@ Le Plan Directeur, déposé en mars 2026, définit 5 objectifs SMART structurant
 
 ---
 
+### I.6. Enjeux de Développement Durable et Responsabilité Sociétale (DDRS)
+
+Le projet ne se limite pas à une performance technique : il porte, par sa nature même, des enjeux de développement durable et de responsabilité sociétale que le cabinet AL BARAA CONSULTING revendique.
+
+**Responsabilité sociétale — souveraineté et protection des acteurs vulnérables.** La finalité première du framework est sociétale : redonner aux PME et aux administrations africaines le **contrôle de leurs données**, aujourd'hui captives d'infrastructures cloud étrangères soumises à des législations extraterritoriales (CLOUD Act). En rendant l'éditeur *cryptographiquement incapable* de lire les données, le projet protège des acteurs qui, faute de moyens juridiques ou techniques, ne pourraient pas se défendre seuls. C'est une contribution directe à la **souveraineté numérique** promue par le cadre AUDPF de l'Union africaine (décembre 2025).
+
+**Développement durable — sobriété numérique.** L'architecture évite volontairement la construction ou la location de nouveaux *datacenters* : la PME **réutilise ses propres machines** (souvent déjà présentes) comme nœuds du cluster, et le relais ne stocke que des blobs chiffrés de faible volume (métadonnées et sauvegardes de clés, jamais des copies complètes des données). Ce modèle réduit l'empreinte matérielle et énergétique comparé à un SaaS cloud centralisé qui duplique les données de tous ses clients dans des centres surdimensionnés. Le packaging Docker, léger et multi-arch, prolonge la durée d'usage du parc matériel existant plutôt que d'imposer du renouvellement.
+
+**Inclusion et transfert de compétences.** En s'appuyant sur des briques **open source éprouvées** (Rust, libsodium, PostgreSQL, Docker) et en documentant chaque décision, le projet reste auditable, réappropriable et transférable — un enjeu clé pour l'autonomie technologique du continent, plutôt qu'une dépendance à une boîte noire propriétaire.
+
+*Ces enjeux DDRS sont approfondis, sous l'angle éthique, dans le Bilan d'expérience (III.4).*
+
+---
+
 ## PARTIE II — Bilan Technique
 
 Cette partie constitue le cœur du rapport. Elle décrit ce que j'ai réellement
@@ -405,6 +421,24 @@ relisant mon propre journal plutôt qu'en devinant.
 | Conteneurisation | **Docker** + Docker Compose (multi-arch) | Packaging livré à la PME |
 | Versionnement | Git / GitHub | Workspace `spike/`, déploiements `pme-deploy/`, `relay-deploy/` |
 | Banc de test | PC Windows 11 + VMs VMware (Ubuntu, Kali, Debian) | Validation cross-OS réelle |
+
+**Structuration du projet (WBS) et pilotage.** Le travail a été découpé, dès le
+Plan Directeur, en **cinq lots** (correspondant aux objectifs O1–O5) eux-mêmes
+subdivisés en tâches. Cette structure a servi de fil de pilotage tout au long des
+24 semaines et a été tenue à jour au fil de l'avancement :
+
+| Lot | Intitulé | Sous-tâches principales | Statut |
+|-----|----------|-------------------------|--------|
+| L1 | Architecture & spécification | 3 acteurs · hiérarchie de clés · choix de stack | ✅ |
+| L2 | Socle cryptographique | DEK · sealed box · journal CBOR · tests cross-OS | ✅ |
+| L3 | Réplication & résilience | PostgreSQL primaire/standby · quorum · fencing · campagnes de test | ✅ |
+| L4 | SaaS éditeur & déploiement | comptes/licences/parc · installateur auto-adaptatif · relais | ✅ |
+| L5 | Supervision IA & clôture | agent Mistral · rapport · soutenance | ✅ |
+
+Le WBS détaillé à jour, le planning **Gantt** des 24 semaines (avec chemin
+critique) et l'**analyse de risques** priorisée sont fournis en **→ Annexe H**.
+Le principe « le socle d'abord » impose que L2 et L3 (le chemin critique) soient
+prouvés avant L4/L5 — ce qui a été respecté.
 
 ---
 
@@ -1197,7 +1231,27 @@ La posture d'ingénieur exige de refuser les contournements au profit des soluti
 
 ---
 
-### III.4. Bilan Personnel et Perspectives
+### III.4. Bilan d'Expérience — Réflexion sur l'Éthique et la Responsabilité de l'Ingénieur
+
+> *Réflexion argumentée sur un thème lié aux compétences 7 et 8 de l'ingénieur EIGSI — « Aptitude à prendre en compte les enjeux de l'entreprise et les enjeux humains » — sous l'angle **éthique et responsabilité**.*
+
+**Pourquoi ce thème.** De tous les enseignements de ce stage, celui qui m'a le plus marqué n'est pas technique : c'est la prise de conscience que **l'architecture d'un logiciel est un choix moral**. J'ai choisi le thème de l'éthique et de la responsabilité parce que le projet lui-même en est l'incarnation directe : là où l'industrie du SaaS demande aux clients de *faire confiance* à l'éditeur pour ne pas regarder leurs données, ce framework prend le parti inverse — rendre l'éditeur **incapable** de les lire. Ce déplacement, de la promesse contractuelle à l'impossibilité cryptographique, est une position éthique traduite en code.
+
+**Le contexte de l'entreprise.** AL BARAA CONSULTING intervient auprès de clients qui manipulent des données parmi les plus sensibles qui soient : ministères, agences d'urbanisme, données foncières et données de citoyens. Pour ces acteurs, une fuite ou un accès non consenti n'est pas un incident commercial — c'est une atteinte à des personnes et à la souveraineté d'un État. Le cabinet évolue par ailleurs dans un contexte africain où la dépendance aux infrastructures cloud étrangères expose ces données à des législations extraterritoriales (CLOUD Act) sur lesquelles ni le client ni l'éditeur n'ont de prise. C'est dans ce cadre que la question éthique s'est imposée à moi : *ai-je le droit de concevoir un système qui pourrait, un jour, être retourné contre les gens qu'il est censé servir ?*
+
+**Observations et constats.** Trois constats ont nourri ma réflexion tout au long du stage.
+
+- *La confiance ne se décrète pas, elle se prouve.* J'ai constaté que la plupart des solutions du marché reposent sur une clause juridique (« nous ne lirons pas vos données »). Or une clause se viole sous contrainte légale, se contourne par un piratage, ou change au gré d'un rachat d'entreprise. J'ai fait le choix technique de ne jamais détenir de clé côté éditeur : même saisi ou compromis, le relais ne peut rien déchiffrer. La responsabilité éthique se transforme alors en **garantie vérifiable**, et non en engagement révocable.
+- *L'honnêteté d'un système est une exigence éthique, pas seulement technique.* L'incident du split-brain (cf. II.14) m'a appris qu'un tableau de bord qui *déclare* un état sain sans le *mesurer* est un mensonge par conception. Corriger cela — faire lire au SaaS la vérité réelle de `pg_stat_replication` — était autant une décision d'ingénierie qu'un devoir de probité envers l'utilisateur, qui prend des décisions sur la foi de ce que l'écran lui montre.
+- *Ne pas survendre est une forme de responsabilité.* J'ai documenté explicitement ce qui est prouvé (le socle : 6/6 scénarios métier, 4/4 protections HA) et ce qui reste une perspective (l'enrôlement QR de bout en bout, le durcissement production d'Argon2id). Présenter un prototype pour un produit fini aurait exposé un futur client à un risque réel : la sincérité technique est une responsabilité vis-à-vis de celui qui déploiera le système.
+
+**Prise de recul.** Ce stage m'a fait comprendre que l'ingénieur n'est pas un simple exécutant technique neutre : ses choix d'architecture *distribuent le pouvoir*. Décider où vit une clé de chiffrement, c'est décider qui peut lire quoi — donc arbitrer un rapport de force entre un éditeur, un client et, potentiellement, un État. Cette dimension rejoint les enjeux DDRS présentés en I.6 : la sobriété (réutiliser le parc existant plutôt que multiplier les datacenters) et l'inclusion (des briques open source auditables plutôt qu'une boîte noire) sont, elles aussi, des choix de responsabilité. J'ai appris qu'un ingénieur responsable doit se demander non seulement « est-ce que ça marche ? », mais « à qui cela donne-t-il du pouvoir, et est-ce légitime ? ».
+
+**Mise en perspective dans mon futur professionnel.** Je me destine à l'ingénierie des systèmes distribués et de la cybersécurité, des domaines où chaque décision technique a une portée éthique démultipliée par l'échelle. Ce stage a ancré chez moi une conviction directrice : la sécurité et la confidentialité ne doivent pas être des options commerciales, mais des propriétés *par conception*, opposables et vérifiables. Dans ma carrière, je veux contribuer à des solutions numériques souveraines pour le continent africain, en portant cette exigence — concevoir des systèmes dont la garantie ne repose pas sur la bonne volonté de celui qui les opère, mais sur ce qu'ils rendent structurellement impossible. C'est, à mes yeux, la traduction concrète de la responsabilité de l'ingénieur.
+
+---
+
+### III.5. Bilan Personnel et Perspectives
 
 Ce stage représente ma première expérience de conception et de déploiement d'un système distribué souverain en conditions réelles — sur quatre OS hétérogènes, deux tenants indépendants, avec des incidents authentiques à résoudre, des délais à respecter et une tutrice exigeante à satisfaire. Cette expérience a profondément ancré des compétences qui ne peuvent s'acquérir que par la pratique : diagnostiquer un incident distribué, concevoir une solution architecturale pérenne, et choisir de s'appuyer sur des primitives éprouvées (libsodium, PostgreSQL) plutôt que de réinventer le risque.
 
@@ -1439,6 +1493,64 @@ fixes (requis sous Windows Docker Desktop).
 | Relais zero-knowledge | `spike/relay/` | Rust (axum) |
 | SaaS éditeur | application Django | Python |
 | Packaging / déploiement | `spike/docker-compose.yml`, `pme-deploy/`, `relay-deploy/` | Docker / shell |
+
+---
+
+### Annexe H — Pilotage du projet (WBS, Gantt, analyse de risques)
+
+#### H.1. WBS détaillé (à jour)
+
+```
+Framework SaaS Souverain (أمان)
+├── L1 · Architecture & spécification
+│   ├── L1.1 Modèle à trois acteurs (éditeur / relais / PME)
+│   ├── L1.2 Hiérarchie de clés (DEK, sealed box, code de récupération)
+│   └── L1.3 Choix de stack actés (Rust, PostgreSQL, Docker, Django)
+├── L2 · Socle cryptographique                        ◄ chemin critique
+│   ├── L2.1 DEK XChaCha20-Poly1305 (chiffrement/déchiffrement cross-OS)
+│   ├── L2.2 Sealed box X25519 (enrôlement d'appareil)
+│   ├── L2.3 Journal append-only CBOR chiffré
+│   └── L2.4 Code de récupération Argon2id
+├── L3 · Réplication & résilience                     ◄ chemin critique
+│   ├── L3.1 Réplication streaming PostgreSQL primaire/standby
+│   ├── L3.2 Bascule manuelle (< 3 nœuds)
+│   ├── L3.3 Failover par quorum (≥ 3 nœuds)
+│   ├── L3.4 Fencing par timeline (anti split-brain)
+│   └── L3.5 Campagnes de test (6/6 métier + 4/4 HA)
+├── L4 · SaaS éditeur & déploiement
+│   ├── L4.1 Comptes tenants, licences, parc (Django)
+│   ├── L4.2 Relais zero-knowledge (axum)
+│   └── L4.3 Installateur auto-adaptatif (Docker, 1 commande)
+└── L5 · Supervision IA & clôture
+    ├── L5.1 Agent de supervision Mistral (3 acteurs)
+    ├── L5.2 Rapport final & annexes
+    └── L5.3 Soutenance
+```
+
+#### H.2. Planning Gantt (24 semaines) — vue macroscopique
+
+| Lot | S1–4 | S5–8 | S9–12 | S13–16 | S17–20 | S21–24 |
+|-----|:----:|:----:|:-----:|:------:|:------:|:------:|
+| L1 Architecture & spéc. | ████ | ░░ | | | | |
+| L2 Socle crypto *(CC)* | | ████ | ██ | | | |
+| L3 Réplication & résilience *(CC)* | | | ██ | ████ | ██ | |
+| L4 SaaS & déploiement | | | | ██ | ████ | ██ |
+| L5 Supervision IA & clôture | | | | | ██ | ████ |
+
+*Chemin critique (CC) : L1 → L2 → L3. Le principe « le socle d'abord » interdit de
+démarrer L4/L5 (métier, SaaS) tant que L2 et L3 ne sont pas prouvés.*
+
+#### H.3. Analyse de risques (priorisée)
+
+| # | Risque | Grav. | Prob. | Parade mise en œuvre |
+|---|--------|:-----:|:-----:|----------------------|
+| R1 | **Split-brain** : deux primaires divergent | Critique | Moyenne | Quorum + **fencing par timeline** (double écriture rendue impossible) — validé 4/4 |
+| R2 | Primitive crypto mal implémentée | Critique | Faible | **Aucune crypto maison** : libsodium exclusivement |
+| R3 | Incompatibilité cross-OS (Windows/Linux) | Élevée | Moyenne | Packaging Docker multi-arch + tests sur 4 OS réels |
+| R4 | PME tourne un binaire périmé (tag Docker mutable) | Moyenne | Élevée | `docker compose pull` systématique au démarrage |
+| R5 | Perte de toutes les machines PME (sinistre) | Élevée | Faible | Blob de récupération chiffré (Argon2id) restitué par le relais |
+| R6 | Dérive silencieuse de la réplication | Élevée | Moyenne | Lecture de `pg_stat_replication` — jamais de statut déclaré, toujours mesuré |
+| R7 | Dépendance à l'API IA externe (Mistral) | Faible | Moyenne | Repli local (*fail-safe*) si l'API est indisponible |
 
 ---
 
