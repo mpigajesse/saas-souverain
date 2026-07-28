@@ -58,3 +58,6 @@ ouvrir-ports-editeur.bat
 # Artefacts de build noeud
 *.exe
 pme-deploy/ss-node.exe
+
+# Images de retour soutenance (hors depot)
+Retourimage soutenance/
