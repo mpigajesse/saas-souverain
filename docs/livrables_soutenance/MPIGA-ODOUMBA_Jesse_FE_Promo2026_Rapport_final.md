@@ -40,7 +40,7 @@
 
 ---
 
-> *Ce rapport a bénéficié de l'appui de Claude AI (Anthropic) pour la structuration de certains paragraphes et la reformulation d'extraits de documentation technique. L'analyse, la réflexion critique et l'ensemble des décisions techniques sont le fruit du travail de l'auteur.*
+> *Conformément aux règles d'intégrité académique de l'EIGSI, je déclare avoir eu recours à un assistant d'écriture basé sur l'IA (Claude, Anthropic) pour la structuration de certains paragraphes et la reformulation d'extraits de documentation technique. Cet appui s'est strictement limité à la forme. L'analyse, la réflexion critique, la contextualisation des missions ainsi que l'ensemble des décisions techniques relèvent de mon travail personnel : j'ai relu, vérifié, corrigé puis validé chaque proposition de l'outil, j'en assume seul la responsabilité et c'est à moi que reviennent, en dernier ressort, toutes les décisions et la validation finale du contenu. À ne pas confondre avec l'agent IA de supervision **Mistral** (§II.12), qui est un composant technique du système que j'ai livré.*
 
 ---
 

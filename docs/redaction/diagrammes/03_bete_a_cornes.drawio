@@ -1,0 +1,40 @@
+<mxfile host="65bd71144e">
+    <diagram name="Bête à Cornes — SDA" id="bac">
+        <mxGraphModel dx="1551" dy="804" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="bg" value="" style="rounded=0;fillColor=#0D0A07;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry width="1200" height="700" as="geometry"/>
+                </mxCell>
+                <mxCell id="title" value="Diagramme Bête à Cornes — SDA (Sovereign Data Agent)" style="text;html=1;align=center;fontColor=#C79A1B;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="20" width="1000" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="sda" value="🔐 SDA&lt;br&gt;Sovereign Data Agent&lt;br&gt;&lt;br&gt;Architecture Coffre-Fort&lt;br&gt;Data P2P Souveraine" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#C79A1B;strokeWidth=3;fontColor=#C79A1B;fontSize=14;fontStyle=1;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="270" width="340" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="who" value="🏢 À qui rend-il service ?&lt;br&gt;&lt;br&gt;Organisations africaines&lt;br&gt;(entreprises, PME,&lt;br&gt;administrations)&lt;br&gt;souhaitant gérer leurs&lt;br&gt;données en toute&lt;br&gt;souveraineté" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#B3121B;strokeWidth=2;fontColor=#E6EDF3;fontSize=13;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="250" width="240" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="what" value="📊 Sur quoi agit-il ?&lt;br&gt;&lt;br&gt;Les données structurées&lt;br&gt;produites localement :&lt;br&gt;• Métriques métier&lt;br&gt;• Fichiers sensibles&lt;br&gt;• Rapports analytiques&lt;br&gt;• Logs d&#39;audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#B3121B;strokeWidth=2;fontColor=#E6EDF3;fontSize=13;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="880" y="250" width="240" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="why" value="🎯 Dans quel but ?&lt;br&gt;&lt;br&gt;Assurer la persistance locale,&lt;br&gt;le chiffrement at-rest,&lt;br&gt;la réplication P2P automatique&lt;br&gt;et la réconciliation des conflits&lt;br&gt;&lt;br&gt;SANS dépendance à un cloud étranger&lt;br&gt;CONFORMÉMENT à l&#39;AUDPF" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#34D399;strokeWidth=2;fontColor=#E6EDF3;fontSize=13;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="330" y="530" width="540" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" value="rend service à" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#B3121B;strokeWidth=2;fontColor=#B3121B;fontSize=12;labelBackgroundColor=#0D0A07;exitX=1;exitY=0.3;entryX=0;entryY=0.3;" parent="1" source="who" target="sda" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" value="agit sur" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#B3121B;strokeWidth=2;fontColor=#B3121B;fontSize=12;labelBackgroundColor=#0D0A07;exitX=0;exitY=0.3;entryX=1;entryY=0.3;" parent="1" source="what" target="sda" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" value="dans le but de" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#34D399;strokeWidth=2;fontColor=#34D399;fontSize=12;labelBackgroundColor=#0D0A07;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="sda" target="why" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="synth" value="SDA rend service aux organisations africaines en agissant sur leurs données locales dans le but de garantir leur souveraineté numérique." style="text;html=1;align=center;fontColor=#8B8B8B;fontSize=13;fontStyle=2;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="685" width="1000" height="20" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

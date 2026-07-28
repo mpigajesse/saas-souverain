@@ -123,6 +123,14 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 
 ---
 
+### L'AUDPF — Union Africaine, Déc. 2025
+
+> *"Les données des organisations africaines doivent rester sous contrôle local et ne pas transiter sans consentement par des serveurs étrangers."*
+
+> 🌍 Un enjeu **universel** — notre **priorité : l'Afrique**, sans s'y limiter.
+
+---
+
 ## Le dilemme de l'éditeur de logiciel métier
 
 ```
@@ -139,12 +147,6 @@ EIGSI Casablanca — Spécialité Big Data & Intelligence Artificielle
 │  ❌ Pas de mises à jour, pas de licences, pas de support  │
 └──────────────────────────────────────────────────────────┘
 ```
-
----
-
-### L'AUDPF — Union Africaine, Déc. 2025
-
-> *"Les données des organisations africaines doivent rester sous contrôle local et ne pas transiter sans consentement par des serveurs étrangers."*
 
 ---
 

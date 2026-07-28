@@ -1,0 +1,11 @@
+## RÉSUMÉ
+
+Pendant les vingt-quatre semaines de mon stage de fin d'études chez AL BARAA CONSULTING, j'ai conçu et développé un framework qui répond à une contradiction que je trouvais mal résolue dans l'industrie : comment un éditeur peut-il vendre son logiciel « en mode SaaS » — avec les comptes, les licences, les mises à jour, le suivi du parc — sans pour autant héberger, et donc pouvoir lire, les données de ses clients ? La question n'a rien d'anecdotique pour les organisations africaines, aujourd'hui largement tributaires de clouds étrangers soumis à des lois qui leur échappent ; le cadre AUDPF de l'Union africaine en a d'ailleurs fait une priorité fin 2025.
+
+Ma réponse tient en une idée : séparer ce qui peut être vu de ce qui ne doit jamais l'être. Le framework s'appuie sur trois acteurs. Un SaaS éditeur, en Django, ne touche qu'au commercial. Un relais *zero-knowledge* ne conserve que des blobs chiffrés qu'il est incapable d'ouvrir. Et les données métier, elles, restent en clair chez la PME, sur ses propres machines. Le logiciel métier, open source, s'appelle أمان (*Amān*) — « sécurité, confiance » en arabe, ce qui résume assez bien l'intention.
+
+Le cœur est écrit en Rust. Pour la cryptographie, je n'ai réinventé aucune primitive : tout passe par libsodium (XChaCha20-Poly1305, X25519, Argon2id), autour d'une clé unique par entreprise, la DEK, générée chez le client et jamais côté éditeur. La persistance repose sur une réplication PostgreSQL primaire/standby, durcie contre le *split-brain* par un mécanisme de *fencing* fondé sur le *timeline* natif de PostgreSQL. Le tout est distribué en Docker, et un agent IA (Mistral) surveille les trois acteurs — sans jamais franchir la frontière des données métier.
+
+J'ai validé le prototype sur un banc réel à quatre systèmes d'exploitation (Windows 11, Ubuntu, Kali, Debian) : les six scénarios métier et les quatre protections de résilience passent sans échec, sur deux entreprises souveraines indépendantes, avec un déploiement qui se configure tout seul. Le résultat n'est pas un produit fini, mais la preuve, sur le terrain, que l'alternative est réaliste.
+
+**Mots-clés :** souveraineté des données, SaaS souverain, zero-knowledge, Rust, libsodium, PostgreSQL, réplication primaire/standby, fencing, Docker, Django, agent IA, AUDPF, Afrique.
