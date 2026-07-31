@@ -61,6 +61,7 @@ services:
       SS_NODE_DIR: /data
       WEB_PORT: "9001"
       NODE_ADDR: "${NODE_ADDR}"
+      NODE_MODE: "${NODE_MODE:-passive}"
       RELAY_URL: "${RELAY_URL}"
       SAAS_URL: "${SAAS_URL:-}"
       REGISTRATION_TOKEN: "${REGISTRATION_TOKEN:-}"
