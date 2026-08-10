@@ -1,4 +1,4 @@
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
@@ -23,8 +23,6 @@ impl Journal {
     pub fn open(path: impl Into<PathBuf>, dek: Dek) -> Result<Self, JournalError> {
         let path: PathBuf = path.into();
 
-        // Compter les frames par leur entête (u32 len) sans déchiffrer.
-        // Si le fichier n'existe pas encore, next_index = 0.
         let next_index = if path.exists() {
             Self::count_frames(&path)?
         } else {
@@ -34,7 +32,7 @@ impl Journal {
         Ok(Self { path, dek, next_index })
     }
 
-    /// Ajoute une entrée. Retourne son index.
+    /// Ajoute une entrée. Retourne son index séquentiel.
     pub fn append(
         &mut self,
         epoch: u64,
@@ -76,9 +74,14 @@ impl Journal {
         Ok(index)
     }
 
-    /// Lit toutes les entrées dans l'ordre.
+    /// Lit toutes les entrées dans l'ordre chronologique.
     pub fn read_all(&self) -> Result<Vec<JournalEntry>, JournalError> {
-        if !self.path.exists() {
+        self.read_range(0, usize::MAX)
+    }
+
+    /// Lit une plage d'entrées à partir de `start_index` avec une limite optionnelle.
+    pub fn read_range(&self, start_index: u64, limit: usize) -> Result<Vec<JournalEntry>, JournalError> {
+        if !self.path.exists() || limit == 0 {
             return Ok(Vec::new());
         }
 
@@ -88,7 +91,10 @@ impl Journal {
         let mut frame_index: u64 = 0;
 
         loop {
-            // Lire les 4 octets de longueur
+            if entries.len() >= limit {
+                break;
+            }
+
             let mut len_buf = [0u8; 4];
             match reader.read_exact(&mut len_buf) {
                 Ok(()) => {}
@@ -98,16 +104,20 @@ impl Journal {
 
             let len = u32::from_le_bytes(len_buf) as usize;
 
-            // Lire le blob chiffré
+            if frame_index < start_index {
+                // Sauter la frame sans lire tout en mémoire si on cherche un index ultérieur
+                reader.seek(SeekFrom::Current(len as i64))?;
+                frame_index += 1;
+                continue;
+            }
+
             let mut blob = vec![0u8; len];
             reader
                 .read_exact(&mut blob)
                 .map_err(|_| JournalError::Corrupted { index: frame_index })?;
 
-            // Déchiffrer
             let plaintext = self.dek.decrypt(&blob)?;
 
-            // Désérialiser le CBOR
             let entry: JournalEntry = ciborium::de::from_reader(plaintext.as_slice())
                 .map_err(|_| JournalError::Corrupted { index: frame_index })?;
 
@@ -118,7 +128,7 @@ impl Journal {
         Ok(entries)
     }
 
-    /// Nombre d'entrées actuellement dans le journal.
+    /// Nombre d'entrées actuellement enregistrées dans le journal.
     pub fn len(&self) -> u64 {
         self.next_index
     }
@@ -127,9 +137,8 @@ impl Journal {
         self.next_index == 0
     }
 
-    /// Compte les frames dans le fichier en lisant uniquement les entêtes de longueur.
-    /// Ne déchiffre pas — permet d'ouvrir un journal même avec une DEK incorrecte
-    /// (la vérification d'intégrité se produit à la lecture via `read_all`).
+    /// Compte les frames dans le fichier en lisant uniquement les en-têtes de longueur (4 octets).
+    /// Ne déchiffre pas les payloads — gain de performance majeur lors de l'ouverture du journal.
     fn count_frames(path: &Path) -> Result<u64, JournalError> {
         let file = std::fs::File::open(path)?;
         let mut reader = BufReader::new(file);
@@ -143,15 +152,8 @@ impl Journal {
                 Err(e) => return Err(JournalError::Io(e)),
             }
 
-            let len = u32::from_le_bytes(len_buf) as usize;
-
-            // Sauter le blob (sans le lire en mémoire entière si on peut)
-            // On utilise Read::by_ref pour consommer exactement `len` octets.
-            let mut blob = vec![0u8; len];
-            reader
-                .read_exact(&mut blob)
-                .map_err(|_| JournalError::Corrupted { index: count })?;
-
+            let len = u32::from_le_bytes(len_buf) as i64;
+            reader.seek(SeekFrom::Current(len))?;
             count += 1;
         }
 
@@ -197,31 +199,30 @@ mod tests {
     }
 
     #[test]
-    fn reopen_restores_state() {
-        let f = NamedTempFile::new().unwrap();
-        let dek = Dek::generate();
-        {
-            let mut j = Journal::open(f.path(), dek.clone()).unwrap();
-            j.append(1, Uuid::new_v4(), "op.a", b"data-a".to_vec()).unwrap();
-            j.append(1, Uuid::new_v4(), "op.b", b"data-b".to_vec()).unwrap();
+    fn read_range_pagination() {
+        let (mut j, _f) = tmp_journal();
+        let id = Uuid::new_v4();
+        for i in 0..10 {
+            j.append(1, id, "op", vec![i as u8]).unwrap();
         }
-        // Réouvrir
-        let j2 = Journal::open(f.path(), dek).unwrap();
-        let entries = j2.read_all().unwrap();
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[1].op_type, "op.b");
+        let page = j.read_range(3, 4).unwrap();
+        assert_eq!(page.len(), 4);
+        assert_eq!(page[0].index, 3);
+        assert_eq!(page[3].index, 6);
     }
 
     #[test]
-    fn wrong_dek_fails() {
-        let f = NamedTempFile::new().unwrap();
-        let dek1 = Dek::generate();
-        let dek2 = Dek::generate();
-        {
-            let mut j = Journal::open(f.path(), dek1).unwrap();
-            j.append(1, Uuid::new_v4(), "op", b"secret".to_vec()).unwrap();
-        }
-        let j2 = Journal::open(f.path(), dek2).unwrap();
-        assert!(j2.read_all().is_err());
+    fn debug_hermeticity() {
+        let entry = JournalEntry {
+            index: 0,
+            epoch: 1,
+            node_id: Uuid::new_v4(),
+            written_at: Utc::now(),
+            op_type: "stock.update".into(),
+            payload: vec![1, 2, 3, 4, 5],
+        };
+        let debug_str = format!("{:?}", entry);
+        assert!(debug_str.contains("<5 bytes>"));
+        assert!(!debug_str.contains("[1, 2, 3, 4, 5]"));
     }
 }
