@@ -1,0 +1,10 @@
+# Build artifacts Rust
+target/
+**/*.rs.bk
+*.rmeta
+
+# Fichiers temporaires & IDE
+.idea/
+.vscode/
+*.swp
+*.tmp

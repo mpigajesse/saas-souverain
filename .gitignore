@@ -29,6 +29,8 @@ staticfiles/
 media/
 
 # Rust / Cargo
+target/
+core-rust/target/
 spike/target/
 spike/.cargo/
 

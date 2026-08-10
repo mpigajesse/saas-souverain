@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "ss-crypto",
+    "ss-journal",
+    "ss-client"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+authors = ["Amane SaaS Souverain Team"]
+license = "Proprietary"
