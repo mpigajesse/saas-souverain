@@ -1,4 +1,5 @@
 pub mod invariants;
+pub mod offline;
 
 // Auto-generated gRPC Protobuf bindings (Mission B)
 pub mod pb {
@@ -6,4 +7,5 @@ pub mod pb {
 }
 
 pub use invariants::{InvariantChecker, InvariantError, InvoiceRecord, StockMovement};
+pub use offline::{OfflineCacheManager, OfflineError, OperationMode};
 pub use pb::amane_service_client::AmaneServiceClient;
