@@ -1,4 +1,5 @@
 pub mod invariants;
+pub mod license;
 pub mod offline;
 
 // Auto-generated gRPC Protobuf bindings (Mission B)
@@ -7,5 +8,6 @@ pub mod pb {
 }
 
 pub use invariants::{InvariantChecker, InvariantError, InvoiceRecord, StockMovement};
+pub use license::{LicenseError, LicensePayload, LicenseValidator, SignedLicenseToken};
 pub use offline::{OfflineCacheManager, OfflineError, OperationMode};
 pub use pb::amane_service_client::AmaneServiceClient;
