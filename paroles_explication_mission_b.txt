@@ -50,4 +50,15 @@ clé d'accès au nouveau poste en toute sécurité. Cela garantit qu'un lien ou 
 Code ne peut jamais être réutilisé par un pirate, tout en permettant au responsable 
 de révoquer un poste égaré en moins d'une seconde sans devoir rechiffrer le disque."
 
+--------------------------------------------------------------------------------
+
+--- 5. POUR EXPLICITER LE CINQUIÈME ET DERNIER CHANGEMENT (Serveur Mock gRPC) ---
+
+"Pour ce cinquième et dernier changement, j'ai développé un serveur gRPC factice 
+(Mock Server) directement intégré aux tests de notre composant client. Ce serveur 
+simule les réponses du cluster et de l'orchestrateur de façon ultra-rapide en 
+mémoire. Cela nous permet de valider et de tester l'ensemble de notre chaîne de 
+communication gRPC et de la gestion des erreurs à 100% en local et en totale 
+autonomie, avant le raccordement final avec le serveur Go."
+
 ================================================================================
