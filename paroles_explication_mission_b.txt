@@ -31,11 +31,23 @@ corruption de données jusqu'au retour de la connexion."
 --- 3. POUR EXPLICITER LE TROISIÈME CHANGEMENT (Validation Autonome de Licence) ---
 
 "Pour le troisième changement, j'ai développé le module de validation autonome 
-de licence basique sur des signatures cryptographiques Ed25519 (Blind Relay). 
+de licence basé sur des signatures cryptographiques Ed25519 (Blind Relay). 
 L'éditeur SaaS émet un jeton de licence numérique signé avec sa clé privée, et 
 notre client vérifie cette signature localement grâce à la clé publique embarquée. 
 Cela permet à l'entreprise de valider son abonnement, sa date d'expiration et son 
 quota de postes de manière 100% autonome en local pendant 30 jours, sans avoir 
 besoin d'appeler le serveur central de l'éditeur à chaque lancement."
+
+--------------------------------------------------------------------------------
+
+--- 4. POUR EXPLICITER LE QUATRIÈME CHANGEMENT (Appairage par QR Code V2) ---
+
+"Pour le quatrième changement, j'ai développé le module d'appairage et d'enrôlement 
+de nouveaux postes par QR Code. Lorsqu'une entreprise veut ajouter un nouvel 
+ordinateur à son réseau, le poste actif génère une invitation à usage unique et 
+utilise un mécanisme de scellement cryptographique (Sealed Box) pour transmettre la 
+clé d'accès au nouveau poste en toute sécurité. Cela garantit qu'un lien ou un QR 
+Code ne peut jamais être réutilisé par un pirate, tout en permettant au responsable 
+de révoquer un poste égaré en moins d'une seconde sans devoir rechiffrer le disque."
 
 ================================================================================
