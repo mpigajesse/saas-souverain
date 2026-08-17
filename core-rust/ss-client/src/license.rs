@@ -148,16 +148,18 @@ mod tests {
             max_nodes: 2,
             plan_tier: "STANDARD".into(),
         };
-        let mut payload_bytes = serde_json::to_vec(&payload).unwrap();
-        
-        // Falsification d'un octet dans le payload
-        payload_bytes[0] ^= 0xFF;
+        let payload_bytes = serde_json::to_vec(&payload).unwrap();
 
+        // 1. Signature du payload original valide
         use ed25519_dalek::Signer;
         let signature = signing_key.sign(&payload_bytes);
 
+        // 2. Altération d'un octet du payload APRÈS la signature (falsification)
+        let mut tampered_payload = payload_bytes.clone();
+        tampered_payload[0] ^= 0xFF;
+
         let token = SignedLicenseToken {
-            payload_bytes,
+            payload_bytes: tampered_payload,
             signature_bytes: signature.to_bytes().to_vec(),
         };
 
