@@ -1,0 +1,58 @@
+# chaos-tests — scénarios de panne. Déclenché seulement sur les PR touchant
+# le cœur HA/CRDT (consensus/, replication/ — + supervisor/ qui héberge les
+# tests de failover), sinon on n'use pas de runners pour rien.
+#
+# Contenu :
+#   * failover sur crash              TestSupervisorAgainstEtcd (faux Patroni + vrai etcd)
+#   * garde anti-partition            TestSupervisorPartitionGuardAgainstEtcd
+#   * élection/fencing                TestLeadershipFencingAgainstEtcd
+#   * convergence CRDT                tests replication (réordonnés/doublés/trous de seq)
+# Tous exécutés contre un etcd réel (testcontainers) — la panne est simulée
+# côté logique (SIGKILL du process testé, REST down, deltas chaotiques).
+
+name: chaos-tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'consensus/**'
+      - 'replication/**'
+      - 'supervisor/**'
+
+concurrency:
+  group: chaos-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fault-injection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: |
+            orchestrator-go/go.sum
+            .ci/testcontainers/go.sum
+
+      - name: Failover crash + garde anti-partition (etcd réel)
+        working-directory: .ci/testcontainers
+        run: go run . -workdir ../../orchestrator-go -- go test ./supervisor/ \
+          -run 'TestSupervisorAgainstEtcd|TestSupervisorPartitionGuardAgainstEtcd' \
+          -v -count=1 -timeout 5m
+
+      - name: Élection / fencing lease (etcd réel)
+        working-directory: .ci/testcontainers
+        run: go run . -workdir ../../orchestrator-go -- go test ./consensus/ \
+          -run 'TestLeadershipFencingAgainstEtcd' -v -count=1 -timeout 5m
+
+      - name: Convergence CRDT — deltas chaotiques (replay, doublons, réordonnancements)
+        working-directory: orchestrator-go
+        run: go test ./replication/ -count=1 -race -timeout 5m

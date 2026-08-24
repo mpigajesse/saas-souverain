@@ -1,0 +1,33 @@
+digraph overview {
+  rankdir=TB;
+  graph [fontname="Helvetica", fontsize=11, fontcolor="#0b3d66", label="Mission C — vue d'ensemble",
+         labelloc=t, pad=0.4, compound=true];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#eef4fa", color="#4a7196"];
+  edge  [fontname="Helvetica", fontsize=9, color="#4a7196"];
+
+  subgraph cluster_A {
+    label="SITE A (atelier) — mesh intra-site 10.10.1.0/24";
+    style=filled; fillcolor="#f7fafd"; color="#4a7196";
+
+    pgA [label="postgres-primary\n(Patroni :8008)", fillcolor="#e8f5e9", color="#2e7d32"];
+    pgB [label="postgres-replica\n(Patroni :8009)", fillcolor="#e8f5e9", color="#2e7d32"];
+    etcdA [label="etcd (Raft) :2379", shape=cylinder, fillcolor="#fff8e1", color="#b07c1a"];
+    o1   [label="orchestrator :50051\nleadership/fencing (lease)\nrelay CRDT stock\npropagateur", fillcolor="#ede7f6", color="#5e35b1"];
+    o2   [label="orchestrator :50052\nsuperviseur (option C)\nagent heartbeat LOCAL\npropagateur", fillcolor="#ede7f6", color="#5e35b1"];
+
+    pgA -> pgB [label="réplication synchrone\nsynchronous_commit=on", style=dashed];
+    o1  -> etcdA [label="/amane/leader (fencing)", dir=both];
+    o2  -> etcdA [label="/amane/supervisor/hb/<nom>", dir=both];
+    o1  -> o2   [label="PushDelta (relay)", style=dotted];
+  }
+
+  subgraph cluster_B {
+    label="SITE B (eshop)";
+    style=filled; fillcolor="#f7fafd"; color="#4a7196";
+    oB [label="orchestrator :50053\nrelay CRDT stock\npropagateur", fillcolor="#ede7f6", color="#5e35b1"];
+  }
+
+  o1 -> oB [label="TLS 1.3 / mTLS sortant\nPushDelta + traceparent W3C", color="#c62828", fontcolor="#c62828"];
+  oB -> o1 [label="PushDelta", color="#c62828", fontcolor="#c62828", dir=none];
+}

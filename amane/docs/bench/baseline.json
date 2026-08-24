@@ -1,0 +1,11 @@
+{
+  "//": "Baselines de régression Mission C (job CI benchmark). Mesurées le 2026-08-19 sur dev (i5-6300U) — les seuils sont volontairement très lâches (tolérance x10) car le bruit machine/CI domine à cette échelle (µs).",
+  "micro_ns_op": {
+    "BenchmarkRelayAdd": 1214,
+    "BenchmarkRelayAccept": 1426,
+    "BenchmarkJournalWrite": 1016
+  },
+  "micro_tolerance_mult": 10.0,
+  "slo_failover_ms": 5000,
+  "slo_writable_ms": 6000
+}

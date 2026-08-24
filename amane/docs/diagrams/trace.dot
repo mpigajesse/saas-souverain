@@ -1,0 +1,32 @@
+digraph trace {
+  rankdir=LR;
+  graph [fontname="Helvetica", fontsize=11, fontcolor="#0b3d66", label="Trace distribuée W3C — forward path (sans dépendance OTel)",
+         labelloc=t, pad=0.4];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#eef4fa", color="#4a7196"];
+  edge  [fontname="Helvetica", fontsize=9, color="#4a7196"];
+
+  subgraph cluster_emit {
+    label="nœud A (émetteur)";
+    style=filled; fillcolor="#f7fafd"; color="#4a7196";
+    prop  [label="Propagator / client\ncontext {trace: Root()}", fillcolor="#ede7f6", color="#5e35b1"];
+    inj   [label="UnaryClientInterceptor\nmetadata ← traceparent\n00-<tid>-<parent>-01", fillcolor="#ede7f6", color="#5e35b1"];
+    prop -> inj;
+  }
+
+  wire [label="métadonnées gRPC\n(traceparent transporté)", color="#c62828", fontcolor="#c62828"];
+
+  subgraph cluster_recv {
+    label="nœud B (récepteur)";
+    style=filled; fillcolor="#f7fafd"; color="#4a7196";
+    ext   [label="UnaryServerInterceptor\nextrait traceparent → Child()", fillcolor="#ede7f6", color="#5e35b1"];
+    span  [label="span enfant dans le contexte\ndu handler (PushDelta / Write)", fillcolor="#ede7f6", color="#5e35b1"];
+    log   [label="« if missing → Root() »\nlog rpc {trace_id, span_id, ms}", fillcolor="#e8f5e9", color="#2e7d32"];
+    ext -> span -> log;
+  }
+
+  inj -> wire -> ext;
+
+  corr [label="même trace_id de nœud en nœud\ncorrèle Write, PushDelta et failover\n(un SDK OTLP se branche sans changement)",
+        shape=note, fillcolor="#eeeeee", color="#555"];
+}

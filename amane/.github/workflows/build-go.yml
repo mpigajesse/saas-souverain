@@ -1,0 +1,102 @@
+# build-go — compilation + vet + tests unitaires + couverture.
+#
+# La couverture est mesurée avec etcd RÉEL démarré en amont : les tests
+# d'intégration (consensus, supervisor, mesh) sont comptés, pas skippés.
+# Périmètre : packages produit ; code généré (gen/amane, sortie de buf) exclu —
+# on n'exige jamais de taux sur du code non écrit à la main.
+#
+# Politique (option C) : seuil agrégé MIN_COVERAGE + PLANCHE par paquet
+# (anti-gaming : un paquet à 40 % n'est pas compensé par grpcserver à 85 %).
+# Plan de remontée : consensus 73.8 % / telemetry 93.2 % / mesh 83.2 % /
+# supervisor 80.2 % / grpcserver 85.3 % / replication 95.7 % (agrégat 72 %).
+# Remonter MIN_COVERAGE par paliers (70 → 75 → 80) à chaque PR de tests.
+
+name: build-go
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: build-go-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  MIN_COVERAGE: 70
+  PKG_MIN_COVERAGE: 60
+
+jobs:
+  build-test-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: |
+            orchestrator-go/go.sum
+            tests/go.sum
+
+      - name: Build
+        working-directory: orchestrator-go
+        run: go build ./...
+
+      - name: Vet
+        working-directory: orchestrator-go
+        run: go vet ./...
+
+      - name: Tests unitaires
+        working-directory: orchestrator-go
+        run: go test ./... -count=1 -race -timeout 10m
+
+      - name: Couverture (etcd réel, intégration comptée)
+        working-directory: orchestrator-go
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name etcd-coverage -p 2379:2379 \
+            quay.io/coreos/etcd:v3.5.5 \
+            etcd --name coverage --data-dir /etcd-data \
+            --advertise-client-urls http://127.0.0.1:2379 \
+            --listen-client-urls http://0.0.0.0:2379 \
+            --listen-peer-urls http://0.0.0.0:2380 \
+            --initial-advertise-peer-urls http://127.0.0.1:2380 \
+            --initial-cluster coverage=http://127.0.0.1:2380 \
+            --initial-cluster-state new
+          for i in $(seq 1 20); do
+            docker exec etcd-coverage etcdctl endpoint health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec etcd-coverage etcdctl endpoint health >/dev/null || { echo "etcd non prêt"; exit 1; }
+
+          AMANE_TEST_ETCD=127.0.0.1:2379 go test ./... -count=1 \
+            -coverprofile=coverage.out -covermode=atomic -timeout 10m
+
+          # grep -v conserve la ligne "mode: ..." (en-tête du profil) : ne PAS
+          # la re-ajouter avec head, sinon go tool cover refuse le fichier.
+          grep -v 'gen/amane/' coverage.out > cov-prod.out
+          pct=$(go tool cover -func=cov-prod.out | awk '/^total:/{gsub("%","",$3); printf "%.1f", $3}')
+          echo "couverture (produit, gen/ exclu) = ${pct}%"
+          echo "couverture = ${pct}% (seuil ${MIN_COVERAGE}%)" >> "$GITHUB_STEP_SUMMARY"
+          awk -v p="$pct" -v m="$MIN_COVERAGE" 'BEGIN{exit !(p < m)}' && {
+            echo "couverture ${pct}% < seuil ${MIN_COVERAGE}%"
+            exit 1
+          }
+
+          # Plancher par paquet (anti-gaming) : chaque paquet produit doit être
+          # ≥ PKG_MIN_COVERAGE, sinon la PR apporte un trou assumé en un seul bloc.
+          for pkg in consensus telemetry mesh supervisor grpcserver replication; do
+            pp=$(awk -v p="github.com/amane/orchestrator-go/$pkg/" \
+              '$1 ~ p {s+=$2; if ($3>0) c+=$2} \
+               END{printf "%.1f", (s?100*c/s:0)}' cov-prod.out)
+            echo "  $pkg = ${pp}%"
+            awk -v y="$pp" -v m="$PKG_MIN_COVERAGE" 'BEGIN{exit !(y < m)}' && {
+              echo "plancher violé : $pkg à ${pp}% < ${PKG_MIN_COVERAGE}%"
+              exit 1
+            }
+          done

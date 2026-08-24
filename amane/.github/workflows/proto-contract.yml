@@ -1,0 +1,26 @@
+name: proto-contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-breaking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historique nécessaire à buf breaking (base main)
+      - uses: bufbuild/buf-action@v1
+        with:
+          version: 1.32.2
+          lint: true
+          breaking: true
+          against: '.git#branch=main,subdir=proto'
+      # Réplication du contrôle sans git : le test Go verrouille les numéros de
+      # champs et la liste des RPC (équivalent local de buf breaking, cf. AGENTS.md).
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - run: cd tests && go test ./contracts/ -run TestProtoContract -v

@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package amane.framework.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/amane/orchestrator-go/gen/frameworkv1";
+
+// AmaneService est le contrat partagé entre Mission B (SDK client) et Mission C
+// (serveur gRPC). Ne jamais renuméroter un champ ni changer son type :
+// rompt silencieusement les SDKs déployés (voir skill mission-c-protobuf-buf).
+service AmaneService {
+  // Ping : liveness du service (jalon 1).
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Enroll : enrôlement d'une machine (Interface 1 A ↔ C, membership).
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+
+  // Write : chemin d'écriture (Interface 3 B ↔ C).
+  rpc Write(WriteRequest) returns (WriteResponse);
+
+  // Read : lecture du journal (Interface 3 B ↔ C).
+  rpc Read(ReadRequest) returns (ReadResponse);
+
+  // NotifyRevocation : notification de dé-enrôlement (Interface 1 A ↔ C).
+  // Déclenche le recalcul du quorum côté C.
+  rpc NotifyRevocation(NotifyRevocationRequest) returns (NotifyRevocationResponse);
+
+  // PushDelta : propagation d'un delta CRDT (stock) vers un autre site
+  // (jalon 4 — réplication multi-site en mode AP). Idempotent : la fusion
+  // max-par-nœud converge quel que soit l'ordre ou les doublons.
+  rpc PushDelta(PushDeltaRequest) returns (PushDeltaResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string status = 1;
+  string node_id = 2;
+  string version = 3;
+  google.protobuf.Timestamp server_time = 4;
+}
+
+message EnrollRequest {
+  string machine_id = 1;
+  bytes ak_public_key = 2; // clé publique X25519 uniquement, jamais la clé privée
+  string site_id = 3;
+  string operator = 4;
+}
+
+message EnrollResponse {
+  string membership_id = 1;
+  string cluster_id = 2;
+  google.protobuf.Timestamp enrolled_at = 3;
+}
+
+message WriteRequest {
+  string journal_id = 1;
+  uint64 op_seq = 2;            // séquence monotone dans le journal
+  bytes encrypted_payload = 3;  // chiffré par Mission A, jamais de clair
+  string site_id = 4;
+  string machine_id = 5;
+}
+
+message WriteResponse {
+  uint64 committed_seq = 1;
+  string node_id = 2;
+  bool synced = 3; // réplication synchrone confirmée (Interface 3)
+  google.protobuf.Timestamp committed_at = 4;
+}
+
+message ReadRequest {
+  string journal_id = 1;
+  uint64 from_seq = 2;
+  uint32 limit = 3;
+}
+
+message ReadResponse {
+  repeated JournalEntry entries = 1;
+}
+
+message JournalEntry {
+  uint64 seq = 1;
+  bytes encrypted_payload = 2;
+  google.protobuf.Timestamp committed_at = 3;
+  string site_id = 4;
+}
+
+message NotifyRevocationRequest {
+  string machine_id = 1;
+  string revoked_ak_id = 2; // identifiant de la clé révoquée, jamais la clé
+  google.protobuf.Timestamp revoked_at = 3;
+  string reason = 4;
+}
+
+message NotifyRevocationResponse {
+  bool quorum_recalculated = 1;
+  string node_id = 2;
+}
+
+// Delta : un changement local de stock propagé à un autre site (delta-CRDT).
+// Ne transporte que le différentiel, jamais l'état complet du compteur.
+message Delta {
+  string node_id = 1; // nœud CRDT émetteur
+  int64 inc = 2;      // incrément de stock
+  int64 dec = 3;      // décrément de stock
+  uint64 seq = 4;     // séquence locale côté émetteur (détection de trous/gc)
+}
+
+message PushDeltaRequest {
+  string site_id = 1;   // site du nœud émetteur (from_site, pour suivi/observabilité)
+  string from_node = 2; // nœud CRDT émetteur (pour l'ack de séquence)
+  repeated Delta deltas = 3;
+}
+
+message PushDeltaResponse {
+  uint64 acked_seq = 1; // max seq locale de l'émetteur que le récepteur a appliquée
+  int64 value = 2;      // valeur du compteur récepteur après application
+  string node_id = 3;   // nœud récepteur
+}

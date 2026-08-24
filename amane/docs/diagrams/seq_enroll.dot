@@ -1,0 +1,75 @@
+digraph seq_enroll {
+  rankdir=TB;
+  graph [fontname="Helvetica", fontsize=11, fontcolor="#0b3d66", label="Séquence — enrôlement & révocation de machine (Interface 1, Mission A ↔ C)", labelloc=t, pad=0.4, splines=polyline];
+  node [fontname="Helvetica", fontsize=9, shape=point, width=0.02, height=0.02];
+  edge [fontname="Helvetica", fontsize=8, color="#4a7196", arrowsize=0.7];
+  H_a [label="Machine (Mission A)", shape=box, style="rounded,filled", fillcolor="#ffffff", color="#2a4a66", fontname="Helvetica-Bold", fontsize=10];
+  H_orc [label="Orchestrateur C (gRPC)", shape=box, style="rounded,filled", fillcolor="#ede7f6", color="#2a4a66", fontname="Helvetica-Bold", fontsize=10];
+  H_reg [label="etcd « /amane/members »", shape=box, style="rounded,filled", fillcolor="#fff8e1", color="#2a4a66", fontname="Helvetica-Bold", fontsize=10];
+  a_1 [label="", shape=point, width=0.01, height=0.01];
+  H_a -> a_1 [style=invis, constraint=true];
+  a_2 [label="", shape=point, width=0.01, height=0.01];
+  a_1 -> a_2 [style=invis, constraint=true];
+  a_3 [label="", shape=point, width=0.01, height=0.01];
+  a_2 -> a_3 [style=invis, constraint=true];
+  a_4 [label="", shape=point, width=0.01, height=0.01];
+  a_3 -> a_4 [style=invis, constraint=true];
+  a_5 [label="", shape=point, width=0.01, height=0.01];
+  a_4 -> a_5 [style=invis, constraint=true];
+  a_6 [label="", shape=point, width=0.01, height=0.01];
+  a_5 -> a_6 [style=invis, constraint=true];
+  a_7 [label="", shape=point, width=0.01, height=0.01];
+  a_6 -> a_7 [style=invis, constraint=true];
+  a_8 [label="", shape=point, width=0.01, height=0.01];
+  a_7 -> a_8 [style=invis, constraint=true];
+  orc_1 [label="", shape=point, width=0.01, height=0.01];
+  H_orc -> orc_1 [style=invis, constraint=true];
+  orc_2 [label="", shape=point, width=0.01, height=0.01];
+  orc_1 -> orc_2 [style=invis, constraint=true];
+  orc_3 [label="", shape=point, width=0.01, height=0.01];
+  orc_2 -> orc_3 [style=invis, constraint=true];
+  orc_4 [label="", shape=point, width=0.01, height=0.01];
+  orc_3 -> orc_4 [style=invis, constraint=true];
+  orc_5 [label="", shape=point, width=0.01, height=0.01];
+  orc_4 -> orc_5 [style=invis, constraint=true];
+  orc_6 [label="", shape=point, width=0.01, height=0.01];
+  orc_5 -> orc_6 [style=invis, constraint=true];
+  orc_7 [label="", shape=point, width=0.01, height=0.01];
+  orc_6 -> orc_7 [style=invis, constraint=true];
+  orc_8 [label="", shape=point, width=0.01, height=0.01];
+  orc_7 -> orc_8 [style=invis, constraint=true];
+  reg_1 [label="", shape=point, width=0.01, height=0.01];
+  H_reg -> reg_1 [style=invis, constraint=true];
+  reg_2 [label="", shape=point, width=0.01, height=0.01];
+  reg_1 -> reg_2 [style=invis, constraint=true];
+  reg_3 [label="", shape=point, width=0.01, height=0.01];
+  reg_2 -> reg_3 [style=invis, constraint=true];
+  reg_4 [label="", shape=point, width=0.01, height=0.01];
+  reg_3 -> reg_4 [style=invis, constraint=true];
+  reg_5 [label="", shape=point, width=0.01, height=0.01];
+  reg_4 -> reg_5 [style=invis, constraint=true];
+  reg_6 [label="", shape=point, width=0.01, height=0.01];
+  reg_5 -> reg_6 [style=invis, constraint=true];
+  reg_7 [label="", shape=point, width=0.01, height=0.01];
+  reg_6 -> reg_7 [style=invis, constraint=true];
+  reg_8 [label="", shape=point, width=0.01, height=0.01];
+  reg_7 -> reg_8 [style=invis, constraint=true];
+  a_1 -> orc_1 [label="Enroll {machine_id, AK publique, site, opérateur}", constraint=false, style=solid];
+  orc_2 -> reg_2 [label="membership.Add(...)", constraint=false, style=dashed, dir=forward, color="#b07c1a"];
+  reg_3 -> orc_3 [label="quorum recalculé", constraint=false, style=dashed, color="#999"];
+  orc_4 -> a_4 [label="EnrollResponse {status, quorum}  |  AlreadyExists si présent", constraint=false, style=dashed, color="#2e7d32"];
+  a_5 -> orc_5 [label="NotifyRevocation {machine_id}", constraint=false, style=solid, color="#c62828"];
+  orc_6 -> reg_6 [label="membership.Remove(...) → quorum", constraint=false, style=dashed, dir=forward, color="#b07c1a"];
+  reg_7 -> orc_7 [label="machine retirée (plus jamais d'AK)", constraint=false, style=dashed, color="#999"];
+  orc_8 -> a_8 [label="ack révocation", constraint=false, style=dashed, color="#2e7d32"];
+  NOTE_1 [label="jamais de clé en clair : seule la clé PUBLIQUE
+AK circule (règle transverse n°1)", shape=note, fontsize=8, style="rounded,filled", fillcolor="#fff3e0", color="#e65100"];
+  { rank=same; a_1; orc_1; reg_1; NOTE_1; }
+  { rank=same; a_2; orc_2; reg_2; }
+  { rank=same; a_3; orc_3; reg_3; }
+  { rank=same; a_4; orc_4; reg_4; }
+  { rank=same; a_5; orc_5; reg_5; }
+  { rank=same; a_6; orc_6; reg_6; }
+  { rank=same; a_7; orc_7; reg_7; }
+  { rank=same; a_8; orc_8; reg_8; }
+}

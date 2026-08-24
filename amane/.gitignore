@@ -1,0 +1,23 @@
+# secrets — jamais de clé en clair (règle AGENTS.md n°6)
+tls/
+*.pem
+*.key
+*.crt
+wg_private*
+
+# environnement local
+.venv/
+__pycache__/
+node_modules/
+
+# artefacts de test/build
+coverage.out
+cov-prod.out
+*.test
+/tmp/
+
+# binaires compilés (go build) — ne jamais committer
+/testcontainers
+/wgmesh
+orchestrator-go/wgmesh
+.ci/testcontainers/testcontainers

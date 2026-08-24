@@ -1,0 +1,32 @@
+digraph mesh {
+  rankdir=TB;
+  graph [fontname="Helvetica", fontsize=11, fontcolor="#0b3d66",
+         label="Mesh WireGuard intra-site — RT dynamique (cmd/wgmesh)",
+         labelloc=t, pad=0.4];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#eef4fa", color="#4a7196"];
+  edge  [fontname="Helvetica", fontsize=9, color="#4a7196"];
+
+  subgraph cluster_mesh {
+    label="site A — 10.10.1.0/24 (UDP 51820)";
+    style=filled; fillcolor="#f7fafd"; color="#4a7196";
+    n1 [label="node-1\n10.10.1.1/24", fillcolor="#e8f5e9", color="#2e7d32"];
+    n2 [label="node-2\n10.10.1.2/24", fillcolor="#e8f5e9", color="#2e7d32"];
+    n3 [label="node-3\n10.10.1.3/24", fillcolor="#e8f5e9", color="#2e7d32"];
+    n1 -> n2; n1 -> n3; n2 -> n3;
+  }
+
+  subgraph cluster_etcd {
+    label="etcd (source de vérité)";
+    style=filled; fillcolor="#fffdf2"; color="#b07c1a";
+    reg [label="/amane/mesh/nodes/<nom>\nclé PUBLIQUE + site + index + endpoint\n(jamais la clé privée)", shape=cylinder, fillcolor="#fff8e1", color="#b07c1a"];
+  }
+
+  conf [label="wg0.conf généré (0600, réécrit si changement)\n[Peer] AllowedIPs = 10.10.1.2/32\nEndpoint + PersistentKeepalive = 25\n(wg-quick up/down = opérateur)", fillcolor="#ede7f6", color="#5e35b1"];
+
+  n1 -> reg [label="publication (publique)"];
+  n2 -> reg;
+  n3 -> reg;
+  reg -> conf [label="découverte pairs → rendu"];
+  conf -> n2 [style=dotted, label="clé privée locale\n(fichier 0600)"];
+}

@@ -1,0 +1,21 @@
+digraph write_path {
+  rankdir=TB;
+  graph [fontname="Helvetica", fontsize=11, fontcolor="#0b3d66", label="Chemin d'écriture — Write gated par la lease etcd",
+         labelloc=t, pad=0.4];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#eef4fa", color="#4a7196"];
+  edge  [fontname="Helvetica", fontsize=9, color="#4a7196"];
+
+  client [label="Client (Mission A / B)\ngRPC Write(journal_id, site_id, payload)", fillcolor="#fff", color="#333"];
+  gate   [label="Leadership.IsLeader() ?\n(détient /amane/leader)", shape=diamond, fillcolor="#fffde7", color="#b07c1a"];
+  denied [label="codes.FailedPrecondition\n« write refusé : nœud non leader\n(fencing lease) »", fillcolor="#ffebee", color="#c62828"];
+  ok     [label="journal.Append(...)\n→ ack ok (séquence préservée)", fillcolor="#e8f5e9", color="#2e7d32"];
+  crdt   [label="Relay.Add(inc, dec)\ndelta {total cumulé, seq++} → pending", fillcolor="#ede7f6", color="#5e35b1"];
+  prop   [label="Propagator (1 s)\nPushDelta → pair", fillcolor="#ede7f6", color="#5e35b1"];
+
+  client -> gate;
+  gate  -> denied [label="non (lease perdue)"];
+  gate  -> ok     [label="oui (leader)"];
+  ok    -> crdt;
+  crdt  -> prop;
+}
