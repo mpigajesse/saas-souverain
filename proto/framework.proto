@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package amane.framework.v1;
+
+// Service principal gRPC du Framework AMANE
+service AmaneService {
+  // Enrôlement & Adhésion au Cluster (Interface 1 : Mission A ↔ C)
+  rpc RegisterNode (RegisterRequest) returns (RegisterResponse);
+
+  // Chemin d'écriture des transactions chiffrées (Interface 3 : Mission B ↔ C)
+  rpc WriteOperation (WriteRequest) returns (WriteResponse);
+
+  // Consultation & Lecture Hors-Ligne (Mission B)
+  rpc ReadOperation (ReadRequest) returns (ReadResponse);
+
+  // Statut & Validation de Licence Autonome (Mission B & C)
+  rpc GetClusterStatus (StatusRequest) returns (StatusResponse);
+}
+
+// ── Enrôlement ─────────────────────────────────────────────────────────────
+message RegisterRequest {
+  string installation_id = 1;  // UUID unique généré au 1er lancement
+  bytes public_key_x25519 = 2; // Clé publique d'accès AK
+  string node_name = 3;        // Nom lisible du poste PME
+}
+
+message RegisterResponse {
+  bool accepted = 1;
+  uint64 current_epoch = 2;
+  string cluster_id = 3;
+  string error_message = 4;
+}
+
+// ── Chemin d'écriture (Write Pipeline) ──────────────────────────────────────
+message WriteRequest {
+  uint64 epoch = 1;                   // Monotone epoch token (Fencing)
+  string node_id = 2;                 // UUID du nœud émetteur
+  uint64 sequence_number = 3;         // Numérotation séquentielle invariant
+  string op_type = 4;                 // ex: "STOCK_UPDATE", "INVOICE_CREATE"
+  bytes encrypted_cbor_payload = 5;   // Payload CBOR chiffré par DEK (ss-crypto)
+}
+
+message WriteResponse {
+  bool success = 1;
+  uint64 journal_index = 2;
+  int64 timestamp_ms = 3;
+  string error_message = 4;
+}
+
+// ── Read Operation ─────────────────────────────────────────────────────────
+message ReadRequest {
+  string collection = 1;
+  bytes query_filter = 2;
+  bool allow_offline_stale = 3;       // Autorise la lecture sur le cache local
+}
+
+message ReadResponse {
+  bool is_offline_read = 1;
+  repeated bytes encrypted_records = 2;
+  string error_message = 3;
+}
+
+// ── Statut & Heartbeat Licence ──────────────────────────────────────────────
+message StatusRequest {
+  string tenant_id = 1;
+  string installation_id = 2;
+}
+
+message StatusResponse {
+  bool is_active = 1;
+  uint32 active_nodes_count = 2;
+  bool read_only_mode = 3;            // Signal de dégradation gracieuse
+  bytes signed_license_token = 4;     // Jeton de licence Ed25519 (Blind Relay)
+}

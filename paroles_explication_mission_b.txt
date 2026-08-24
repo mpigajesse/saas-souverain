@@ -1,0 +1,64 @@
+================================================================================
+          RÉSUMÉ EXPLICATIF DES CHANGEMENTS — GUIDE DE PAROLE
+================================================================================
+
+--- 1. POUR EXPLICITER LE PREMIER CHANGEMENT (Socle gRPC & Règles Métier) ---
+
+"Pour le premier changement, j'ai mis en place le contrat de communication en 
+Protocol Buffers (.proto) et la structure du client Rust avec le SDK gRPC. Grâce 
+à ce contrat Protobuf, le code du client gRPC est généré automatiquement, ce qui 
+permet à l'application d'échanger avec le serveur de façon fluide et totalement 
+découplée. J'y ai également intégré le moteur de validation des invariants métier 
+— par exemple, il contrôle les données en local pour bloquer les ventes si le 
+stock devient négatif et garantir la numérotation séquentielle des factures avant 
+tout envoi gRPC."
+
+--------------------------------------------------------------------------------
+
+--- 2. POUR EXPLICITER LE SECOND CHANGEMENT (Cache SQLite & Mode Hors-Ligne) ---
+
+"Pour le changement d'aujourd'hui, j'ai développé le module de gestion 
+hors-ligne basé sur un cache SQLite local chiffré. J'ai créé un intercepteur 
+qui surveille les requêtes gRPC : si une panne réseau survient ou que le 
+service gRPC ne répond plus, le système le détecte et bascule automatiquement en 
+'dégradation gracieuse' (Graceful Read-Only). L'utilisateur peut ainsi continuer 
+à consulter toutes ses données en local via le cache SQLite sans aucune interruption, 
+tandis que les nouvelles écritures sont bloquées en toute sécurité pour éviter la 
+corruption de données jusqu'au retour de la connexion."
+
+--------------------------------------------------------------------------------
+
+--- 3. POUR EXPLICITER LE TROISIÈME CHANGEMENT (Validation Autonome de Licence) ---
+
+"Pour le troisième changement, j'ai développé le module de validation autonome 
+de licence basé sur des signatures cryptographiques Ed25519 (Blind Relay). 
+L'éditeur SaaS émet un jeton de licence numérique signé avec sa clé privée, et 
+notre client vérifie cette signature localement grâce à la clé publique embarquée. 
+Cela permet à l'entreprise de valider son abonnement, sa date d'expiration et son 
+quota de postes de manière 100% autonome en local pendant 30 jours, sans avoir 
+besoin d'appeler le serveur central de l'éditeur à chaque lancement."
+
+--------------------------------------------------------------------------------
+
+--- 4. POUR EXPLICITER LE QUATRIÈME CHANGEMENT (Appairage par QR Code V2) ---
+
+"Pour le quatrième changement, j'ai développé le module d'appairage et d'enrôlement 
+de nouveaux postes par QR Code. Lorsqu'une entreprise veut ajouter un nouvel 
+ordinateur à son réseau, le poste actif génère une invitation à usage unique et 
+utilise un mécanisme de scellement cryptographique (Sealed Box) pour transmettre la 
+clé d'accès au nouveau poste en toute sécurité. Cela garantit qu'un lien ou un QR 
+Code ne peut jamais être réutilisé par un pirate, tout en permettant au responsable 
+de révoquer un poste égaré en moins d'une seconde sans devoir rechiffrer le disque."
+
+--------------------------------------------------------------------------------
+
+--- 5. POUR EXPLICITER LE CINQUIÈME ET DERNIER CHANGEMENT (Serveur Mock gRPC) ---
+
+"Pour ce cinquième et dernier changement, j'ai développé un serveur gRPC factice 
+(Mock Server) directement intégré aux tests de notre composant client. Ce serveur 
+simule les réponses du cluster et de l'orchestrateur de façon ultra-rapide en 
+mémoire. Cela nous permet de valider et de tester l'ensemble de notre chaîne de 
+communication gRPC et de la gestion des erreurs à 100% en local et en totale 
+autonomie, avant le raccordement final avec le serveur Go."
+
+================================================================================
