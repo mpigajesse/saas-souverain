@@ -21,3 +21,16 @@ cov-prod.out
 /wgmesh
 orchestrator-go/wgmesh
 .ci/testcontainers/testcontainers
+
+# génération de documents (scripts ReportLab/Graphviz) — local uniquement
+docs/*
+!docs/bench/
+docs/bench/*
+!docs/bench/baseline.json
+
+# PDF — jamais poussés (documents générés + notes locales)
+*.pdf
+
+# agents IA / skills opencode — local uniquement
+.opencode/
+AGENTS.md
