@@ -73,12 +73,12 @@ def tenant_delete(request, pk):
 
 
 def inscription(request):
-    """Page d'inscription publique — accessible sans login."""
-    if request.user.is_authenticated:
-        if hasattr(request.user, 'tenant'):
-            return redirect('bienvenue')
-        return redirect('dashboard')
+    """Page d'inscription publique — TOUJOURS accessible (connecté ou non).
 
+    Volontairement sans redirection si l'utilisateur est déjà authentifié :
+    c'est une page de signup publique (vitrine) que l'on doit pouvoir présenter
+    à tout moment, y compris en démo, que le compte existe déjà ou non.
+    """
     if request.method == 'POST':
         form = InscriptionForm(request.POST)
         if form.is_valid():

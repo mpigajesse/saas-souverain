@@ -61,6 +61,41 @@ impl RelayClient {
         Ok(())
     }
 
+    /// Dépose un blob CHIFFRÉ opaque sur le relais (zero-knowledge).
+    /// Le relais ne peut pas le lire — il ne stocke que des bytes.
+    pub async fn put_blob(&self, tenant_id: Uuid, key: &str, data: Vec<u8>) -> Result<()> {
+        let url = format!("{}/api/blobs/{}/{}", self.base_url, tenant_id, key);
+        let mut req = self.client.put(&url).body(data);
+        // Jeton optionnel : seulement si le relais en exige un (RELAY_AUTH_TOKEN).
+        if let Ok(token) = std::env::var("RELAY_AUTH_TOKEN") {
+            if !token.is_empty() {
+                req = req.header("x-relay-token", token);
+            }
+        }
+        req.send()
+            .await
+            .with_context(|| format!("Relais injoignable : {}", url))?
+            .error_for_status()
+            .context("Erreur du relais lors du dépôt du blob")?;
+        Ok(())
+    }
+
+    /// Vérifie l'existence d'un blob (sans en lire le contenu utile).
+    /// Retourne false si le relais est injoignable.
+    pub async fn blob_exists(&self, tenant_id: Uuid, key: &str) -> bool {
+        let url = format!("{}/api/blobs/{}/{}", self.base_url, tenant_id, key);
+        let mut req = self.client.get(&url);
+        if let Ok(token) = std::env::var("RELAY_AUTH_TOKEN") {
+            if !token.is_empty() {
+                req = req.header("x-relay-token", token);
+            }
+        }
+        req.send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false)
+    }
+
     /// Récupère les pairs du cluster pour ce tenant.
     pub async fn get_peers(&self, tenant_id: Uuid) -> Result<Vec<NodeInfo>> {
         let url = format!("{}/api/nodes", self.base_url);

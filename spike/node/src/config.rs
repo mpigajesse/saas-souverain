@@ -17,6 +17,16 @@ pub struct NodeConfig {
     pub recovery_salt_hex: Option<String>,
     /// DEK chiffrée sous le code de récupération (hex) — absente si pas encore défini
     pub recovery_blob_hex: Option<String>,
+    /// Code de récupération en clair — conservé UNIQUEMENT sur la machine souveraine
+    /// de la PME (jamais transmis à l'éditeur ni au relais). Permet à l'admin du
+    /// tenant de le ré-afficher / télécharger depuis l'UI. `#[serde(default)]` pour
+    /// rester compatible avec les anciennes configs.
+    #[serde(default)]
+    pub recovery_code: Option<String>,
+    /// Mot de passe admin initial (en clair) — conservé sur la machine PME pour
+    /// l'afficher sur la page de connexion à la première authentification.
+    #[serde(default)]
+    pub initial_admin_password: Option<String>,
     /// Port d'écoute du nœud
     pub port: u16,
     /// Identifiant du cluster PME (reçu lors de l'inscription sur le SaaS éditeur)

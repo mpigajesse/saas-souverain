@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Affiche soutenance — Amān · SaaS Souverain — MPIGA Jesse</title>
+<style>
+  /* ============================================================
+     Affiche de soutenance — A1 portrait (594 × 841 mm)
+     Ambiance SOMBRE — charte EL BARAA CONSULT (bordeaux + or)
+     Impression : Chrome → Ctrl+P → PDF → format A1 → marges Aucune
+     (coche "Graphiques d'arrière-plan")
+     ============================================================ */
+
+  @page { size: 594mm 841mm; margin: 0; }
+
+  :root {
+    --red:        #B3121B;   /* rouge marque */
+    --red-dk:     #8E0E15;   /* rouge foncé */
+    --bg:         #1A0306;   /* bordeaux quasi-noir */
+    --bg-2:       #2B0508;
+    --bg-3:       #3A0A0E;
+    --gold:       #C79A1B;   /* doré principal */
+    --gold-lt:    #D8AE35;   /* doré clair */
+    --gold-soft:  #EACB70;
+    --paper:      #F8F1E7;   /* ivoire (texte) */
+    --muted:      #D8B4A6;   /* beige-rosé atténué */
+    --line:       rgba(199,154,27,.30);
+    --card:       rgba(255,255,255,.045);
+    --card-line:  rgba(216,174,53,.22);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background:#222; font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+
+  .poster {
+    position: relative;
+    width: 594mm; height: 841mm; margin: 0 auto;
+    color: var(--paper); overflow: hidden;
+    background:
+      radial-gradient(1300px 1000px at 82% 6%, rgba(199,154,27,.16), transparent 58%),
+      radial-gradient(1200px 1100px at 8% 98%, rgba(179,18,27,.40), transparent 60%),
+      linear-gradient(165deg, var(--bg) 0%, var(--bg-2) 55%, #15080A 100%);
+    display: flex; flex-direction: column;
+  }
+  /* Motif zellige discret en filigrane */
+  .poster::before {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:
+      repeating-linear-gradient( 45deg, rgba(199,154,27,.05) 0 2px, transparent 2px 30px),
+      repeating-linear-gradient(-45deg, rgba(199,154,27,.05) 0 2px, transparent 2px 30px);
+    opacity:.55;
+    mask-image: radial-gradient(circle at 50% 30%, transparent 22%, #000 80%);
+    -webkit-mask-image: radial-gradient(circle at 50% 30%, transparent 22%, #000 80%);
+  }
+  .poster > * { position: relative; z-index: 1; }
+
+  /* ── Bandeau logos ────────────────────────────────────────── */
+  .topbar {
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 16mm 24mm 0 24mm;
+  }
+  .logo-pill {
+    background: var(--paper); border-radius: 5mm; padding: 5mm 7mm;
+    display:flex; align-items:center; box-shadow: 0 2mm 10mm rgba(0,0,0,.3);
+  }
+  .logo-pill img { height: 18mm; display:block; }
+  .topbar .ed { height: 22mm; }
+
+  /* ── Header titre ─────────────────────────────────────────── */
+  header { padding: 10mm 24mm 0 24mm; }
+  .eyebrow {
+    display:flex; align-items:center; gap:8mm; color:var(--gold-soft);
+    font-size:7mm; letter-spacing:.4mm; font-weight:700; text-transform:uppercase;
+  }
+  .eyebrow .dot { width:3.5mm; height:3.5mm; border-radius:50%; background:var(--gold-lt); box-shadow:0 0 7mm var(--gold-lt); }
+
+  .hero-row { display:flex; gap:12mm; align-items:center; margin-top:6mm; }
+  .hero-txt { flex:1; }
+  .title-wrap { display:flex; align-items:baseline; gap:9mm; flex-wrap:wrap; }
+  .arabic { font-size:42mm; line-height:.9; font-weight:700; color:var(--gold); text-shadow:0 0 20mm rgba(199,154,27,.4); direction:rtl; }
+  .title { font-size:29mm; line-height:.98; font-weight:800; letter-spacing:-.5mm; }
+  .title small { display:block; font-size:9.5mm; font-weight:600; color:var(--gold-soft); letter-spacing:.4mm; margin-top:2.5mm; }
+  .tagline { margin-top:6mm; font-size:10mm; line-height:1.3; color:#F1E7DA; max-width:300mm; }
+  .tagline b { color:var(--gold-lt); font-weight:700; }
+  .hero-img {
+    width: 76mm; height: 76mm; border-radius: 7mm; object-fit: cover;
+    border: .6mm solid var(--card-line); box-shadow: 0 6mm 26mm rgba(0,0,0,.45);
+  }
+
+  .rule { height:.6mm; background:linear-gradient(90deg,var(--line),transparent); margin:7mm 24mm 0; }
+
+  /* ── Corps ────────────────────────────────────────────────── */
+  main { flex:1; padding: 5mm 24mm 0; display:flex; flex-direction:column; gap:3.5mm; }
+  .section-label { color:var(--gold); font-size:6.8mm; font-weight:800; text-transform:uppercase; letter-spacing:1mm; margin-bottom:3.5mm; }
+
+  .problem { font-size:9mm; line-height:1.32; color:#EFE3D6; font-style:italic; border-left:1.5mm solid var(--gold); padding-left:8mm; }
+
+  /* ── Schéma d'architecture (exact) ────────────────────────── */
+  .arch {
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
+    border:.4mm solid var(--card-line); border-radius:8mm; padding:6mm 9mm 7mm;
+  }
+  .zone-label { font-size:6.6mm; font-weight:800; letter-spacing:.5mm; text-transform:uppercase; margin-bottom:4mm; display:flex; align-items:center; gap:4mm; }
+  .zone-label .pin { font-size:7.5mm; }
+  .editeur .zone-label { color:var(--gold-soft); }
+  .pme .zone-label { color:#F6B6A8; }
+
+  .zrow { display:flex; gap:8mm; }
+  .node {
+    flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm;
+    padding:5mm 6mm; display:flex; flex-direction:column; gap:2.4mm; position:relative;
+  }
+  .node .ic { font-size:11mm; line-height:1; }
+  .node h4 { font-size:8.6mm; font-weight:800; line-height:1.05; }
+  .node p { font-size:6.8mm; line-height:1.28; color:var(--muted); }
+  .node .pill { align-self:flex-start; margin-top:1mm; font-size:5.8mm; font-weight:700; padding:2mm 5mm; border-radius:100mm; }
+  .pill.blind { background:rgba(179,18,27,.22); color:#F4A99B; border:.3mm solid rgba(179,18,27,.55); }
+  .pill.acct  { background:rgba(216,174,53,.16); color:var(--gold-soft); border:.3mm solid rgba(216,174,53,.45); }
+  .pill.clear { background:rgba(255,255,255,.08); color:#F1E7DA; border:.3mm solid var(--card-line); }
+  .pill.prim  { background:var(--gold); color:#2B0508; border:.3mm solid var(--gold); }
+  .pill.stby  { background:rgba(255,255,255,.08); color:var(--gold-soft); border:.3mm solid var(--card-line); }
+
+  .frontier {
+    margin:5mm 0; padding:3.5mm 7mm; border-radius:100mm; align-self:center;
+    background:rgba(179,18,27,.16); border:.4mm dashed rgba(216,174,53,.5);
+    color:var(--gold-soft); font-size:6.6mm; font-weight:700; letter-spacing:.3mm;
+    display:flex; align-items:center; gap:5mm;
+  }
+  .repl {
+    margin-top:5mm; text-align:center; font-size:6.6mm; color:var(--gold-lt); font-weight:700;
+  }
+  .repl span { color:var(--muted); font-weight:400; }
+
+  /* ── Hiérarchie de clés (DEK) ─────────────────────────────── */
+  .dek {
+    display:flex; gap:7mm; align-items:center;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12));
+    border:.4mm solid var(--card-line); border-radius:8mm; padding:5mm 7mm;
+  }
+  .sup-badge { width:34mm; height:34mm; }
+  .dek-img { width:34mm; height:34mm; object-fit:contain; flex:none; filter:drop-shadow(0 3mm 9mm rgba(0,0,0,.5)); }
+  .dek-flow { flex:1; display:flex; gap:5mm; align-items:stretch; }
+  .dek-step { flex:1; background:var(--card); border:.4mm solid var(--card-line); border-radius:5mm; padding:4mm 4.5mm; }
+  .dek-step .t { font-size:7mm; font-weight:800; color:var(--gold-soft); margin-bottom:2mm; display:flex; align-items:center; gap:3mm; }
+  .dek-step p { font-size:6.4mm; line-height:1.26; color:var(--muted); }
+  .dek-step p b { color:#F1E7DA; }
+  .dek-arrow { align-self:center; color:var(--gold); font-size:8mm; flex:none; }
+
+  /* Pastille agent IA */
+  .sup-badge {
+    width:42mm; height:42mm; border-radius:8mm; flex:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5mm;
+    background:radial-gradient(circle at 50% 35%, rgba(199,154,27,.35), rgba(179,18,27,.25));
+    border:.5mm solid var(--card-line);
+  }
+  .sup-badge .em { font-size:18mm; line-height:1; }
+  .sup-badge .lb { font-size:5.4mm; font-weight:800; color:var(--gold-soft); letter-spacing:.3mm; }
+  .risk { display:flex; gap:3mm; margin-top:2mm; }
+  .risk span { font-size:5mm; font-weight:700; padding:1.4mm 3.5mm; border-radius:100mm; }
+  .risk .ok { background:rgba(42,122,59,.25); color:#9FE6AE; border:.3mm solid rgba(42,122,59,.6); }
+  .risk .wt { background:rgba(216,174,53,.18); color:var(--gold-soft); border:.3mm solid rgba(216,174,53,.5); }
+  .risk .cr { background:rgba(179,18,27,.25); color:#F4A99B; border:.3mm solid rgba(179,18,27,.6); }
+
+  /* ── Preuves (captures réelles) ───────────────────────────── */
+  .proofs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8mm; align-items:start; }
+  .shot { background:#fff; border:.4mm solid var(--card-line); border-radius:6mm; overflow:hidden; }
+  .shot img { width:100%; height:52mm; object-fit:contain; background:#fff; display:block; }
+  .shot .cap { padding:4mm 6mm; font-size:6.6mm; color:var(--muted); line-height:1.28; background:var(--card); }
+  .shot .cap b { color:#fff; }
+
+  /* ── Bande résultats + stack ──────────────────────────────── */
+  .results { display:grid; grid-template-columns:1.05fr .95fr; gap:10mm; align-items:start; }
+  .metrics { display:flex; gap:7mm; }
+  .metric { flex:1; text-align:center; background:var(--card); border:.4mm solid var(--card-line); border-radius:6mm; padding:5mm 3mm; }
+  .metric .big { font-size:16mm; font-weight:800; color:var(--gold); line-height:1; }
+  .metric .lbl { font-size:6mm; color:var(--muted); margin-top:2.5mm; line-height:1.2; }
+  .proofs-list { display:flex; flex-direction:column; gap:3.5mm; margin-top:1mm; }
+  .pl { display:flex; gap:5mm; font-size:7.4mm; line-height:1.26; }
+  .pl .ck { color:var(--gold-lt); font-weight:800; flex:none; }
+  .pl b { color:#fff; }
+
+  /* ── Carte auteur (en bas du bloc résultats) ──────────────── */
+  .author-card {
+    margin-top:6mm; padding:6mm 7mm; border-radius:6mm;
+    background:linear-gradient(135deg, rgba(179,18,27,.20), rgba(199,154,27,.12));
+    border:.5mm solid var(--card-line);
+  }
+  .author-card .name { font-size:11mm; font-weight:800; color:#fff; }
+  .author-card .meta { font-size:6.8mm; color:var(--muted); margin-top:3mm; line-height:1.42; }
+  .author-card .meta b { color:var(--gold-soft); }
+</style>
+</head>
+<body>
+  <div class="poster">
+
+    <!-- Logos partenaires -->
+    <div class="topbar">
+      <div class="logo-pill"><img src="logoeisgie.png" alt="EIGSI Casablanca"></div>
+      <div class="logo-pill"><img class="ed" src="logoentreprise.png" alt="EL BARAA CONSULT"></div>
+    </div>
+
+    <header>
+      <div class="eyebrow"><span class="dot"></span> Souveraineté des données · Zero-knowledge · Stage de fin d'études 2026</div>
+      <div class="hero-row">
+        <div class="hero-txt">
+          <div class="title-wrap">
+            <div class="arabic">أمان</div>
+            <div class="title">Amān<small>Framework SaaS Souverain</small></div>
+          </div>
+          <div class="tagline">
+            La donnée métier reste sur les machines du client. L'éditeur gère comptes et licences —
+            et reste <b>cryptographiquement incapable</b> de lire les données de ses clients.
+          </div>
+        </div>
+        <img class="hero-img" src="images/hero.png" alt="Bouclier protégeant le cluster de données">
+      </div>
+      <div class="rule"></div>
+    </header>
+
+    <main>
+
+      <section>
+        <div class="section-label">Le problème</div>
+        <div class="problem">
+          Comment un éditeur peut-il vendre et maintenir un logiciel métier en mode SaaS
+          (comptes, licences, mises à jour) sans jamais accéder aux données de ses clients —
+          conformément au cadre africain de protection des données (AUDPF) ?
+        </div>
+      </section>
+
+      <!-- Schéma d'architecture exact -->
+      <section>
+        <div class="section-label">L'architecture — trois acteurs, une frontière chiffrée</div>
+        <div class="arch">
+          <div class="editeur">
+            <div class="zone-label"><span class="pin">🏢</span> Chez l'éditeur — ne voit jamais les données métier</div>
+            <div class="zrow">
+              <div class="node">
+                <div class="ic">☁️</div>
+                <h4>SaaS éditeur</h4>
+                <p>Comptes tenants, licences, suivi du parc. Django + PostgreSQL.</p>
+                <span class="pill acct">voit : compte / licence</span>
+              </div>
+              <div class="node">
+                <div class="ic">🔒</div>
+                <h4>Relais zero-knowledge</h4>
+                <p>Stocke des blobs chiffrés opaques + code de récupération chiffré. Même saisi, il ne déchiffre rien.</p>
+                <span class="pill blind">voit : jamais le clair</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="frontier">🔐 Frontière cryptographique — tout sort chiffré (DEK · libsodium)</div>
+
+          <div class="pme">
+            <div class="zone-label"><span class="pin">🏠</span> Chez la PME — périmètre souverain (données en clair)</div>
+            <div class="zrow">
+              <div class="node">
+                <div class="ic">🖥️</div>
+                <h4>Nœud primaire</h4>
+                <p>Exécute le logiciel, détient et chiffre les données. PostgreSQL primaire (écritures).</p>
+                <span class="pill prim">PRIMAIRE · actif</span>
+              </div>
+              <div class="node">
+                <div class="ic">🖥️</div>
+                <h4>Nœud standby</h4>
+                <p>Réplique en continu. Lecture seule. Prend le relais par quorum si le primaire tombe.</p>
+                <span class="pill stby">STANDBY · réplica</span>
+              </div>
+            </div>
+            <div class="repl">⟲ Réplication streaming PostgreSQL &lt; 1 s &nbsp;·&nbsp; <span>fencing par jeton d'époque (anti split-brain)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hiérarchie de clés DEK -->
+      <section>
+        <div class="section-label">La clé DEK — une seule clé par entreprise, jamais vue par l'éditeur</div>
+        <div class="dek">
+          <img class="dek-img" src="images/cle_dek.png" alt="Clé DEK et bouclier cryptographique">
+          <div class="dek-flow">
+            <div class="dek-step">
+              <div class="t">🔑 DEK</div>
+              <p>Clé symétrique unique par entreprise. Chiffre <b>les données métier + le journal CBOR</b> avant tout écrit disque.</p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">📲 Par appareil</div>
+              <p>La DEK est emballée en <b>sealed box (X25519)</b> pour chaque appareil autorisé. <i>Enrôlement par QR code : perspective.</i></p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🆘 Récupération</div>
+              <p>Emballée sous un <b>code haute entropie (Argon2id)</b> → blob chiffré stocké sur le relais. L'éditeur ne déchiffre rien.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Preuves réelles -->
+      <section>
+        <div class="section-label">Preuves — le logiciel tourne (banc multi-OS réel)</div>
+        <div class="proofs-grid">
+          <div class="shot">
+            <img src="images/stock_crop.png" alt="Tableau de bord stock du logiciel métier">
+            <div class="cap"><b>Logiciel métier en service</b> — tableau de bord stock (nœud PME, données en clair, alertes de seuil).</div>
+          </div>
+          <div class="shot">
+            <img src="images/repl_crop.png" alt="Réplication des comptes vérifiée sur le standby">
+            <div class="cap"><b>Réplication vérifiée</b> — les comptes créés sur le primaire apparaissent sur le standby (Ubuntu).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Supervision IA -->
+      <section>
+        <div class="section-label">Supervision intelligente — agent IA (Mistral) qui ne voit jamais les données</div>
+        <div class="dek">
+          <div class="sup-badge">
+            <div class="em">🧠</div>
+            <div class="lb">AGENT IA</div>
+          </div>
+          <div class="dek-flow">
+            <div class="dek-step">
+              <div class="t">📊 Analyse</div>
+              <p>Rôles PostgreSQL, réplication streaming, failover, régularité des heartbeats — <b>métriques d'infrastructure uniquement</b>.</p>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🩺 Verdict</div>
+              <p>Score d'anomalie <b>0–100</b> + diagnostic et action recommandée en langage naturel.</p>
+              <div class="risk"><span class="ok">sain</span><span class="wt">surveiller</span><span class="cr">critique</span></div>
+            </div>
+            <div class="dek-arrow">→</div>
+            <div class="dek-step">
+              <div class="t">🛡️ Garanties</div>
+              <p><b>Zero-knowledge</b> : aucune donnée métier transmise. <b>Fail-safe</b> : repli local déterministe si Mistral indisponible.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Résultats + stack -->
+      <section class="results">
+        <div>
+          <div class="section-label">Validé sur banc multi-OS</div>
+          <div class="proofs-list">
+            <div class="pl"><span class="ck">✓</span><div>Chiffrement <b>DEK cross-OS</b> (Windows · Ubuntu · Kali · Debian) — libsodium.</div></div>
+            <div class="pl"><span class="ck">✓</span><div><b>Journal append-only CBOR</b> chiffré (DEK) avant écriture disque.</div></div>
+            <div class="pl"><span class="ck">✓</span><div>Réplication PostgreSQL primaire↔standby + <b>failover par quorum &amp; fencing</b>.</div></div>
+            <div class="pl"><span class="ck">✓</span><div>Récupération <b>zero-knowledge</b> (code haute entropie · Argon2id · blob sur relais).</div></div>
+            <div class="pl"><span class="ck">✓</span><div><b>Dé-enrôlement</b> d'appareil + 2 tenants souverains indépendants.</div></div>
+            <div class="pl"><span class="ck">→</span><div style="color:var(--muted)"><i>Perspective : enrôlement d'appareil par QR code (primitive sealed box X25519 prête).</i></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Résultats</div>
+          <div class="metrics">
+            <div class="metric"><div class="big">6/6</div><div class="lbl">scénarios<br>métier</div></div>
+            <div class="metric"><div class="big">4/4</div><div class="lbl">protections<br>de résilience</div></div>
+            <div class="metric"><div class="big">2</div><div class="lbl">tenants<br>souverains</div></div>
+          </div>
+          <div class="author-card">
+            <div class="name">MPIGA-ODOUMBA Jesse</div>
+            <div class="meta">
+              EIGSI Casablanca — Spécialité Big Data &amp; Intelligence Artificielle · Promotion 2026<br>
+              Stage de fin d'études · AL BARAA CONSULTING, Casablanca · <b>Soutenance 2026</b>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+</body>
+</html>

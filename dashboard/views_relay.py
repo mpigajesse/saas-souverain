@@ -29,6 +29,32 @@ def _time_ago(iso: str) -> str:
         return "?"
 
 
+def _format_bytes(n: int) -> str:
+    n = int(n or 0)
+    if n < 1024:
+        return f"{n} o"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} Ko"
+    return f"{n / (1024 * 1024):.1f} Mo"
+
+
+def _ts_ago(epoch_secs: int) -> str:
+    if not epoch_secs:
+        return "—"
+    try:
+        dt = datetime.fromtimestamp(int(epoch_secs), tz=timezone.utc)
+        s = int((datetime.now(timezone.utc) - dt).total_seconds())
+        if s < 60:
+            return f"il y a {s}s"
+        if s < 3600:
+            return f"il y a {s // 60}min"
+        if s < 86400:
+            return f"il y a {s // 3600}h"
+        return f"il y a {s // 86400}j"
+    except Exception:
+        return "—"
+
+
 def _format_uptime(secs: int) -> str:
     if secs < 60:
         return f"{secs}s"
@@ -68,6 +94,25 @@ def relay_monitor(request):
     except Exception as e:
         health["error"] = str(e)
 
+    # ── Métadonnées des blobs par tenant (zero-knowledge) ────
+    # On ne récupère QUE des compteurs : existence, nombre, taille, date.
+    # Jamais le contenu — la promesse zero-knowledge est préservée.
+    blobs_by_tenant = {}
+    blobs_total = 0
+    try:
+        stats = _fetch_json(f"{relay_url}/api/blob-stats")
+        for t in stats.get("tenants", []):
+            tid = str(t.get("tenant_id", ""))
+            count = t.get("blob_count", 0) or 0
+            blobs_total += count
+            blobs_by_tenant[tid] = {
+                "count": count,
+                "size_fmt": _format_bytes(t.get("total_bytes", 0) or 0),
+                "last_fmt": _ts_ago(t.get("last_modified_secs", 0) or 0),
+            }
+    except Exception:
+        pass
+
     # ── Nœuds par tenant ─────────────────────────────────────
     tenants_data = []
     total_nodes = 0
@@ -87,8 +132,28 @@ def relay_monitor(request):
         except Exception:
             pass
 
+        # ── Liste détaillée des blobs du tenant (zero-knowledge) ──
+        # Énumère chaque blob (clé, taille, date) SANS jamais lire le contenu.
+        # Sert à MONTRER au jury que les blobs existent, un par un.
+        blob_list = []
+        try:
+            detail = _fetch_json(f"{relay_url}/api/blobs/{tenant.id}")
+            for b in detail.get("blobs", []):
+                blob_list.append({
+                    "key": b.get("key", "—"),
+                    "size_fmt": _format_bytes(b.get("size_bytes", 0) or 0),
+                    "last_fmt": _ts_ago(b.get("last_modified_secs", 0) or 0),
+                })
+        except Exception:
+            pass
+
         total_nodes += len(nodes)
-        tenants_data.append({"tenant": tenant, "nodes": nodes})
+        tenants_data.append({
+            "tenant": tenant,
+            "nodes": nodes,
+            "blobs": blobs_by_tenant.get(str(tenant.id)),
+            "blob_list": blob_list,
+        })
 
     # Dériver les labels de sous-réseau depuis les IPs réelles du relais
     def _to_subnet_label(ip: str) -> str:
@@ -112,6 +177,8 @@ def relay_monitor(request):
         "health": health,
         "tenants_data": tenants_data,
         "total_nodes": total_nodes,
+        "blobs_total": blobs_total,
+        "blobs_tenants_count": len(blobs_by_tenant),
         "editeur_subnet": editeur_subnet,
         "relay_subnet": relay_subnet,
         "pme_subnet": pme_subnet,

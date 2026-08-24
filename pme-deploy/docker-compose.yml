@@ -36,7 +36,9 @@ services:
       postgres
         -c wal_level=replica
         -c max_wal_senders=3
-        -c wal_keep_size=64
+        -c max_replication_slots=3
+        -c wal_keep_size=512
+        -c max_slot_wal_keep_size=4096
         -c listen_addresses=*
         -c synchronous_commit=remote_write
     healthcheck:
@@ -64,6 +66,7 @@ services:
       RELAY_URL: "${RELAY_URL}"
       SAAS_URL: "${SAAS_URL:-}"
       REGISTRATION_TOKEN: "${REGISTRATION_TOKEN:-}"
+      TENANT_ID: "${TENANT_ID:-}"
       PG_URL: "postgres://${PG_USER:-metier}:${PG_PASSWORD}@postgres:5432/${PG_DB:-metier}"
       RUST_LOG: "info"
     volumes:

@@ -97,3 +97,6 @@ RELAY_URL = config('RELAY_URL', default='http://host.docker.internal:8080')
 
 # Image Docker du nœud PME
 SS_NODE_IMAGE = config('SS_NODE_IMAGE', default='ss-node:dev')
+
+# Agent de supervision IA (Mistral free tier). Vide = repli local déterministe.
+MISTRAL_API_KEY = config('MISTRAL_API_KEY', default='')

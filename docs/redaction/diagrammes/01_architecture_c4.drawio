@@ -1,0 +1,97 @@
+<mxfile host="65bd71144e">
+    <diagram name="Architecture C4 — SDA" id="arch-c4">
+        <mxGraphModel dx="1861" dy="662" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0D0A07;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry width="1200" height="800" as="geometry"/>
+                </mxCell>
+                <mxCell id="title" value="SDA — Architecture Technique (Conteneur)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#C79A1B;fontSize=20;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="20" width="800" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="node-container" value="NŒUD SDA (Docker Compose)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#C79A1B;strokeWidth=2;fontColor=#C79A1B;fontSize=14;fontStyle=1;verticalAlign=top;arcSize=4;" parent="1" vertex="1">
+                    <mxGeometry x="86" y="54" width="1000" height="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="nginx" value="&lt;b&gt;sda-nginx&lt;/b&gt;&lt;br&gt;nginx:1.25-alpine&lt;br&gt;&lt;br&gt;🔐 TLS 1.3 (exclusif)&lt;br&gt;🔐 mTLS x509&lt;br&gt;&lt;br&gt;Port 443 (HTTPS) ← externe&lt;br&gt;Port 80 (→ redirect HTTPS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#B3121B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="140" width="220" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="frontend" value="&lt;b&gt;sda-frontend&lt;/b&gt;&lt;br&gt;nginx:alpine + React&lt;br&gt;&lt;br&gt;📊 Dashboard SDA&lt;br&gt;React 18 + TypeScript 5&lt;br&gt;Vite + Tailwind CSS&lt;br&gt;&lt;br&gt;Port 3000 (interne)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#6366f1;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="140" width="220" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="backend" value="&lt;b&gt;sda-backend&lt;/b&gt;&lt;br&gt;Python 3.11 + FastAPI&lt;br&gt;&lt;br&gt;⚡ API REST (Uvicorn)&lt;br&gt;📊 DuckDB (OLAP)&lt;br&gt;🗄️ SQLite (métadonnées)&lt;br&gt;🔑 Fernet (chiffrement)&lt;br&gt;&lt;br&gt;Port 8000 (interne seulement)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#34D399;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="700" y="140" width="220" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="syncthing" value="&lt;b&gt;sda-syncthing&lt;/b&gt;&lt;br&gt;syncthing/syncthing:latest&lt;br&gt;&lt;br&gt;🔄 Réplication P2P (BEP)&lt;br&gt;📡 mDNS découverte&lt;br&gt;🔐 TLS 1.3 inter-nœuds&lt;br&gt;&lt;br&gt;Port 8384 (GUI local)&lt;br&gt;Port 22000 (P2P TCP+UDP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#C79A1B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="400" width="220" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="vol-db" value="💾 Volume : data/db/&lt;br&gt;metadata_enc.db (SQLite)&lt;br&gt;analytics.duckdb (DuckDB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#090705;strokeColor=#3D2A1E;strokeWidth=1;fontColor=#8B8B8B;fontSize=11;arcSize=4;" parent="1" vertex="1">
+                    <mxGeometry x="700" y="420" width="220" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="vol-shared" value="💾 Volume : data/shared_storage/&lt;br&gt;*.parquet (Parquet chiffrés)&lt;br&gt;Répliqués par Syncthing P2P" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#090705;strokeColor=#3D2A1E;strokeWidth=1;fontColor=#8B8B8B;fontSize=11;arcSize=4;" parent="1" vertex="1">
+                    <mxGeometry x="420" y="420" width="220" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="certs" value="🔑 config/nginx/certs/&lt;br&gt;ca.crt · server.crt/key&lt;br&gt;client.crt/key · syncthing-key.conf" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#090705;strokeColor=#3D2A1E;strokeWidth=1;fontColor=#8B8B8B;fontSize=11;arcSize=4;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="660" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="client-browser" value="🌐 Navigateur&lt;br&gt;Chrome / Firefox&lt;br&gt;&lt;br&gt;Certificat client mTLS&lt;br&gt;(sda-client.p12)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0D0A07;strokeColor=#B3121B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="-120" y="180" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="peer-node" value="🖥️ Nœud Pair&lt;br&gt;(Ubuntu / Kali)&lt;br&gt;&lt;br&gt;Même architecture SDA&lt;br&gt;IP: 192.168.200.x" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0D0A07;strokeColor=#C79A1B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="-120" y="420" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" value="HTTPS :443&lt;br&gt;mTLS TLS 1.3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#B3121B;strokeWidth=2;fontColor=#B3121B;fontSize=10;labelBackgroundColor=#0D0A07;" parent="1" source="client-browser" target="nginx" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" value="HTTP :3000&lt;br&gt;(interne Docker)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6366f1;strokeWidth=2;fontColor=#6366f1;fontSize=10;labelBackgroundColor=#0D0A07;" parent="1" source="nginx" target="frontend" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" value="HTTP :8000&lt;br&gt;/api/ /health" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#34D399;strokeWidth=2;fontColor=#34D399;fontSize=10;labelBackgroundColor=#0D0A07;" parent="1" source="nginx" target="backend" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="250" y="460"/>
+                            <mxPoint x="810" y="460"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4" value="HTTP :8384&lt;br&gt;/syncthing-api/&lt;br&gt;X-API-Key auto" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=1;fontColor=#C79A1B;fontSize=10;labelBackgroundColor=#0D0A07;dashed=1;" parent="1" source="nginx" target="syncthing" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;" parent="1" source="backend" target="vol-db" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;" parent="1" source="syncthing" target="vol-shared" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" value="Parquet chiffrés&lt;br&gt;Fernet" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=1;fontColor=#C79A1B;fontSize=10;labelBackgroundColor=#0D0A07;dashed=1;" parent="1" source="backend" target="vol-shared" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" value="Syncthing BEP&lt;br&gt;TLS 1.3 :22000" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=2;fontColor=#C79A1B;fontSize=10;labelBackgroundColor=#0D0A07;" parent="1" source="peer-node" target="syncthing" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;dashed=1;" parent="1" source="nginx" target="certs" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="250" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend-title" value="Légende" style="text;html=1;align=left;fontColor=#C79A1B;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="140" width="120" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="l1" value="— HTTPS / mTLS externe" style="text;html=1;align=left;fontColor=#B3121B;fontSize=11;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="165" width="200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2" value="— API backend REST" style="text;html=1;align=left;fontColor=#34D399;fontSize=11;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="185" width="200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3" value="-- Syncthing P2P" style="text;html=1;align=left;fontColor=#C79A1B;fontSize=11;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="205" width="200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="l4" value="— Frontend React" style="text;html=1;align=left;fontColor=#6366f1;fontSize=11;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="950" y="225" width="200" height="20" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -1,5 +1,6 @@
 import uuid
 
+from django.db import models
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -7,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from tenants.models import Tenant
-from .models import Device
+from .models import ClusterMetricSample, Device
 
 
 def _parse_int(value):
@@ -73,6 +74,8 @@ def device_register(request):
     node_role = request.data.get('node_role', '')
     # Vérité de réplication mesurée localement, rapportée uniquement par un primaire.
     streaming_reported = _parse_int(request.data.get('streaming_standby_count'))
+    # Époque = timeline PostgreSQL du nœud. Sert au fencing (voir plus bas).
+    epoch_reported = _parse_int(request.data.get('epoch'))
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -84,6 +87,7 @@ def device_register(request):
             'web_addr': web_addr,
             'node_role': node_role,
             'streaming_standby_count': streaming_reported or 0,
+            'epoch': epoch_reported or 0,
             'is_active': True,
         },
     )
@@ -96,6 +100,47 @@ def device_register(request):
             device.node_addr = node_addr
         if web_addr:
             device.web_addr = web_addr
+
+        # L'époque rapportée (timeline PG) est toujours enregistrée — elle alimente
+        # le calcul du fencing pour tous les nœuds.
+        if epoch_reported is not None:
+            device.epoch = epoch_reported
+
+        # ── FENCING : un primaire à l'époque périmée ne peut pas reprendre la main ──
+        # Si un autre nœud actif a une époque (timeline) STRICTEMENT supérieure, c'est
+        # qu'une promotion plus récente a eu lieu ailleurs. Ce nœud est un ancien
+        # primaire déchu : on refuse sa prétention « primary » et on le clôture en
+        # standby, SANS rétrograder le primaire légitime.
+        max_other_epoch = (
+            Device.objects.filter(tenant=tenant, is_active=True)
+            .exclude(installation_id=installation_id)
+            .aggregate(m=models.Max('epoch'))['m']
+        ) or 0
+
+        is_stale_primary = (
+            node_role == 'primary'
+            and epoch_reported is not None
+            and epoch_reported < max_other_epoch
+        )
+
+        if is_stale_primary:
+            # Clôture : ce nœud reste/devient standby, le primaire légitime est préservé.
+            device.node_role = 'standby'
+            device.save()
+            return Response(
+                {
+                    'status': 'fenced',
+                    'reason': 'stale_epoch',
+                    'message': (
+                        f"Nœud clôturé : époque périmée ({epoch_reported} < {max_other_epoch}). "
+                        "Un primaire plus récent existe. Re-clonez ce nœud en standby."
+                    ),
+                    'node_epoch': epoch_reported,
+                    'cluster_epoch': max_other_epoch,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
         if node_role:
             # Failover automatique détecté : le nœud était standby et annonce maintenant primary
             if device.node_role == 'standby' and node_role == 'primary':
@@ -103,8 +148,14 @@ def device_register(request):
                 device.last_failover_at = timezone.now()
             device.node_role = node_role
             # Un seul primaire par tenant : rétrograder les autres nœuds primary → standby.
-            # Couvre le split-brain après redémarrage du serveur SaaS.
-            if node_role == 'primary':
+            # UNIQUEMENT si l'époque de ce nœud est connue ET au moins égale au max connu
+            # (primaire légitime). Sans époque — ex. annonce de découverte avant connexion
+            # PostgreSQL — on ne rétrograde personne, pour ne pas clobber le primaire légitime.
+            if (
+                node_role == 'primary'
+                and epoch_reported is not None
+                and epoch_reported >= max_other_epoch
+            ):
                 Device.objects.filter(
                     tenant=tenant,
                     node_role='primary',
@@ -124,6 +175,19 @@ def device_register(request):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    # Enregistrer un échantillon de métriques (série temporelle pour l'agent IA).
+    # Best-effort : ne doit jamais faire échouer l'enregistrement du nœud.
+    try:
+        ClusterMetricSample.objects.create(
+            tenant=tenant,
+            device=device,
+            node_role=device.node_role,
+            streaming_standby_count=device.streaming_standby_count,
+            failover_count=device.failover_count,
+        )
+    except Exception:  # pragma: no cover - la métrique est secondaire
+        pass
 
     # Vérifier les sièges disponibles (après get_or_create pour inclure la machine actuelle)
     active_device_count = tenant.devices.filter(is_active=True).count()

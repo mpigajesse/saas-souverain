@@ -1,0 +1,102 @@
+<mxfile host="app.diagrams.net" modified="2026-05-30" version="21.0.0">
+  <diagram name="Topologie Cluster 3 Nœuds" id="cluster-topology">
+    <mxGraphModel dx="1200" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- FOND -->
+        <mxCell id="bg" value="" style="rounded=0;fillColor=#0D0A07;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1200" height="800" as="geometry" />
+        </mxCell>
+
+        <!-- TITRE -->
+        <mxCell id="title" value="Cluster SDA — 3 Nœuds Hétérogènes — VMnet1 (192.168.200.0/24)" style="text;html=1;align=center;fontColor=#C79A1B;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="20" width="1000" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ RÉSEAU VMnet1 ═══ -->
+        <mxCell id="network" value="VMware VMnet1 — Réseau isolé P2P" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#090705;strokeColor=#3D2A1E;strokeWidth=2;fontColor=#8B8B8B;fontSize=13;verticalAlign=top;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="80" y="80" width="1040" height="560" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ NODE 1 — WINDOWS 11 ═══ -->
+        <mxCell id="node1" value="&lt;b&gt;NODE 1 — Windows 11 Pro&lt;/b&gt;&lt;br&gt;PC Physique (hôte VMware)&lt;br&gt;&lt;br&gt;IP VMnet1 : &lt;b&gt;192.168.200.1&lt;/b&gt;&lt;br&gt;&lt;br&gt;✅ sda-backend (26h healthy)&lt;br&gt;✅ sda-frontend (26h healthy)&lt;br&gt;✅ sda-nginx (:443)&lt;br&gt;✅ sda-syncthing (45h healthy)&lt;br&gt;&lt;br&gt;Syncthing ID : GHIJH3G-…&lt;br&gt;&lt;br&gt;🖥️ Docker Desktop (WSL2)&lt;br&gt;Tests : &lt;b&gt;10/11 PASS + 1 SKIP&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#C79A1B;strokeWidth=3;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" vertex="1" parent="1">
+          <mxGeometry x="120" y="140" width="260" height="320" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ NODE 2 — UBUNTU ═══ -->
+        <mxCell id="node2" value="&lt;b&gt;NODE 2 — Ubuntu 26.04 LTS&lt;/b&gt;&lt;br&gt;VM VMware&lt;br&gt;&lt;br&gt;IP VMnet1 : &lt;b&gt;192.168.200.130&lt;/b&gt;&lt;br&gt;&lt;br&gt;✅ sda-backend (healthy)&lt;br&gt;✅ sda-frontend (healthy)&lt;br&gt;✅ sda-nginx (:443)&lt;br&gt;✅ sda-syncthing (healthy)&lt;br&gt;&lt;br&gt;Syncthing ID : G43Q6SJ-…&lt;br&gt;&lt;br&gt;🐧 Docker 29.1.3 + Compose v5.1.4&lt;br&gt;Tests : &lt;b&gt;11/11 PASS&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#34D399;strokeWidth=3;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" vertex="1" parent="1">
+          <mxGeometry x="470" y="140" width="260" height="320" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ NODE 3 — KALI ═══ -->
+        <mxCell id="node3" value="&lt;b&gt;NODE 3 — Kali Linux&lt;/b&gt;&lt;br&gt;VM VMware&lt;br&gt;&lt;br&gt;IP VMnet1 : &lt;b&gt;192.168.200.128&lt;/b&gt;&lt;br&gt;&lt;br&gt;✅ sda-backend (healthy)&lt;br&gt;✅ sda-frontend (healthy)&lt;br&gt;✅ sda-nginx (:443)&lt;br&gt;✅ sda-syncthing (healthy)&lt;br&gt;&lt;br&gt;Syncthing ID : VFTEXUZ-…&lt;br&gt;&lt;br&gt;🐉 Docker 27.x + Compose v2.x&lt;br&gt;Tests : &lt;b&gt;11/11 PASS&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#34D399;strokeWidth=3;fontColor=#E6EDF3;fontSize=12;arcSize=6;align=center;" vertex="1" parent="1">
+          <mxGeometry x="820" y="140" width="260" height="320" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ PARQUET SHARED (centre bas) ═══ -->
+        <mxCell id="shared" value="💾 data/shared_storage/&lt;br&gt;Parquet chiffrés — synchronisés entre les 3 nœuds&lt;br&gt;16 fichiers · 609 enregistrements · 16 tenants" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#090705;strokeColor=#C79A1B;strokeWidth=2;fontColor=#C79A1B;fontSize=12;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="300" y="530" width="600" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ CONNEXIONS SYNCTHING P2P ═══ -->
+
+        <!-- Node1 ↔ Node2 -->
+        <mxCell id="e12" value="Syncthing BEP / TLS 1.3&lt;br&gt;:22000" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=3;fontColor=#C79A1B;fontSize=11;labelBackgroundColor=#0D0A07;endArrow=block;startArrow=block;startFill=1;endFill=1;" edge="1" source="node1" target="node2" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="300" />
+              <mxPoint x="470" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Node2 ↔ Node3 -->
+        <mxCell id="e23" value="Syncthing BEP / TLS 1.3&lt;br&gt;:22000" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=3;fontColor=#C79A1B;fontSize=11;labelBackgroundColor=#0D0A07;endArrow=block;startArrow=block;startFill=1;endFill=1;" edge="1" source="node2" target="node3" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="300" />
+              <mxPoint x="820" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Node1 ↔ Node3 (arc bas) -->
+        <mxCell id="e13" value="Syncthing BEP / TLS 1.3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=2;fontColor=#C79A1B;fontSize=11;labelBackgroundColor=#0D0A07;dashed=1;endArrow=block;startArrow=block;startFill=1;endFill=1;" edge="1" source="node1" target="node3" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="250" y="490" />
+              <mxPoint x="950" y="490" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Nœuds → shared_storage -->
+        <mxCell id="es1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;dashed=1;endArrow=open;" edge="1" source="node1" target="shared" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="es2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;dashed=1;endArrow=open;" edge="1" source="node2" target="shared" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="es3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#3D2A1E;strokeWidth=1;dashed=1;endArrow=open;" edge="1" source="node3" target="shared" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ RÉSULTAT GLOBAL ═══ -->
+        <mxCell id="result" value="🏆 Résultat cluster : 32/33 PASS — 0 FAIL — 1 SKIP (Win11 curl TLS)" style="text;html=1;align=center;fontColor=#34D399;fontSize=14;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="640" width="1000" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ LÉGENDE ═══ -->
+        <mxCell id="leg1" value="━━ Syncthing BEP / TLS 1.3 (bidirectionnel)" style="text;html=1;align=left;fontColor=#C79A1B;fontSize=12;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="120" y="680" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="⬛ Nœud Win11 (PC physique) &nbsp; &nbsp; 🟩 Nœud Linux VM (Ubuntu/Kali)" style="text;html=1;align=left;fontColor=#E6EDF3;fontSize=12;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="120" y="700" width="600" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

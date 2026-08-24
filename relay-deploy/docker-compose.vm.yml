@@ -1,0 +1,41 @@
+# Relais zero-knowledge — version DÉPLOIEMENT (image tirée du registre éditeur)
+# Identique à docker-compose.yml mais ss-relay utilise l'image du registre
+# 192.168.200.1:5000/ss-relay:dev au lieu d'un build depuis ../spike.
+#
+# Sur le serveur relais : docker compose pull && docker compose up -d
+
+networks:
+  relay-net:
+    driver: bridge
+
+services:
+  ss-relay:
+    image: 192.168.200.1:5000/ss-relay:dev
+    container_name: ss-relay
+    networks:
+      - relay-net
+    ports:
+      - "8080:8080"
+    volumes:
+      - blobs-data:/data/blobs
+    environment:
+      RELAY_PORT: "8080"
+      BLOBS_DIR: "/data/blobs"
+      RELAY_AUTH_TOKEN: "${RELAY_AUTH_TOKEN:-}"
+      RELAY_NETWORKS: "${RELAY_NETWORKS:-}"
+      RUST_LOG: "info"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  blobs-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/elbaraa-relay/blobs

@@ -1,0 +1,82 @@
+<mxfile host="65bd71144e">
+    <diagram name="CRDT LWW — Résolution Conflits" id="crdt">
+        <mxGraphModel dx="1486" dy="963" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="bg" value="" style="rounded=0;fillColor=#0D0A07;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="-28" y="-22" width="1200" height="700" as="geometry"/>
+                </mxCell>
+                <mxCell id="title" value="CRDT Last-Write-Wins — Scénario Conflit et Réconciliation" style="text;html=1;align=center;fontColor=#C79A1B;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="15" width="1000" height="35" as="geometry"/>
+                </mxCell>
+                <mxCell id="timeline" value="" style="line;strokeColor=#3D2A1E;strokeWidth=2;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="370" width="1040" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="t-label" value="Temps →" style="text;html=1;align=left;fontColor=#8B8B8B;fontSize=13;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="1090" y="358" width="90" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="p1" value="① Nœuds connectés&lt;br&gt;Syncthing sync actif" style="text;html=1;align=center;fontColor=#34D399;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="60" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="n1a" value="🖥️ Node 1 (Win11)&lt;br&gt;tenant_A.parquet&lt;br&gt;version: v1&lt;br&gt;ts: 10:00:00" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#34D399;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="120" width="160" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="n1b" value="🖥️ Node 3 (Kali)&lt;br&gt;tenant_A.parquet&lt;br&gt;version: v1&lt;br&gt;ts: 10:00:00" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#34D399;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="250" width="160" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sync-ok" value="🔄 Sync OK" style="text;html=1;align=center;fontColor=#34D399;fontSize=12;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="85" y="220" width="110" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="p2" value="② Coupure réseau&lt;br&gt;Node 3 hors-ligne" style="text;html=1;align=center;fontColor=#B3121B;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="280" y="60" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="cut" value="⚡ COUPURE" style="text;html=1;align=center;fontColor=#B3121B;fontSize=13;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="280" y="320" width="160" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="cut-line" value="" style="line;strokeColor=#B3121B;strokeWidth=3;strokeDash=8;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="100" width="10" height="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="p3" value="③ Modifications simultanées&lt;br&gt;(nœuds déconnectés)" style="text;html=1;align=center;fontColor=#C79A1B;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="60" width="240" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3a-mod" value="🖥️ Node 1 (Win11)&lt;br&gt;INGEST donnée A&lt;br&gt;tenant_A.parquet&lt;br&gt;version: v2&lt;br&gt;ts: 10:30:00&lt;br&gt;hash: abc123..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#C79A1B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="120" width="180" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3b-mod" value="🖥️ Node 3 (Kali)&lt;br&gt;INGEST donnée B&lt;br&gt;tenant_A.parquet&lt;br&gt;version: v2&lt;br&gt;ts: 10:45:00 ← PLUS RÉCENT&lt;br&gt;hash: def456..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#3D2A1E;strokeColor=#C79A1B;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="280" width="180" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="p4" value="④ Reconnexion&lt;br&gt;Conflit détecté" style="text;html=1;align=center;fontColor=#B3121B;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="670" y="60" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="conflict" value="⚠️ Syncthing détecte&lt;br&gt;tenant_A.sync-conflict-&lt;br&gt;20260530-103000-N1.parquet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2A0A0A;strokeColor=#B3121B;strokeWidth=3;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="660" y="160" width="210" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="p5" value="⑤ CRDT LWW&lt;br&gt;Réconciliation auto" style="text;html=1;align=center;fontColor=#34D399;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="900" y="60" width="180" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="reconcile" value="POST /api/v1/sync/reconcile&lt;br&gt;&lt;br&gt;Compare timestamps :&lt;br&gt;Win11 : ts=10:30:00&lt;br&gt;Kali : ts=10:45:00 ← WIN&lt;br&gt;&lt;br&gt;→ Conserve version Kali&lt;br&gt;→ Supprime .sync-conflict-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C1208;strokeColor=#34D399;strokeWidth=2;fontColor=#E6EDF3;fontSize=12;arcSize=6;" parent="1" vertex="1">
+                    <mxGeometry x="895" y="120" width="220" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="result" value="{&quot;status&quot;: &quot;reconciled&quot;, &quot;conflicts_resolved&quot;: 1, &quot;merged_records&quot;: 1}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C4A1C;strokeColor=#34D399;strokeWidth=2;fontColor=#34D399;fontSize=12;arcSize=4;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="895" y="330" width="225" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="a1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=2;endArrow=block;endFill=1;" parent="1" source="n3a-mod" target="conflict" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C79A1B;strokeWidth=2;endArrow=block;endFill=1;" parent="1" source="n3b-mod" target="conflict" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#34D399;strokeWidth=2;endArrow=block;endFill=1;" parent="1" source="conflict" target="reconcile" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a4" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#34D399;strokeWidth=2;endArrow=block;endFill=1;" parent="1" source="reconcile" target="result" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lww" value="Last-Write-Wins (LWW) : en cas de conflit, la version avec le timestamp le plus récent est retenue." style="text;html=1;align=center;fontColor=#C79A1B;fontSize=13;fontStyle=2;fillColor=none;strokeColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="480" width="1040" height="25" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

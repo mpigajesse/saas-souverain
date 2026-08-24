@@ -36,6 +36,13 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 - [ ] **Registre joignable** : `curl http://192.168.10.1:5000/v2/_catalog` depuis la Debian doit répondre (le registre écoute sur 0.0.0.0:5000).
 - [ ] `ens33` (192.168.1.57, Internet) reste actif — utile pour installer Docker.
 
+> 🛠️ **AVANT LA SOUTENANCE — reconstruire et republier l'image (à NE PAS oublier).**
+> Le tag `ss-node:dev` est mutable : si l'image du registre n'a pas été reconstruite après une modif du cœur Rust, la PME tournera un **ancien binaire** (c'est exactement ce qui faisait disparaître l'encart d'identifiants au login). Depuis l'hôte Windows, dans `E:\SaaS souverain\spike\` :
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File build-node.ps1 --no-cache
+> ```
+> Cela reconstruit `192.168.200.1:5000/ss-node:dev` **et** le pousse. Vérifier ensuite côté registre PME : `curl http://192.168.10.1:5000/v2/ss-node/tags/list`. L'installateur fait désormais `docker compose pull ss-node` au démarrage, donc la PME prendra automatiquement cette image fraîche.
+
 ### Préparation Docker (sur la Debian)
 
 - [ ] **Installer Docker à l'avance** (via Internet ens33) : `curl -fsSL https://get.docker.com | sh`.
@@ -122,27 +129,84 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 
 ---
 
-## ACTE 4 — Réplication & résilience (PME MPJ, 2 nœuds) · ~3 min 30
+## ACTE 4 — Réplication & résilience (PME MPJ, 2 nœuds) · ~3 min
 
 **Écran : SaaS Clusters + 2 terminaux (Kali primaire, Ubuntu standby).**
 
-> Transition : *« La PME MPJ, elle, a deux machines. Voici la réplication en action. »*
+> Transition : *« La PME MPJ, elle, est déjà en production : deux machines, des employés, des données métier. Je ne vais rien créer — je vais vous montrer que tout ce qui existe sur la machine primaire existe déjà, à l'identique, sur la machine de secours. Puis je vais provoquer une panne. »*
 
-1. **SaaS Clusters → MPJ** : « ✓ Cluster sain · Réplication streaming → ».
-2. **Réplication live** — sur **Kali**, créer une donnée (UI métier ou SQL), puis sur **Ubuntu** :
+> 🎯 **Principe de cet acte :** MPJ est un cluster **déjà rodé** (comptes Alice/Bob + articles déjà saisis lors des tests). On **parcourt** l'existant pour prouver la **réplication déjà réalisée**, puis on démontre la **résilience** en direct (panne → détection → reprise). Pas de saisie en direct : c'est plus rapide, plus sûr, et tout aussi probant.
+
+1. **SaaS Clusters → MPJ** : « ✓ Cluster sain · Réplication streaming → ». *Le SaaS voit la topologie (qui est primaire, qui est standby), jamais les données.*
+
+2. **Réplication des comptes — déjà faite.** Sur **Ubuntu** (standby), sans aucune action préalable, on lit ce qui s'y trouve déjà :
+   ```bash
+   docker exec pg-node psql -U metier -d metier -c \
+     "SELECT username, role FROM users ORDER BY username;"
+   ```
+   ```
+      username   |   role
+   --------------+----------
+    admin        | admin
+    alice.martin | employee
+    bob.dupont   | employee
+   (3 rows)
+   ```
+   → *« Ces comptes ont été créés sur la machine primaire. Ils sont déjà là, identiques, sur la machine de secours — sans que je touche à rien. La réplication a fait son travail. »*
+
+3. **Réplication métier — déjà faite.** Toujours sur **Ubuntu** (standby) :
    ```bash
    docker exec pg-node psql -U metier -d metier -c \
      "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
    ```
-   → la donnée créée sur Kali apparaît sur Ubuntu en < 1 s.
-3. **Panne du standby** — sur **Ubuntu** : `cd /opt/elbaraa-pme && docker compose down`
+   ```
+        code      |             nom
+   ---------------+-----------------------------
+    REF-ABSENT-02 | Article écrit pendant panne
+    REF-ABSENT-01 | Article absent
+    REF-STY-BL    | Stylos bille bleus
+   (3 rows)
+   ```
+   → *« Les articles saisis par Alice et Bob côté primaire sont déjà sur le standby. Et regardez celui-ci — “Article écrit pendant panne” : c'est une donnée saisie lors d'un test de coupure, qui a été rattrapée automatiquement au retour du nœud. La preuve que rien ne se perd. »*
+
+   > 💡 *(Optionnel — pour montrer le « < 1 s » en direct si le jury le demande)* : sur **Kali**, se connecter en Alice (`alice.martin` / `Employe1!`) → créer 1 article ; relancer immédiatement la requête ci-dessus sur **Ubuntu** → la nouvelle ligne apparaît en moins d'une seconde.
+
+4. **Panne du standby** — sur **Ubuntu** : `cd /opt/elbaraa-pme && docker compose down`
    → après ~60 s, **SaaS Clusters** : « **✗ Réplication interrompue** » *(détection honnête — notre correctif)*.
-4. **Reprise** — sur **Ubuntu** : `docker compose up -d`
+
+5. **Reprise** — sur **Ubuntu** : `docker compose up -d`
    → logs : `started streaming WAL from primary` ; **SaaS** repasse « ✓ Cluster sain » ; rattrapage WAL automatique.
 
-> **Narration :** *« Toute écriture est répliquée en moins d'une seconde. Si une machine tombe, les données sont déjà ailleurs, et le tableau de bord de l'éditeur le détecte immédiatement — il ne ment jamais. Au redémarrage, la machine rattrape automatiquement ce qu'elle a manqué. »*
+> **Narration :** *« Tout ce qui est écrit sur le primaire est répliqué en moins d'une seconde — vous venez de voir le résultat. Si une machine tombe, les données sont déjà ailleurs, et le tableau de bord de l'éditeur le détecte immédiatement : il ne ment jamais. Au redémarrage, la machine rattrape automatiquement ce qu'elle a manqué. »*
 
 ⚠️ **Sécurité démo :** ne couper **que le standby** (Ubuntu). Ne jamais couper le primaire en direct (le fencing n'est pas encore en place — risque de split-brain).
+
+### ▸ Atomicité & cohérence (optionnel — si le jury creuse)
+
+> Toutes ces commandes se lancent **sur Kali** (primaire), sauf la dernière vérif sur Ubuntu. ⚠️ Schéma réel : `articles.code` (UNIQUE), table `mouvements_stock`, colonne `type_mvt`.
+
+**a) Unicité en concurrence** — deux fois la même référence `code` : la 1ʳᵉ passe, la 2ᵉ est rejetée.
+```bash
+# Alice crée l'article REF-DEMO
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO articles (code, nom, unite, seuil_alerte, actif) VALUES ('REF-DEMO','Cahier A5','unité',5,true);"
+# Bob tente la MÊME référence → ERREUR de contrainte UNIQUE
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO articles (code, nom, unite, seuil_alerte, actif) VALUES ('REF-DEMO','Cahier A5 (doublon)','unité',5,true);"
+```
+→ attendu : `ERROR: duplicate key value violates unique constraint "articles_code_key"`.
+
+**b) Deux mouvements simultanés** sur le même article — aucune corruption, les deux sont horodatés.
+```bash
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO mouvements_stock (article_id,type_mvt,quantite,notes) SELECT id,'sortie',5,'Alice — bureau 1' FROM articles WHERE code='REF-DEMO';"
+docker exec pg-node psql -U metier -d metier -c "INSERT INTO mouvements_stock (article_id,type_mvt,quantite,notes) SELECT id,'sortie',3,'Bob — bureau 2' FROM articles WHERE code='REF-DEMO';"
+docker exec pg-node psql -U metier -d metier -c "SELECT type_mvt,quantite,notes,created_at FROM mouvements_stock m JOIN articles a ON a.id=m.article_id WHERE a.code='REF-DEMO' ORDER BY created_at DESC;"
+```
+
+**c) Le doublon n'a jamais été répliqué** — sur **Ubuntu** : un seul `REF-DEMO`.
+```bash
+docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles WHERE code='REF-DEMO';"
+```
+
+> **Narration :** *« La contrainte d'unicité est vérifiée sur le primaire AVANT l'écriture du journal WAL. Le doublon est donc rejeté à la source : il n'entre jamais dans le journal, donc n'est jamais répliqué. Le standby ne peut pas diverger. C'est PostgreSQL natif, éprouvé — nous n'avons réimplémenté aucune logique de cohérence à la main. »*
 
 ---
 
@@ -159,9 +223,9 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 | 1 | Création de compte (SaaS) | 1 min 30 |
 | 2 | Installation (Debian, 1 commande) | 2 min 30 |
 | 3 | Logiciel métier + parc/cluster | 1 min 30 |
-| 4 | Réplication & résilience (MPJ) | 3 min 30 |
+| 4 | Réplication & résilience (MPJ, parcours de l'existant) | 3 min |
 | 5 | Conclusion | 15 s |
-| | **TOTAL** | **~9 min 15** |
+| | **TOTAL** | **~8 min 45** |
 
 ---
 
@@ -172,7 +236,10 @@ L'hôte VMware a une patte virtuelle sur le VMnet `192.168.10.0/24` (typiquement
 sudo bash install-yasmine-argan.sh
 docker compose -f /opt/elbaraa-pme/docker-compose.yml logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
 
-# MPJ — vérif réplication (sur Ubuntu .130)
+# MPJ — vérif réplication des COMPTES employés (sur Ubuntu .130)
+docker exec pg-node psql -U metier -d metier -c "SELECT username, role FROM users ORDER BY username;"
+
+# MPJ — vérif réplication MÉTIER (sur Ubuntu .130)
 docker exec pg-node psql -U metier -d metier -c "SELECT code, nom FROM articles ORDER BY created_at DESC LIMIT 3;"
 
 # MPJ — panne / reprise du standby (sur Ubuntu .130)
@@ -203,15 +270,19 @@ docker compose up -d
 
 ```bash
 cd /opt/elbaraa-pme
-docker compose down                 # stoppe pg-node, ss-node, pgadmin
+sudo docker compose down                 # stoppe pg-node, ss-node, pgadmin
 sudo systemctl disable elbaraa-pme.service 2>/dev/null || true
 sudo rm -f /etc/systemd/system/elbaraa-pme.service
 sudo systemctl daemon-reload
 # Purge des données (DEK, base, config) → force un "premier install" propre
 sudo rm -rf /opt/pme-node/pg-data /opt/pme-node/node-data
 sudo rm -rf /opt/elbaraa-pme
+# ⚠️ Rafraîchir l'image : le tag :dev est mutable. Si on garde un ancien cache,
+# yasmine tournerait un binaire périmé (encart d'identifiants absent, etc.).
+sudo docker rmi 192.168.10.1:5000/ss-node:dev 2>/dev/null || true
+sudo docker pull 192.168.10.1:5000/ss-node:dev
 ```
-> On garde Docker et l'image pré-tirée (`192.168.10.1:5000/ss-node:dev`) — pas besoin de les réinstaller.
+> On garde Docker, mais on **re-tire l'image** : depuis la correction de l'installateur, `install-*.sh` fait de toute façon `docker compose pull ss-node` avant de démarrer, donc la dernière image du registre est toujours utilisée. **Pré-requis absolu** : que le registre contienne bien la dernière image (voir l'encadré « Avant la soutenance » ci-dessous).
 
 ### B. Côté SaaS éditeur — supprimer le tenant de test
 

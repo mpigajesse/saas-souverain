@@ -30,6 +30,21 @@ pub async fn wal_receiver_active(pool: &PgPool) -> Result<bool> {
     Ok(row.0 > 0)
 }
 
+/// Returns the current PostgreSQL timeline ID (TLI).
+///
+/// PostgreSQL increments the timeline on every promotion (`pg_promote`), so the
+/// TLI is a native, monotonic epoch — no hand-rolled consensus (décision n°6).
+/// A former primary that comes back online keeps its old (lower) timeline while
+/// the cluster has moved on to a higher one, which is exactly what fencing needs.
+pub async fn current_timeline(pool: &PgPool) -> Result<i64> {
+    // pg_control_checkpoint() expose timeline_id (integer). L'utilisateur métier
+    // est superuser (bootstrap initdb) → accès autorisé. Fonctionne primaire ET standby.
+    let tli: i32 = sqlx::query_scalar("SELECT timeline_id FROM pg_control_checkpoint()")
+        .fetch_one(pool)
+        .await?;
+    Ok(tli as i64)
+}
+
 /// Check if the cluster can perform automatic failover (≥ 3 nodes required).
 /// Uses the count of replication slots or connected standbys visible from the primary.
 pub async fn connected_standby_count(pool: &PgPool) -> Result<i64> {
