@@ -5,8 +5,9 @@ edition = "2021"
 authors = ["Amane SaaS Souverain Team"]
 
 [dependencies]
-ss-crypto = { path = "../ss-crypto" }
-ss-journal = { path = "../ss-journal" }
+# Socle cryptographique unique du projet (spike/crates/)
+ss-crypto = { path = "../../spike/crates/ss-crypto" }
+ss-journal = { path = "../../spike/crates/ss-journal" }
 
 # gRPC & Protobuf (Mission B & C)
 tonic = "0.10"

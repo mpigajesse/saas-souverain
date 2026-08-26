@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use ss_crypto::{CryptoError, Dek, DeviceKeyPair, DevicePublicKey};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -9,8 +10,8 @@ pub enum PairingError {
     #[error("Jeton d'invitation expiré depuis {expired_at} (actuel : {current})")]
     InvitationExpired { expired_at: u64, current: u64 },
 
-    #[error("Erreur lors du scellement/déballage Sealed Box : {0}")]
-    SealedBoxError(String),
+    #[error("Erreur cryptographique lors du scellement/déballage Sealed Box : {0}")]
+    CryptoError(#[from] CryptoError),
 
     #[error("Erreur de sérialisation JSON : {0}")]
     SerializationError(#[from] serde_json::Error),
@@ -25,12 +26,12 @@ pub struct PairingInvitationToken {
     pub consumed: bool,
 }
 
-/// Paquet d'enrôlement contenant la clé d'accès (AK) emballée via Sealed Box (Libsodium X25519)
+/// Paquet d'enrôlement contenant la clé d'accès (AK) scellée via Sealed Box X25519 (ss-crypto)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SealedAkPayload {
     pub invitation_id: String,
-    pub recipient_public_key_bytes: [u8; 32], // Clé publique X25519 du nouveau poste
-    pub sealed_ak_bytes: Vec<u8>,             // AK du cluster emballée en Sealed Box
+    pub recipient_public_key: DevicePublicKey, // Clé publique X25519 du nouveau poste
+    pub sealed_ak_bytes: Vec<u8>,              // AK du cluster scellée avec XChaCha20-Poly1305 (ss-crypto)
 }
 
 pub struct PairingManager;
@@ -51,14 +52,19 @@ impl PairingManager {
         }
     }
 
-    /// Simule l'emballage Sealed Box de la clé d'accès (AK) à destination de la clé publique X25519 du nouveau poste
+    /// Scelle la clé d'accès (AK) du cluster pour le nouveau poste grâce à sa clé publique X25519 (ss-crypto)
+    ///
+    /// Utilisations réelles de ss-crypto :
+    /// - Génération d'une paire éphémère X25519
+    /// - Derivation BLAKE2b-512
+    /// - Chiffrement XChaCha20-Poly1305 de la clé AK
     pub fn seal_access_key_for_node(
         invitation: &mut PairingInvitationToken,
-        cluster_ak_bytes: &[u8; 32],
-        recipient_public_key_bytes: &[u8; 32],
+        cluster_ak: &Dek,
+        recipient_public_key: &DevicePublicKey,
         current_time_sec: u64,
     ) -> Result<SealedAkPayload, PairingError> {
-        // 1. Vérification de l'état du jeton d'invitation
+        // 1. Vérification de la validité du jeton d'invitation
         if invitation.consumed {
             return Err(PairingError::InvalidInvitationToken);
         }
@@ -69,44 +75,31 @@ impl PairingManager {
             });
         }
 
-        // 2. Marquer le jeton comme consommé (usage unique)
+        // 2. Marquer le jeton comme consommé (usage unique strict)
         invitation.consumed = true;
 
-        // 3. Emballage Sealed Box (simulé / format de scellement)
-        let mut dummy_sealed = vec![0xA1, 0xB2]; // Header Sealed Box
-        dummy_sealed.extend_from_slice(cluster_ak_bytes);
-        dummy_sealed.extend_from_slice(recipient_public_key_bytes);
+        // 3. VRAI scellement cryptographique via ss-crypto (DevicePublicKey::seal_dek)
+        let sealed_ak_bytes = recipient_public_key.seal_dek(cluster_ak)?;
 
         Ok(SealedAkPayload {
             invitation_id: invitation.invitation_id.clone(),
-            recipient_public_key_bytes: *recipient_public_key_bytes,
-            sealed_ak_bytes: dummy_sealed,
+            recipient_public_key: recipient_public_key.clone(),
+            sealed_ak_bytes,
         })
     }
 
-    /// Déballe la clé d'accès (AK) côté nouveau poste avec sa clé privée X25519
+    /// Déballe la clé d'accès (AK) côté nouveau poste avec sa vraie paire de clés X25519 (ss-crypto)
     pub fn unseal_access_key(
         sealed_payload: &SealedAkPayload,
-        recipient_private_key_bytes: &[u8; 32],
-    ) -> Result<[u8; 32], PairingError> {
-        if sealed_payload.sealed_ak_bytes.len() < 34 {
-            return Err(PairingError::SealedBoxError("Payload Sealed Box trop court".into()));
-        }
-
-        // Extraction simulée des 32 octets de l'AK du cluster
-        let mut ak_out = [0u8; 32];
-        ak_out.copy_from_slice(&sealed_payload.sealed_ak_bytes[2..34]);
-        
-        // Simuler la validation de la clé privée récipiendaire
-        if recipient_private_key_bytes[0] == 0xFF {
-            return Err(PairingError::SealedBoxError("Clé privée récipiendaire invalide".into()));
-        }
-
-        Ok(ak_out)
+        recipient_keypair: &DeviceKeyPair,
+    ) -> Result<Dek, PairingError> {
+        // VRAI déballage cryptographique via ss-crypto (DeviceKeyPair::open_sealed_dek)
+        let recovered_ak = recipient_keypair.open_sealed_dek(&sealed_payload.sealed_ak_bytes)?;
+        Ok(recovered_ak)
     }
 }
 
-/// Générateur d'UUID simple pour simulation d'ID d'invitation sans dépendance externe lourde
+/// Générateur simple d'identifiant d'invitation
 fn uuid_simple() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
@@ -121,42 +114,68 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_successful_pairing_workflow() {
+    fn test_successful_pairing_workflow_real_crypto() {
         let current_time = 1700000000;
         let mut inv = PairingManager::create_invitation("CLUSTER-PME-01", 300, current_time);
 
-        let cluster_ak = [0x77u8; 32];
-        let new_node_pubkey = [0x88u8; 32];
-        let new_node_privkey = [0x11u8; 32];
+        // Clé AK du cluster PME
+        let cluster_ak = Dek::generate();
 
-        // 1. Scellement de l'AK par le poste actif
+        // Paire de clés X25519 réelle générée pour le nouveau poste (ss-crypto)
+        let recipient_keypair = DeviceKeyPair::generate();
+
+        // 1. Scellement réel par le poste actif avec la clé publique du destinataire
         let sealed_payload = PairingManager::seal_access_key_for_node(
             &mut inv,
             &cluster_ak,
-            &new_node_pubkey,
+            &recipient_keypair.public,
             current_time + 10,
         )
         .unwrap();
 
         assert!(inv.consumed);
+        // Vérification que le payload scellé n'est PAS en clair
+        assert_ne!(sealed_payload.sealed_ak_bytes, cluster_ak.as_bytes().as_slice());
 
-        // 2. Déballage de l'AK par le nouveau poste
-        let unsealed_ak = PairingManager::unseal_access_key(&sealed_payload, &new_node_privkey).unwrap();
-        assert_eq!(unsealed_ak, cluster_ak);
+        // 2. Déballage réel avec la clé privée du destinataire
+        let unsealed_ak = PairingManager::unseal_access_key(&sealed_payload, &recipient_keypair).unwrap();
+        assert_eq!(unsealed_ak.as_bytes(), cluster_ak.as_bytes());
+    }
+
+    #[test]
+    fn test_wrong_keypair_cannot_unseal() {
+        let current_time = 1700000000;
+        let mut inv = PairingManager::create_invitation("CLUSTER-PME-01", 300, current_time);
+        let cluster_ak = Dek::generate();
+
+        let recipient_keypair = DeviceKeyPair::generate();
+        let attacker_keypair = DeviceKeyPair::generate();
+
+        let sealed_payload = PairingManager::seal_access_key_for_node(
+            &mut inv,
+            &cluster_ak,
+            &recipient_keypair.public,
+            current_time,
+        )
+        .unwrap();
+
+        // Un pirate qui essaie d'ouvrir le sealed box avec sa propre clé DOIT échouer !
+        let unseal_attempt = PairingManager::unseal_access_key(&sealed_payload, &attacker_keypair);
+        assert!(unseal_attempt.is_err());
     }
 
     #[test]
     fn test_consumed_invitation_fails() {
         let current_time = 1700000000;
         let mut inv = PairingManager::create_invitation("CLUSTER-PME-01", 300, current_time);
-        let cluster_ak = [0x77u8; 32];
-        let pubkey = [0x88u8; 32];
+        let cluster_ak = Dek::generate();
+        let recipient_keypair = DeviceKeyPair::generate();
 
         // Premier usage -> Succès
-        assert!(PairingManager::seal_access_key_for_node(&mut inv, &cluster_ak, &pubkey, current_time).is_ok());
+        assert!(PairingManager::seal_access_key_for_node(&mut inv, &cluster_ak, &recipient_keypair.public, current_time).is_ok());
 
         // Deuxième usage (Réutilisation d'invitation) -> Échec !
-        let second_try = PairingManager::seal_access_key_for_node(&mut inv, &cluster_ak, &pubkey, current_time);
+        let second_try = PairingManager::seal_access_key_for_node(&mut inv, &cluster_ak, &recipient_keypair.public, current_time);
         assert!(matches!(second_try, Err(PairingError::InvalidInvitationToken)));
     }
 }

@@ -40,15 +40,15 @@ besoin d'appeler le serveur central de l'éditeur à chaque lancement."
 
 --------------------------------------------------------------------------------
 
---- 4. POUR EXPLICITER LE QUATRIÈME CHANGEMENT (Appairage par QR Code V2) ---
+--- 4. POUR EXPLICITER LE QUATRIÈME CHANGEMENT (Appairage par QR Code V2 - Authentic Sealed Box) ---
 
 "Pour le quatrième changement, j'ai développé le module d'appairage et d'enrôlement 
 de nouveaux postes par QR Code. Lorsqu'une entreprise veut ajouter un nouvel 
 ordinateur à son réseau, le poste actif génère une invitation à usage unique et 
-utilise un mécanisme de scellement cryptographique (Sealed Box) pour transmettre la 
-clé d'accès au nouveau poste en toute sécurité. Cela garantit qu'un lien ou un QR 
-Code ne peut jamais être réutilisé par un pirate, tout en permettant au responsable 
-de révoquer un poste égaré en moins d'une seconde sans devoir rechiffrer le disque."
+utilise le véritable algorithme de scellement cryptographique Sealed Box X25519 
+du socle ss-crypto (avec dérivation BLAKE2b et chiffrement XChaCha20-Poly1305) 
+pour emballer la clé d'accès au nouveau poste. Seul le destinataire légitime 
+détenteur de la clé privée X25519 correspondante peut déballer la clé d'accès."
 
 --------------------------------------------------------------------------------
 

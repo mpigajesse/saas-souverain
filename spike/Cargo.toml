@@ -3,6 +3,7 @@ members = [
     "crates/ss-crypto",
     "crates/ss-journal",
     "crates/ss-consensus",
+    "../core-rust/ss-client",
     "node",
     "relay",
 ]
@@ -16,6 +17,7 @@ edition = "2021"
 ss-crypto    = { path = "crates/ss-crypto" }
 ss-journal   = { path = "crates/ss-journal" }
 ss-consensus = { path = "crates/ss-consensus" }
+ss-client    = { path = "../core-rust/ss-client" }
 
 # Crypto (RustCrypto — same algorithms as libsodium, no FFI required for spike)
 chacha20poly1305 = "0.10"
