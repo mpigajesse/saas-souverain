@@ -105,16 +105,17 @@ impl Journal {
             let len = u32::from_le_bytes(len_buf) as usize;
 
             if frame_index < start_index {
-                // Sauter la frame sans lire tout en mémoire si on cherche un index ultérieur
                 reader.seek(SeekFrom::Current(len as i64))?;
                 frame_index += 1;
                 continue;
             }
 
             let mut blob = vec![0u8; len];
-            reader
-                .read_exact(&mut blob)
-                .map_err(|_| JournalError::Corrupted { index: frame_index })?;
+            match reader.read_exact(&mut blob) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break, // Trame tronquée en fin de fichier
+                Err(e) => return Err(JournalError::Corrupted { index: frame_index }),
+            }
 
             let plaintext = self.dek.decrypt(&blob)?;
 
@@ -138,22 +139,33 @@ impl Journal {
     }
 
     /// Compte les frames dans le fichier en lisant uniquement les en-têtes de longueur (4 octets).
-    /// Ne déchiffre pas les payloads — gain de performance majeur lors de l'ouverture du journal.
+    /// Valide strictement la fin réelle du fichier pour éviter de valider une trame tronquée lors d'un arrêt brutal.
     fn count_frames(path: &Path) -> Result<u64, JournalError> {
         let file = std::fs::File::open(path)?;
+        let file_len = file.metadata()?.len();
         let mut reader = BufReader::new(file);
         let mut count: u64 = 0;
+        let mut pos: u64 = 0;
 
         loop {
             let mut len_buf = [0u8; 4];
             match reader.read_exact(&mut len_buf) {
-                Ok(()) => {}
+                Ok(()) => {
+                    pos += 4;
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
                 Err(e) => return Err(JournalError::Io(e)),
             }
 
-            let len = u32::from_le_bytes(len_buf) as i64;
-            reader.seek(SeekFrom::Current(len))?;
+            let len = u32::from_le_bytes(len_buf) as u64;
+
+            // Protection anti-tronquage : si la longueur annoncée dépasse le fichier réel
+            if pos + len > file_len {
+                break;
+            }
+
+            reader.seek(SeekFrom::Current(len as i64))?;
+            pos += len;
             count += 1;
         }
 
@@ -209,6 +221,34 @@ mod tests {
         assert_eq!(page.len(), 4);
         assert_eq!(page[0].index, 3);
         assert_eq!(page[3].index, 6);
+    }
+
+    #[test]
+    fn reopen_restores_state() {
+        let f = NamedTempFile::new().unwrap();
+        let dek = Dek::generate();
+        {
+            let mut j = Journal::open(f.path(), dek.clone()).unwrap();
+            j.append(1, Uuid::new_v4(), "op.a", b"data-a".to_vec()).unwrap();
+            j.append(1, Uuid::new_v4(), "op.b", b"data-b".to_vec()).unwrap();
+        }
+        let j2 = Journal::open(f.path(), dek).unwrap();
+        let entries = j2.read_all().unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].op_type, "op.b");
+    }
+
+    #[test]
+    fn wrong_dek_fails() {
+        let f = NamedTempFile::new().unwrap();
+        let dek1 = Dek::generate();
+        let dek2 = Dek::generate();
+        {
+            let mut j = Journal::open(f.path(), dek1).unwrap();
+            j.append(1, Uuid::new_v4(), "op", b"secret".to_vec()).unwrap();
+        }
+        let j2 = Journal::open(f.path(), dek2).unwrap();
+        assert!(j2.read_all().is_err());
     }
 
     #[test]
