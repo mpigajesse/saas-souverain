@@ -1,6 +1,6 @@
 # Branche `crypto` — Mission A : socle cryptographique V2
 
-> Branche de travail de **Siradiou** · 5 commits · basée sur `main` (`ca80881`)
+> Branche de travail de **Siradiou** · basée sur `main` (`ca80881`)
 >
 > Documentation de référence de la branche : [`architecture_V2_crypto.md`](architecture_V2_crypto.md)
 
@@ -8,201 +8,125 @@
 
 ## En une phrase
 
-Cette branche prépare la **V2 du socle cryptographique** : séparer la clé qui donne *accès au
-cluster* de la clé qui *chiffre les données*, afin de pouvoir révoquer une machine en moins
-d'une seconde au lieu de rechiffrer tout le disque de la PME.
+Cette branche prépare la **V2 du socle cryptographique** : séparer la clé qui donne *accès au cluster* (AK) de la clé qui *chiffre les données* (DEK), afin de pouvoir révoquer une machine en moins d'une seconde au lieu de rechiffrer tout le disque de la PME.
 
 ---
 
 ## Le problème que la V2 résout
 
-En V1, une seule clé jouait deux rôles : identité réseau **et** chiffrement disque. Conséquence
-directe : dé-enrôler une machine — un salarié qui part, un portable volé — obligeait à faire
-tourner la DEK et donc à **rechiffrer l'intégralité des données**. Sur une PME réelle, cela
-signifie plusieurs minutes à plusieurs heures d'indisponibilité pour un événement administratif
-banal.
+En V1, une seule clé jouait deux rôles : identité réseau **et** chiffrement disque. Conséquence directe : dé-enrôler une machine — un salarié qui part, un portable volé — obligeait à faire tourner la DEK et donc à **rechiffrer l'intégralité des données**. Sur une PME réelle, cela signifie plusieurs minutes à plusieurs heures d'indisponibilité pour un événement administratif banal.
 
 La V2 scinde les deux responsabilités :
 
 | Clé | Rôle | Révocation |
 |---|---|---|
-| **AK** — Access Key (X25519) | Identité et accès réseau d'un appareil | Ajout à une liste de révocation, **immédiat** |
+| **AK** — Access Key (X25519) | Identité et accès réseau d'un appareil | Ajout à une liste de révocation (CRL), **immédiat** |
 | **DEK** — Data Encryption Key | Chiffrement des données et du journal | Inchangée lors d'une révocation |
 
 Révoquer une machine devient une écriture dans un registre, pas une réécriture de disque.
 
 ---
 
-## Contenu de la branche
+## Contenu réel de la branche
+
+Toutes les étapes (A1 à A5) du socle cryptographique V2 sont **entièrement implémentées** dans le code Rust :
 
 ```
-architecture_V2_crypto.md                 spécification de la mission (139 lignes)
-spike/crates/ss-crypto/src/ak.rs          AccessKeyPair X25519 + AccessPublicKey
-spike/crates/ss-crypto/src/crl.rs         registre de révocation      [VIDE]
-spike/crates/ss-crypto/src/shamir.rs      partage de secret K=2/N=3   [VIDE]
-spike/crates/ss-journal/src/journal.rs    pagination read_range + count_frames allégé
+architecture_V2_crypto.md                 Spécification de la mission V2
+spike/crates/ss-crypto/src/ak.rs          AccessKeyPair X25519 + AccessPublicKey (implémenté + tests)
+spike/crates/ss-crypto/src/crl.rs         Registre de révocation CrlRegistry (implémenté + tests)
+spike/crates/ss-crypto/src/shamir.rs      Hiérarchie KEK + Shamir Secret Sharing K=2/N=3 (implémenté + tests)
+spike/crates/ss-crypto/src/lib.rs         Exposition des modules et structures V2 (mod ak, crl, shamir)
+spike/crates/ss-journal/src/entry.rs      JournalEntry + impl Debug masqué pour l'herméticité RAM
+spike/crates/ss-journal/src/journal.rs    Journal chiffré CBOR + lecture paginée (read_range) + tests
 ```
 
-### Découpage annoncé par les commits
+### État de réalisation du découpage V2
 
-| Étape | Objet | Commit | État réel dans le code |
+| Étape | Objet | Fichier principal | État dans le code |
 |:---:|---|---|---|
-| A1 | DEK avec `Zeroize` | `5a2f9eb` | Déjà présent sur `main` — rien d'ajouté |
-| A2 | `AccessKey` (AK) | `5a2f9eb` | **Implémenté** dans `ak.rs` |
-| A3 | Registre de révocation CRL | `43d23f2` | Fichier créé, **0 octet** |
-| A4 | Hiérarchie KEK + Shamir | `c393f96` | Fichier créé, **0 octet** |
-| A5 | Journal + herméticité RAM | `88f153e` | Journal modifié ; herméticité **non faite** |
+| **A1** | DEK avec `Zeroize` | `spike/crates/ss-crypto/src/dek.rs` | **Implémenté** (`ZeroizeOnDrop`) |
+| **A2** | `AccessKey` (AK) | `spike/crates/ss-crypto/src/ak.rs` | **Implémenté** (X25519, ECDH, `Debug` masqué) |
+| **A3** | Registre de révocation CRL | `spike/crates/ss-crypto/src/crl.rs` | **Implémenté** (`CrlRegistry`, O(1), séquence monotone) |
+| **A4** | Hiérarchie KEK + Shamir SSS | `spike/crates/ss-crypto/src/shamir.rs` | **Implémenté** (`Kek`, `wrap_dek`, `split_kek` K=2/N=3) |
+| **A5** | Journal + Herméticité RAM | `spike/crates/ss-journal/src/entry.rs` | **Implémenté** (`read_range`, `fmt::Debug` masqué `<N bytes>`) |
 
 ---
 
-## Ce qui est réellement implémenté
+## Ce qui est réellement implémenté (Détails)
 
-### `ak.rs` — la paire de clés d'accès
+### 1. `ak.rs` — Paire de clés d'accès (AK)
+- **`AccessPublicKey`** : Clé publique X25519 de 32 octets, sérialisable via Serde pour l'annuaire d'enrôlement et le registre CRL.
+- **`AccessKeyPair`** : Clé secrète X25519 protégée en mémoire avec `ZeroizeOnDrop`.
+- **Herméticité RAM** : `impl Debug` masqué qui affiche `AccessKeyPair([REDACTED])`.
+- **Échange ECDH** : Méthode `diffie_hellman(&AccessPublicKey)` pour le calcul de secret partagé entre nœuds.
 
-```rust
-pub struct AccessPublicKey(pub [u8; 32]);   // sérialisable (annuaire, CRL)
+### 2. `crl.rs` — Registre de révocation (CRL)
+- **`CrlRegistry`** : Registre basé sur un `HashSet<[u8; 32]>` pour une vérification de révocation en $O(1)$.
+- **Numéro de séquence monotone** (`sequence`) et horodatage UTC mis à jour à chaque révocation.
+- Méthode `verify_access(&AccessPublicKey) -> Result<(), CryptoError>` retournant `CryptoError::RevokedAccessKey` si la clé est révoquée.
 
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct AccessKeyPair {
-    secret_bytes: [u8; 32],
-    pub public: AccessPublicKey,
-}
-```
+### 3. `shamir.rs` — Hiérarchie KEK & Shamir Secret Sharing (SSS)
+- **`Kek` (Key Encryption Key)** : Clé de 256 bits (`ZeroizeOnDrop`) avec méthodes `wrap_dek(&Dek)` et `unwrap_dek(&blob)` pour emballer/déballer la DEK.
+- **`ShamirShare`** : Fragment de secret avec identifiant d'abscisse `id` (1, 2 ou 3) et payload de 32 octets.
+- **Arithmétique GF(256)** : Addition XOR, multiplication polynomiale AES/GF(256) et inversion d'Éléments par exponentiation Fermat ($a^{254}$).
+- **Découpage & Reconstruction (K=2 / N=3)** :
+  - `split_kek(&kek)` génère 3 parts.
+  - `reconstruct_kek(&s1, &s2)` reconstitue la KEK originale à partir de **n'importe quelles 2 parts parmi 3** via interpolation de Lagrange à $x=0$.
 
-- Génération via `StaticSecret::random_from_rng(OsRng)` (`x25519-dalek` v2).
-- `ZeroizeOnDrop` : la clé secrète est effacée de la RAM à la libération.
-- `impl Debug` masqué → affiche `AccessKeyPair([REDACTED])`, jamais la clé.
-- `diffie_hellman(&AccessPublicKey) -> [u8; 32]` pour l'échange de secret.
-- 3 tests unitaires : génération, ECDH, herméticité du `Debug`.
-
-### `journal.rs` — lecture paginée
-
-Le journal chiffré gagne une lecture par plage, nécessaire à la réplication incrémentale :
-
-```rust
-pub fn read_range(&self, start_index: u64, limit: usize) -> Result<Vec<JournalEntry>>
-pub fn read_all(&self) -> Result<Vec<JournalEntry>>   // = read_range(0, usize::MAX)
-```
-
-Les trames antérieures à `start_index` sont sautées par `seek` au lieu d'être allouées et
-déchiffrées. Le format de trame reste `[u32 longueur ‖ blob chiffré]`.
+### 4. `entry.rs` & `journal.rs` — Journal chiffré & Herméticité RAM
+- **Lecture paginée** : `read_range(start_index, limit)` permettant la réplication incrémentale en sautant les trames via `seek`.
+- **Herméticité RAM** : `impl Debug for JournalEntry` masquant le payload sous la forme `payload: <N bytes>`.
 
 ---
 
-## Ce que la spécification prévoit et qui reste à écrire
+## Attention : Dualité des dépôts (`spike/crates/` vs `core-rust/`)
 
-Ces éléments sont décrits en détail dans `architecture_V2_crypto.md` mais **absents du code** :
-
-- **Registre de révocation (CRL)** — `HashSet<AccessPublicKey>` avec numéro de séquence
-  monotone, recherche en O(1), propagation vers l'orchestrateur pour couper les échanges
-  inter-nœuds.
-- **Hiérarchie KEK** — troisième niveau de clé : `Données <- DEK <- KEK`, la KEK emballant la
-  DEK (`kek.wrap_dek(&dek)`).
-- **Partage de secret de Shamir, K=2 / N=3** — répartition prévue : part 1 imprimée au coffre
-  de la PME, part 2 en blob chiffré sur le relais éditeur, part 3 clé physique du dirigeant.
-  Deux parts sur trois suffisent à reconstruire.
-- **Herméticité RAM du journal** — `impl Debug` masqué sur `JournalEntry` pour que le payload
-  s'affiche `<N bytes>` au lieu de son contenu.
+La branche `feature-b-dev-integration` a dupliqué `ss-crypto` et `ss-journal` de `spike/crates/` vers `core-rust/`.
+- Cette branche fait évoluer la version autoritaire historique située dans **`spike/crates/`**.
+- Le `CLAUDE.md` impose **« un seul cœur, jamais deux »**. Il faudra fusionner/nettoyer le dossier `core-rust/` lors de la réintégration sur `main`.
 
 ---
 
-## À savoir avant de reprendre cette branche
+## 📋 Travaux non effectués / Améliorations restantes
 
-Quatre points à traiter, du plus au moins urgent.
+Les éléments suivants n'ont pas encore été complètement traités et restent à réaliser avant de finaliser la branche :
 
-### 1. `ak.rs` n'est pas compilé
+### 1. Robustesse du `count_frames()` contre les trames tronquées
+- **Fichier** : [`spike/crates/ss-journal/src/journal.rs`](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-journal/src/journal.rs#L142-L161)
+- **Problème** : `reader.seek(SeekFrom::Current(len))` ne valide pas si le saut dépasse la taille réelle du fichier lors d'un arrêt brutal pendant l'écriture d'une trame.
+- **À faire** : Vérifier que la position dans le fichier après `seek` ne dépasse pas la fin effective du fichier pour éviter de valider une trame tronquée.
 
-`spike/crates/ss-crypto/src/lib.rs` n'a pas été modifié et déclare toujours :
+### 2. Dérivation KDF (HKDF / BLAKE2b) du secret Diffie-Hellman
+- **Fichier** : [`spike/crates/ss-crypto/src/ak.rs`](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/ak.rs#L67-L72)
+- **Problème** : `diffie_hellman()` retourne directement les octets X25519 bruts.
+- **À faire** : Appliquer une dérivation (ex: BLAKE2b-512 ou HKDF) sur la sortie ECDH avant de l'utiliser comme clé symétrique de session, comme le fait `device_key.rs`.
 
-```rust
-mod error;  mod dek;  mod device_key;  mod recovery;
-```
+### 3. Effacement RAM de la clé secrète exportée
+- **Fichier** : [`spike/crates/ss-crypto/src/ak.rs`](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/ak.rs#L61-L64)
+- **Problème** : `secret_bytes()` retourne une copie brute `[u8; 32]` sans wrapper `Zeroize`.
+- **À faire** : Évaluer l'encapsulation de la clé secrète exportée dans un type dédié implémentant `ZeroizeOnDrop`.
 
-Il manque `mod ak;` et l'export correspondant. En Rust, un fichier non déclaré par un `mod` est
-purement ignoré par le compilateur : le code d'`ak.rs` est mort, et ses 3 tests ne s'exécutent
-jamais. C'est aussi pourquoi la branche « compile » malgré les deux fichiers vides.
+### 4. Validations & Arbitrage Shamir (Primitive sur-mesure vs Crate auditée)
+- **Fichier** : [`spike/crates/ss-crypto/src/shamir.rs`](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/shamir.rs)
+- **Problème** : Shamir GF(256) a été réimplémenté manuellement. Le `CLAUDE.md` mentionne la règle *« aucune primitive cryptographique n'est réimplémentée à la hand »*.
+- **À faire** : Décider si l'implémentation GF(256) actuelle est conservée ou remplacée par une crate auditée de la communauté Rust (`sharks` ou `vsss-rs`).
 
-**À faire** : ajouter `mod ak;` et `pub use ak::{AccessKeyPair, AccessPublicKey};`.
+### 5. Restauration des tests de sécurité historiques du journal
+- **Fichier** : [`spike/crates/ss-journal/src/journal.rs`](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-journal/src/journal.rs)
+- **À faire** : Réintégrer les tests unitaires de persistance `reopen_restores_state` et d'invalidation de clé `wrong_dek_fails`.
 
-### 2. Régression dans `count_frames()`
-
-L'ancienne version lisait chaque blob avec `read_exact`, ce qui levait `Corrupted` si le
-fichier était tronqué. La nouvelle saute la trame avec `seek(SeekFrom::Current(len))`, qui
-**réussit silencieusement au-delà de la fin du fichier**.
-
-Conséquence : une trame tronquée — typiquement un crash pendant une écriture — est comptée
-comme valide. `next_index` est faussé et les écritures suivantes se posent sur un journal
-incohérent. Pour un journal append-only qui sert de source de vérité à la réplication, c'est le
-point le plus sérieux de la branche.
-
-**À faire** : vérifier que la position après `seek` ne dépasse pas la taille du fichier.
-
-### 3. Le test `debug_hermeticity` est rouge
-
-Il attend `debug_str.contains("<5 bytes>")`, mais `JournalEntry` dérive toujours un `Debug`
-standard qui affiche `payload: [1, 2, 3, 4, 5]`. Le test échouera tant que l'`impl Debug`
-masqué prévu par l'étape A5 n'aura pas été écrit dans `entry.rs`.
-
-### 4. Shamir maison contre la règle du projet
-
-Le `CLAUDE.md` pose : **« aucune primitive cryptographique n'est réimplémentée à la main »**.
-La spécification acte pourtant une implémentation Shamir maison sur GF(256) avec interpolation
-de Lagrange. Le fichier étant encore vide, la décision reste réversible sans coût — des crates
-éprouvées existent (`sharks`, `vsss-rs`).
-
-**À trancher avant d'écrire la première ligne.**
-
-### Points secondaires
-
-- `diffie_hellman()` retourne le secret ECDH **brut**. Utiliser directement une sortie X25519
-  comme clé symétrique est déconseillé ; `device_key.rs` fait correctement le travail en
-  dérivant via BLAKE2b-512. `ak.rs` devrait suivre le même schéma.
-- `secret_bytes()` retourne une copie de la clé secrète qui, elle, n'est ni `Zeroize` ni
-  `ZeroizeOnDrop` — la garantie d'herméticité s'arrête à ce point de sortie.
-- Deux tests de sécurité ont été supprimés du journal : `reopen_restores_state` (persistance
-  après réouverture) et `wrong_dek_fails` (rejet d'une mauvaise clé). À restaurer.
-- `architecture_V2_crypto.md` contient 5 liens absolus `file:///c:/Users/Siradiou/...` à
-  nettoyer avant tout partage.
-
----
-
-## Attention : deux copies du socle existent
-
-La branche `feature-b-dev-integration` a **dupliqué `ss-crypto` et `ss-journal`** de
-`spike/crates/` vers un nouveau dossier `core-rust/`. Cette branche-ci fait évoluer la copie
-`spike/crates/`, l'autre travaille sur la copie `core-rust/`.
-
-Les deux divergent déjà, et **git ne signalera jamais de conflit** puisque les chemins
-diffèrent. Le `CLAUDE.md` impose « un seul cœur, jamais deux ». Il faut trancher lequel des deux
-emplacements fait autorité avant que les deux branches ne soient fusionnées — c'est le risque
-d'intégration numéro un du projet.
-
-`spike/crates/` est le socle historique, référencé par `node/`, `relay/` et les Dockerfiles.
-
----
-
-## Vérifier l'état de la branche
-
-```bash
-git checkout crypto
-
-# Ce que la branche apporte réellement
-git diff --stat main...crypto
-
-# Confirmer que les deux fichiers annoncés sont vides
-wc -c spike/crates/ss-crypto/src/crl.rs spike/crates/ss-crypto/src/shamir.rs
-
-# Confirmer que ak.rs n'est pas déclaré
-cat spike/crates/ss-crypto/src/lib.rs
-
-cd spike && cargo build && cargo test
-```
+### 6. Nettoyage de la documentation d'architecture
+- **Fichier** : [`architecture_V2_crypto.md`](architecture_V2_crypto.md)
+- **À faire** : Remplacer les 5 liens absolus Windows (`file:///c:/Users/Siradiou/...`) par des chemins relatifs.
 
 ---
 
 ## Conventions
 
+
 Commits : `feat` · `fix` · `refactor` · `docs` · `test` · `chore` · `perf` · `ci`.
 
 Voir le [README.md général du projet](https://github.com/mpigajesse/saas-souverain/blob/main/README.md) sur la branche `main` pour l'architecture d'ensemble,
 et [`CLAUDE.md`](CLAUDE.md) pour les décisions structurantes actées.
+
