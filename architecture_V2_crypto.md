@@ -22,11 +22,11 @@ La **Mission A** constitue le cœur dur de la souveraineté des données du fram
 
 | Étape | Fichier(s) Cible(s) | Concept Cryptographique | Objectif & Garantie de Sécurité |
 | :-: | :--- | :--- | :--- |
-| **A1** | [dek.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/dek.rs) | **DEK & Sûreté RAM** | Clé symétrique XChaCha20-Poly1305 256 bits avec `ZeroizeOnDrop` (réécriture RAM à 0x00) et masque `fmt::Debug` (`Dek([REDACTED])`). |
-| **A2** | [ak.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/ak.rs) | **Access Key (AK X25519)** | Biclé d'accès réseau asymétrique séparée de la DEK avec calcul ECDH inter-nœuds, `ZeroizeOnDrop` et masque `fmt::Debug`. |
-| **A3** | [crl.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/crl.rs) <br/> [error.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/error.rs) | **Registre de Révocation CRL** | Invalidation d'AK dé-enrôlée en `< 1s` via HashSet O(1) et numéro de séquence monotone `sequence`, bloquant l'accès sans rechiffrer le disque. |
-| **A4** | [shamir.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-crypto/src/shamir.rs) | **Hiérarchie KEK & Shamir SSS** | Emballage DEK sous KEK + Découpage de secret de Shamir (seuil K=2 parts sur N=3) sur le corps fini $GF(256)$ pour la restauration sans fuite. |
-| **A5** | [entry.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-journal/src/entry.rs) <br/> [journal.rs](file:///c:/Users/Siradiou/saas-souverain/spike/crates/ss-journal/src/journal.rs) | **Journal CBOR Append-Only** | Journal immuable binaire `[u32 len ‖ blob_chiffré]`, fonction `count_frames()` par Seek sans déchiffrer, et masquage RAM du payload en Debug. |
+| **A1** | [dek.rs](spike/crates/ss-crypto/src/dek.rs) | **DEK & Sûreté RAM** | Clé symétrique XChaCha20-Poly1305 256 bits avec `ZeroizeOnDrop` (réécriture RAM à 0x00) et masque `fmt::Debug` (`Dek([REDACTED])`). |
+| **A2** | [ak.rs](spike/crates/ss-crypto/src/ak.rs) | **Access Key (AK X25519)** | Biclé d'accès réseau asymétrique séparée de la DEK avec calcul ECDH inter-nœuds, `ZeroizeOnDrop` et masque `fmt::Debug`. |
+| **A3** | [crl.rs](spike/crates/ss-crypto/src/crl.rs) <br/> [error.rs](spike/crates/ss-crypto/src/error.rs) | **Registre de Révocation CRL** | Invalidation d'AK dé-enrôlée en `< 1s` via HashSet O(1) et numéro de séquence monotone `sequence`, bloquant l'accès sans rechiffrer le disque. |
+| **A4** | [shamir.rs](spike/crates/ss-crypto/src/shamir.rs) | **Hiérarchie KEK & Shamir SSS** | Emballage DEK sous KEK + Découpage de secret de Shamir (seuil K=2 parts sur N=3) sur le corps fini $GF(256)$ pour la restauration sans fuite. |
+| **A5** | [entry.rs](spike/crates/ss-journal/src/entry.rs) <br/> [journal.rs](spike/crates/ss-journal/src/journal.rs) | **Journal CBOR Append-Only** | Journal immuable binaire `[u32 len ‖ blob_chiffré]`, fonction `count_frames()` par Seek sans déchiffrer, et masquage RAM du payload en Debug. |
 
 ---
 
@@ -132,7 +132,7 @@ flowchart TD
 
 La totalité des composants développés intègre sa suite de tests unitaires automatisés (`cargo test --package ss-crypto --lib` et `cargo test --package ss-journal --lib`) :
 * `test_roundtrip_encryption` : Chiffrement/déchiffrement DEK avec intégrité Poly1305.
-* `test_access_keypair_generation` & `test_ecdh_shared_secret` : Génération et accord Diffie-Hellman inter-nœuds X25519.
+* `test_access_keypair_generation` & `test_ecdh_kdf_shared_secret` : Génération et accord Diffie-Hellman KDF BLAKE2b-512 inter-nœuds X25519.
 * `test_crl_revocation_flow` : Révocation instantanée d'AK dans la CRL et vérification $O(1)$.
 * `test_kek_wrap_unwrap_dek` : Emballage et déballage de la DEK par la KEK.
 * `test_shamir_split_and_reconstruct_all_combinations` : Validation de la reconstruction KEK pour toutes les paires de parts $(1,2)$, $(1,3)$ et $(2,3)$.
