@@ -22,6 +22,28 @@ impl AccessPublicKey {
     }
 }
 
+/// Clé secrète d'accès (256 bits / 32 octets).
+/// Protégée par ZeroizeOnDrop pour effacer immédiatement la mémoire RAM à la libération du scope.
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct SecretAccessKey(pub [u8; 32]);
+
+/// Audit d'herméticité : Implémentation masquée du trait Debug.
+impl fmt::Debug for SecretAccessKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SecretAccessKey([REDACTED])")
+    }
+}
+
+impl SecretAccessKey {
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
 /// Paire de clés d'accès X25519 d'un appareil (AK).
 /// La clé secrète est automatiquement zéroïsée en mémoire RAM lors de la libération (ZeroizeOnDrop).
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -31,7 +53,6 @@ pub struct AccessKeyPair {
 }
 
 /// Audit d'herméticité : Implémentation masquée du trait Debug.
-/// Empêche la fuite de la clé secrète d'accès dans les logs ou les traces.
 impl fmt::Debug for AccessKeyPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "AccessKeyPair([REDACTED])")
@@ -59,19 +80,17 @@ impl AccessKeyPair {
         }
     }
 
-    /// Retourne la clé secrète d'accès sous forme d'octets.
-    pub fn secret_bytes(&self) -> [u8; 32] {
-        self.secret_bytes
+    /// Retourne la clé secrète d'accès encapsulée dans la structure protégée `SecretAccessKey`.
+    pub fn secret_key(&self) -> SecretAccessKey {
+        SecretAccessKey(self.secret_bytes)
     }
 
     /// Calcule un secret dérivé Diffie-Hellman (ECDH + BLAKE2b-512 KDF) avec la clé publique d'un autre nœud.
-    /// Applique un hachage KDF (BLAKE2b-512) sur la sortie X25519 brute et les clés publiques pour garantir une entropie uniforme.
     pub fn diffie_hellman(&self, peer_public: &AccessPublicKey) -> [u8; 32] {
         let my_secret = StaticSecret::from(self.secret_bytes);
         let peer_pub = X25519Public::from(peer_public.0);
         let shared = my_secret.diffie_hellman(&peer_pub);
 
-        // Dérivation KDF via BLAKE2b-512
         let mut hasher = Blake2b512::new();
         hasher.update(shared.as_bytes());
         hasher.update(self.public.as_bytes());
@@ -95,11 +114,18 @@ mod tests {
     }
 
     #[test]
+    fn test_secret_key_zeroize_wrapper() {
+        let kp = AccessKeyPair::generate();
+        let sec_key = kp.secret_key();
+        assert_ne!(sec_key.as_bytes(), &[0u8; 32]);
+        assert_eq!(format!("{:?}", sec_key), "SecretAccessKey([REDACTED])");
+    }
+
+    #[test]
     fn test_ecdh_kdf_shared_secret() {
         let node_a = AccessKeyPair::generate();
         let node_b = AccessKeyPair::generate();
 
-        // Calcul ECDH dérivé KDF symétrique
         let shared_a = node_a.diffie_hellman(&node_b.public);
         let shared_b = node_b.diffie_hellman(&node_a.public);
 
