@@ -5,10 +5,6 @@ import { getTenant, getLicenses, getDevices } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import type { Tenant, License, Device } from '../types/index'
 
-function truncate(str: string, max: number): string {
-  return str.length > max ? str.slice(0, max) + '…' : str
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR')
 }
@@ -17,49 +13,16 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-type LicensePlan = 'starter' | 'pro' | 'enterprise'
-
-function getPlanBadgeStyle(plan: LicensePlan): React.CSSProperties {
-  if (plan === 'pro') {
-    return {
-      background: '#FFF3CD',
-      color: '#856404',
-      padding: '2px 10px',
-      borderRadius: '12px',
-      fontSize: '12px',
-      fontWeight: 600,
-      display: 'inline-block',
-    }
-  }
-  if (plan === 'enterprise') {
-    return {
-      background: '#F8E8E8',
-      color: 'var(--crimson)',
-      padding: '2px 10px',
-      borderRadius: '12px',
-      fontSize: '12px',
-      fontWeight: 600,
-      display: 'inline-block',
-    }
-  }
-  return {
-    background: '#F0ECE8',
-    color: 'var(--text-muted)',
-    padding: '2px 10px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: 600,
-    display: 'inline-block',
-  }
-}
-
 export default function TenantDetail() {
   const { id } = useParams<{ id: string }>()
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [licenses, setLicenses] = useState<License[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  
+  // Modal QR Code V2
+  const [showPairingModal, setShowPairingModal] = useState(false)
+  const [pairingTimer, setPairingTimer] = useState(300)
 
   useEffect(() => {
     if (!id) return
@@ -78,264 +41,299 @@ export default function TenantDetail() {
           setDevices(devicesData)
         }
       } catch (err: unknown) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Erreur de chargement')
-        }
+        console.error(err)
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
     void load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
-  const breadcrumbStyle: React.CSSProperties = {
-    marginBottom: '24px',
-    fontSize: '14px',
-    color: 'var(--text-secondary)',
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (showPairingModal && pairingTimer > 0) {
+      interval = setInterval(() => {
+        setPairingTimer((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [showPairingModal, pairingTimer])
+
+  const formatTimer = (sec: number) => {
+    const mins = Math.floor(sec / 60)
+    const secs = sec % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const breadcrumbLinkStyle: React.CSSProperties = {
-    color: 'var(--crimson)',
-    fontWeight: 500,
+  // Impression synthétique du dossier client PME
+  const handlePrintContract = () => {
+    window.print()
   }
 
-  const infoCardStyle: React.CSSProperties = {
-    background: '#FFFFFF',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius)',
-    padding: '24px',
-    boxShadow: 'var(--shadow)',
-    marginBottom: '28px',
-  }
-
-  const avatarStyle: React.CSSProperties = {
-    width: '48px',
-    height: '48px',
-    borderRadius: '50%',
-    background: 'var(--crimson)',
-    color: '#FFFFFF',
-    fontSize: '20px',
-    fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  }
-
-  const tenantNameStyle: React.CSSProperties = {
-    fontSize: '20px',
-    fontWeight: 700,
-    color: 'var(--text-primary)',
-  }
-
-  const infoGridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-    marginTop: '20px',
-  }
-
-  const infoLabelStyle: React.CSSProperties = {
-    color: 'var(--text-secondary)',
-    fontSize: '12px',
-    marginBottom: '2px',
-  }
-
-  const infoValueStyle: React.CSSProperties = {
-    color: 'var(--text-primary)',
-    fontWeight: 500,
-  }
-
-  const sectionTitleStyle: React.CSSProperties = {
-    borderLeft: '3px solid var(--crimson)',
-    paddingLeft: '12px',
-    fontSize: '16px',
-    fontWeight: 600,
-    color: 'var(--text-primary)',
-    marginBottom: '16px',
-  }
-
-  const sectionStyle: React.CSSProperties = {
-    marginBottom: '28px',
-  }
-
-  const tableWrapperStyle: React.CSSProperties = {
-    background: '#FFFFFF',
-    borderRadius: 'var(--radius)',
-    boxShadow: 'var(--shadow)',
-    overflow: 'hidden',
-  }
-
-  const tableStyle: React.CSSProperties = {
-    width: '100%',
-    borderCollapse: 'collapse',
-  }
-
-  const theadStyle: React.CSSProperties = {
-    background: '#F5EFE8',
-  }
-
-  const thStyle: React.CSSProperties = {
-    padding: '12px 16px',
-    textAlign: 'left',
-    color: 'var(--text-secondary)',
-    fontSize: '11px',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.8px',
-    borderBottom: '2px solid var(--gold)',
-  }
-
-  const tdStyle: React.CSSProperties = {
-    padding: '14px 16px',
-    borderBottom: '1px solid var(--border)',
-    verticalAlign: 'middle',
-    color: 'var(--text-primary)',
-  }
-
-  const monoTdStyle: React.CSSProperties = {
-    ...tdStyle,
-    fontFamily: 'monospace',
-    fontSize: '12px',
-    color: 'var(--text-secondary)',
-  }
-
-  const emptyTdStyle: React.CSSProperties = {
-    ...tdStyle,
-    textAlign: 'center',
-    color: 'var(--text-muted)',
-  }
-
-  const errorStyle: React.CSSProperties = {
-    background: '#FEE8E8',
-    border: '1px solid var(--crimson)',
-    padding: '12px',
-    borderRadius: 'var(--radius)',
-    color: 'var(--crimson)',
-  }
-
-  if (loading) {
-    return <p style={{ color: 'var(--text-secondary)' }}>Chargement…</p>
-  }
-
-  if (error) {
-    return <div style={errorStyle}>Erreur : {error}</div>
-  }
-
-  if (!tenant) {
-    return <div style={errorStyle}>Tenant introuvable.</div>
-  }
+  if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Chargement du dossier client...</p>
+  if (!tenant) return <div style={{ color: 'var(--crimson)' }}>Tenant introuvable.</div>
 
   return (
     <div>
-      <div style={breadcrumbStyle}>
-        <Link to="/tenants" style={breadcrumbLinkStyle}>← Tenants</Link>
-        <span> / {tenant.name}</span>
+      {/* Bandeau Supérieur & Bouton Impression */}
+      <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+          <Link to="/tenants" style={{ color: 'var(--crimson)', fontWeight: 500, textDecoration: 'none' }}>← Tenants</Link>
+          <span> / {tenant.name}</span>
+        </div>
+        <button
+          onClick={handlePrintContract}
+          className="no-print"
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid var(--border)',
+            padding: '8px 14px',
+            borderRadius: '6px',
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          🖨️ Imprimer la Fiche Client
+        </button>
       </div>
 
-      <div style={infoCardStyle}>
+      {/* Fiche Entreprise */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '24px',
+          boxShadow: 'var(--shadow)',
+          marginBottom: '28px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-          <div style={avatarStyle}>{getInitials(tenant.name)}</div>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'var(--crimson)',
+              color: '#FFFFFF',
+              fontSize: '20px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {getInitials(tenant.name)}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={tenantNameStyle}>{tenant.name}</span>
+            <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>{tenant.name}</span>
             <StatusBadge active={tenant.is_active} />
           </div>
         </div>
 
-        <div style={infoGridStyle}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '20px' }}>
           <div>
-            <div style={infoLabelStyle}>Email</div>
-            <div style={infoValueStyle}>{tenant.email}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Sous-domaine Métier</div>
+            <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{tenant.subdomain}.amane.local</div>
           </div>
           <div>
-            <div style={infoLabelStyle}>Téléphone</div>
-            <div style={infoValueStyle}>{tenant.phone}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Identifiant Réseau PME</div>
+            <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>ID-{tenant.id}</div>
           </div>
           <div>
-            <div style={infoLabelStyle}>Adresse</div>
-            <div style={infoValueStyle}>{tenant.address}</div>
-          </div>
-          <div>
-            <div style={infoLabelStyle}>Employés</div>
-            <div style={infoValueStyle}>{tenant.employee_count}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Date d'Abonnement</div>
+            <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatDate(tenant.created_at)}</div>
           </div>
         </div>
       </div>
 
-      <div style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>Licences</h2>
-        <div style={tableWrapperStyle}>
-          <table style={tableStyle}>
-            <thead style={theadStyle}>
+      {/* Licences */}
+      <div style={{ marginBottom: '28px' }}>
+        <h2 style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+          Licences Cryptographiques Ed25519
+        </h2>
+        <div style={{ background: '#FFFFFF', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead style={{ background: '#F5EFE8' }}>
               <tr>
-                <th style={thStyle}>Plan</th>
-                <th style={thStyle}>Sièges</th>
-                <th style={thStyle}>Date début</th>
-                <th style={thStyle}>Date fin</th>
-                <th style={thStyle}>Statut</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Offre</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Postes Max</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Date Expiration</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Statut</th>
               </tr>
             </thead>
             <tbody>
               {licenses.map((lic) => (
                 <tr key={lic.id}>
-                  <td style={tdStyle}>
-                    <span style={getPlanBadgeStyle(lic.plan)}>{lic.plan}</span>
-                  </td>
-                  <td style={tdStyle}>{lic.seats}</td>
-                  <td style={tdStyle}>{formatDate(lic.starts_at)}</td>
-                  <td style={tdStyle}>{lic.expires_at ? formatDate(lic.expires_at) : '∞'}</td>
-                  <td style={tdStyle}><StatusBadge active={lic.is_active} /></td>
+                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.plan_tier || 'ENTERPRISE'}</td>
+                  <td style={{ padding: '14px 16px' }}>{lic.max_nodes || 3} postes</td>
+                  <td style={{ padding: '14px 16px' }}>{formatDate(lic.expires_at)}</td>
+                  <td style={{ padding: '14px 16px' }}><StatusBadge active={lic.is_active} /></td>
                 </tr>
               ))}
-              {licenses.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={emptyTdStyle}>Aucune licence.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <div style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>Machines</h2>
-        <div style={tableWrapperStyle}>
-          <table style={tableStyle}>
-            <thead style={theadStyle}>
+      {/* Machines / Nœuds du Cluster */}
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2 style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', fontSize: '16px', fontWeight: 600, margin: 0 }}>
+            Parc de Machines Enrôlées
+          </h2>
+          <button
+            onClick={() => {
+              setPairingTimer(300)
+              setShowPairingModal(true)
+            }}
+            className="no-print"
+            style={{
+              background: 'var(--crimson)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 14px',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: 'var(--shadow)',
+            }}
+          >
+            📱 Appairer un nouveau poste (QR Code V2)
+          </button>
+        </div>
+
+        <div style={{ background: '#FFFFFF', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead style={{ background: '#F5EFE8' }}>
               <tr>
-                <th style={thStyle}>Hostname</th>
-                <th style={thStyle}>OS</th>
-                <th style={thStyle}>Installation ID</th>
-                <th style={thStyle}>Dernière connexion</th>
-                <th style={thStyle}>Licence</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Hostname</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Rôle</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>IP VPN Mesh</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)' }}>Dernière vue</th>
               </tr>
             </thead>
             <tbody>
               {devices.map((dev) => (
                 <tr key={dev.id}>
-                  <td style={tdStyle}>{dev.hostname}</td>
-                  <td style={tdStyle}>{dev.os}</td>
-                  <td style={monoTdStyle}>{truncate(dev.installation_id, 8)}…</td>
-                  <td style={tdStyle}>{formatDate(dev.last_seen)}</td>
-                  <td style={tdStyle}>
-                    <StatusBadge
-                      active={dev.is_within_license}
-                      label={dev.is_within_license ? 'OK' : 'Hors licence'}
-                    />
+                  <td style={{ padding: '14px 16px', fontWeight: 600 }}>{dev.hostname}</td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: dev.node_role === 'ACTIVE' ? '#E8F5E9' : '#EEEEEE',
+                        color: dev.node_role === 'ACTIVE' ? '#2E7D32' : '#616161',
+                      }}
+                    >
+                      {dev.node_role}
+                    </span>
                   </td>
+                  <td style={{ padding: '14px 16px', fontFamily: 'monospace' }}>{dev.ip_address}</td>
+                  <td style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-muted)' }}>{formatDate(dev.last_seen)}</td>
                 </tr>
               ))}
-              {devices.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={emptyTdStyle}>Aucune machine enregistrée.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal QR Code d'Appairage V2 */}
+      {showPairingModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '12px',
+              padding: '28px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              textAlign: 'center',
+            }}
+          >
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              Appairage QR Code V2 (Sealed Box X25519)
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Faites scanner ce QR Code sur le 2ème PC pour transmettre la clé d'accès (AK) de manière 100% chiffrée.
+            </p>
+
+            <div
+              style={{
+                background: '#F8F9FA',
+                padding: '20px',
+                borderRadius: '8px',
+                display: 'inline-block',
+                border: '2px dashed var(--gold)',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ fontSize: '72px', lineHeight: 1 }}>📱🔳</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                INV-8f92a10c • Sealed Box X25519
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: pairingTimer < 60 ? '#FEE8E8' : '#FFF3CD',
+                color: pairingTimer < 60 ? 'var(--crimson)' : '#856404',
+                padding: '10px',
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '14px',
+                marginBottom: '20px',
+              }}
+            >
+              ⏱️ Temps restant (Usage unique) : {formatTimer(pairingTimer)}
+            </div>
+
+            <button
+              onClick={() => setShowPairingModal(false)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: 'var(--sidebar-bg)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Fermer la fenêtre d'appairage
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,7 +8,7 @@ mod recovery;
 
 pub use error::CryptoError;
 pub use dek::Dek;
-pub use ak::{AccessKeyPair, AccessPublicKey};
+pub use ak::{AccessKeyPair, AccessPublicKey, SecretAccessKey};
 pub use crl::CrlRegistry;
 pub use shamir::{Kek, ShamirShare, split_kek, reconstruct_kek};
 pub use device_key::{DeviceKeyPair, DevicePublicKey};

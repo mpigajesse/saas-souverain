@@ -30,3 +30,29 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
+
+/* REGLES D'IMPRESSION PROFESSIONNELLES (PRINT STYLES) */
+@media print {
+  /* Masquer la barre latérale sombre d'administration lors de l'impression */
+  aside {
+    display: none !important;
+  }
+
+  /* Supprimer la marge de 240px et étendre le dossier client sur toute la largeur */
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+  }
+
+  /* Masquer les boutons et éléments interactifs lors de l'impression */
+  button, .no-print {
+    display: none !important;
+  }
+
+  /* Configuration des marges d'impression A4 */
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+}

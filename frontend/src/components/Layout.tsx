@@ -1,20 +1,15 @@
 import type React from 'react'
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 interface LayoutProps {
   children: ReactNode
 }
 
 const IconDashboard = () => (
-  <svg
-    viewBox="0 0 16 16"
-    width={16}
-    height={16}
-    fill="currentColor"
-    aria-hidden="true"
-  >
+  <svg viewBox="0 0 16 16" width={16} height={16} fill="currentColor" aria-hidden="true">
     <rect x="1" y="1" width="6" height="6" rx="1" />
     <rect x="9" y="1" width="6" height="6" rx="1" />
     <rect x="1" y="9" width="6" height="6" rx="1" />
@@ -23,28 +18,35 @@ const IconDashboard = () => (
 )
 
 const IconTenants = () => (
-  <svg
-    viewBox="0 0 16 16"
-    width={16}
-    height={16}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    aria-hidden="true"
-  >
+  <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
     <path d="M2 14V6l6-4 6 4v8H2z" />
     <rect x="5" y="9" width="2" height="3" />
     <rect x="9" y="9" width="2" height="3" />
   </svg>
 )
 
+const IconLicenses = () => (
+  <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+    <path d="M12.5 7.5A3.5 3.5 0 1 0 9 11h1v2h2v-2h.5a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z" />
+    <circle cx="5.5" cy="6.5" r="2.5" />
+  </svg>
+)
+
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard', exact: true, Icon: IconDashboard },
-  { to: '/tenants', label: 'Tenants', exact: false, Icon: IconTenants },
+  { to: '/', label: 'Console Éditeur', exact: true, Icon: IconDashboard },
+  { to: '/tenants', label: 'Tenants (Clients PME)', exact: false, Icon: IconTenants },
+  { to: '/licenses', label: 'Licences Ed25519', exact: false, Icon: IconLicenses },
 ]
 
 export default function Layout({ children }: LayoutProps) {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   const sidebarStyle: React.CSSProperties = {
     width: '240px',
@@ -94,11 +96,11 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const footerStyle: React.CSSProperties = {
-    position: 'absolute',
-    bottom: '20px',
-    left: '20px',
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: '11px',
+    padding: '16px',
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
   }
 
   const contentStyle: React.CSSProperties = {
@@ -139,15 +141,15 @@ export default function Layout({ children }: LayoutProps) {
     <>
       <aside style={sidebarStyle}>
         <div style={headerStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <img src="/logoentreprise.png" alt="EL BARAA CONSULT logo" style={{ height: 40 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+            <img src="/logoentreprise.png" alt="EL BARAA CONSULT logo" style={{ height: '68px', maxWidth: '100%', objectFit: 'contain' }} />
           </div>
-          <span style={brandNameStyle}>EL BARAA CONSULT</span>
-          <span style={brandSubStyle}>Plateforme SaaS</span>
+          <span style={brandNameStyle}>{user?.company || 'EL BARAA CONSULT'}</span>
+          <span style={brandSubStyle}>Console d'Administration Éditeur</span>
         </div>
 
         <nav style={navStyle}>
-          <span style={sectionLabelStyle}>NAVIGATION</span>
+          <span style={sectionLabelStyle}>GESTION SAAS</span>
           {NAV_LINKS.map(({ to, label, exact, Icon }) => (
             <NavLink
               key={to}
@@ -167,7 +169,50 @@ export default function Layout({ children }: LayoutProps) {
           ))}
         </nav>
 
-        <div style={footerStyle}>v1.0.0</div>
+        {/* Pied de Sidebar & Profil Éditeur avec Bouton Déconnexion */}
+        <div style={footerStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'var(--gold)',
+                color: '#2D1419',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {user?.name.substring(0, 2).toUpperCase() || 'AD'}
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ color: '#FFF', fontSize: '12px', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                {user?.name || 'Administrateur'}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>{user?.role || 'SaaS Admin'}</div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              padding: '6px 10px',
+              background: 'rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            🚪 Déconnexion
+          </button>
+        </div>
       </aside>
 
       <main style={contentStyle}>{children}</main>
