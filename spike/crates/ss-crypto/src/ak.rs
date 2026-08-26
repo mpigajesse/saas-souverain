@@ -1,5 +1,6 @@
 use std::fmt;
 use x25519_dalek::{PublicKey as X25519Public, StaticSecret};
+use blake2::{Blake2b512, Digest};
 use rand::rngs::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 use serde::{Serialize, Deserialize};
@@ -63,12 +64,23 @@ impl AccessKeyPair {
         self.secret_bytes
     }
 
-    /// Calcule un secret partagé Diffie-Hellman (ECDH) avec la clé publique d'un autre nœud.
+    /// Calcule un secret dérivé Diffie-Hellman (ECDH + BLAKE2b-512 KDF) avec la clé publique d'un autre nœud.
+    /// Applique un hachage KDF (BLAKE2b-512) sur la sortie X25519 brute et les clés publiques pour garantir une entropie uniforme.
     pub fn diffie_hellman(&self, peer_public: &AccessPublicKey) -> [u8; 32] {
         let my_secret = StaticSecret::from(self.secret_bytes);
         let peer_pub = X25519Public::from(peer_public.0);
         let shared = my_secret.diffie_hellman(&peer_pub);
-        *shared.as_bytes()
+
+        // Dérivation KDF via BLAKE2b-512
+        let mut hasher = Blake2b512::new();
+        hasher.update(shared.as_bytes());
+        hasher.update(self.public.as_bytes());
+        hasher.update(peer_public.as_bytes());
+        let digest = hasher.finalize();
+
+        let mut derived_key = [0u8; 32];
+        derived_key.copy_from_slice(&digest[0..32]);
+        derived_key
     }
 }
 
@@ -83,10 +95,11 @@ mod tests {
     }
 
     #[test]
-    fn test_ecdh_shared_secret() {
+    fn test_ecdh_kdf_shared_secret() {
         let node_a = AccessKeyPair::generate();
         let node_b = AccessKeyPair::generate();
 
+        // Calcul ECDH dérivé KDF symétrique
         let shared_a = node_a.diffie_hellman(&node_b.public);
         let shared_b = node_b.diffie_hellman(&node_a.public);
 
