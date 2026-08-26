@@ -1,3 +1,4 @@
+use std::fmt;
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     XChaCha20Poly1305, Key, XNonce,
@@ -5,14 +6,23 @@ use chacha20poly1305::{
 use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::CryptoError;
 
-const NONCE_LEN: usize = 24; // XChaCha20 nonce length in bytes
+const NONCE_LEN: usize = 24; // Longueur du nonce XChaCha20 en octets
 
-/// Clé symétrique 256 bits. Zéroïsée automatiquement à la libération.
+/// Clé symétrique 256 bits dédiée au chiffrement des données.
+/// Zéroïsée automatiquement en mémoire RAM à la libération du scope (ZeroizeOnDrop).
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct Dek([u8; 32]);
 
+/// Audit d'herméticité : Implémentation masquée du trait Debug.
+/// Empêche toute fuite accidentelle de la clé dans les logs ou les traces d'erreurs.
+impl fmt::Debug for Dek {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Dek([REDACTED])")
+    }
+}
+
 impl Dek {
-    /// Génère une DEK aléatoire.
+    /// Génère une nouvelle clé DEK de 256 bits de manière aléatoire et sécurisée via OsRng.
     pub fn generate() -> Self {
         let key = XChaCha20Poly1305::generate_key(&mut OsRng);
         let mut bytes = [0u8; 32];
@@ -20,16 +30,18 @@ impl Dek {
         Self(bytes)
     }
 
-    /// Recrée une DEK depuis des octets (depuis le sealed box ouvert).
+    /// Recrée une DEK à partir d'un tableau d'octets (ex: après ouverture d'un Sealed Box ou KEK).
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 
+    /// Accès aux 32 octets de la clé.
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
 
-    /// Chiffre `plaintext`. Retourne nonce (24 octets) ‖ ciphertext.
+    /// Chiffre `plaintext` avec l'algorithme XChaCha20-Poly1305.
+    /// Retourne un vecteur binaire formaté ainsi : `[nonce (24 octets) ‖ ciphertext]`
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.0));
         let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
@@ -43,8 +55,8 @@ impl Dek {
         Ok(output)
     }
 
-    /// Déchiffre ce que `encrypt` a produit.
-    /// Le blob est nonce (24 octets) ‖ ciphertext.
+    /// Déchiffre un blob binaire produit par `encrypt`.
+    /// Sépare les 24 premiers octets (nonce) du reste du ciphertext avant de déchiffrer.
     pub fn decrypt(&self, blob: &[u8]) -> Result<Vec<u8>, CryptoError> {
         if blob.len() < NONCE_LEN {
             return Err(CryptoError::InvalidCiphertext);
@@ -101,6 +113,13 @@ mod tests {
         let dek = Dek::generate();
         let ct1 = dek.encrypt(b"hello").unwrap();
         let ct2 = dek.encrypt(b"hello").unwrap();
-        assert_ne!(ct1, ct2); // nonces aléatoires → ciphertexts différents
+        assert_ne!(ct1, ct2);
+    }
+
+    #[test]
+    fn debug_hermeticity() {
+        let dek = Dek::generate();
+        let output = format!("{:?}", dek);
+        assert_eq!(output, "Dek([REDACTED])");
     }
 }

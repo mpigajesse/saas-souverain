@@ -14,4 +14,10 @@ pub enum CryptoError {
     InvalidSealedBox,
     #[error("erreur Argon2 : {0}")]
     Argon2(String),
+    #[error("accès refusé — la clé d'accès (AK) a été révoquée dans la CRL")]
+    RevokedAccessKey,
+    #[error("fragment de secret Shamir invalide")]
+    InvalidShamirShare,
+    #[error("échec de la reconstruction du secret Shamir")]
+    ShamirReconstructionFailed,
 }
