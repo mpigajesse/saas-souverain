@@ -1,0 +1,82 @@
+# benchmark — détection de régression de performance.
+#
+# * micro  : benchmarks Go des chemins chauds (replication) — médiane des
+#            ns/op vs docs/bench/baseline.json (tolérance x10, bruit CI).
+#            Lancé sur PR touchant des chemins chauds.
+# * macro  : failover réel sur la stack Patroni (compose). LANCÉ sur cron
+#            (nuit) + dispatch manuel seulement : le pull de l'image spilo
+#            (~1 Go) rend le job lourd pour chaque PR. Alerte = non-blocage
+#            dans le résumé ; BLOCAGE si SLO V2 violé (failover > 5 s,
+#            writable > 6 s) — les scripts vérifient en plus fencing +
+#            zéro perte.
+
+name: benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'consensus/**'
+      - 'replication/**'
+      - 'supervisor/**'
+      - 'grpcserver/**'
+      - '.ci/**'
+      - 'docs/bench/**'
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  micro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Micro-benchmarks (replication) vs baseline
+        run: bash .ci/benchcheck.sh
+
+  macro-failover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stack Patroni (etcd + 2 spilo, réplication synchrone)
+        run: docker compose -f docker-compose.yml up -d
+
+      - name: Attente d'un primary
+        run: |
+          for i in $(seq 1 90); do
+            curl -sfm 2 localhost:8008/patroni 2>/dev/null | grep -q '"role": "primary"' && break
+            sleep 2
+          done
+          curl -sfm 2 localhost:8008/patroni | grep -o '"role": "[a-z]*"'
+
+      - name: Switchover contrôlé (fencing + zéro perte vérifiés)
+        run: |
+          set -euo pipefail
+          bash scripts/switchover_measure.sh | tee /tmp/sw.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Failover crash — SLO V2 (< 5 s, blocant)
+        run: |
+          set -euo pipefail
+          bash scripts/failover_measure.sh crash | tee /tmp/fo.log
+          ms=$(grep -oP 'failover_ms  *: \K[0-9]+' /tmp/fo.log)
+          wr=$(grep -oP 'writable_ms  *: \K[0-9]+' /tmp/fo.log)
+          slo_f=$(jq -r .slo_failover_ms docs/bench/baseline.json)
+          slo_w=$(jq -r .slo_writable_ms docs/bench/baseline.json)
+          echo "failover=${ms}ms writable=${wr}ms (SLO ${slo_f}ms / ${slo_w}ms)"
+          echo "failover=${ms}ms writable=${wr}ms" >> "$GITHUB_STEP_SUMMARY"
+          [ "$ms" -le "$slo_f" ] || { echo "RÉGRESSION SLO : failover ${ms}ms > ${slo_f}ms"; exit 1; }
+          [ "$wr" -le "$slo_w" ] || { echo "RÉGRESSION SLO : writable ${wr}ms > ${slo_w}ms"; exit 1; }
+          echo "SLO V2 respecté : failover ${ms}ms (≤ ${slo_f}), writable ${wr}ms (≤ ${slo_w})"

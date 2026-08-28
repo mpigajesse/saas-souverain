@@ -1,9 +1,16 @@
-# Secrets — NE JAMAIS COMMITTER
+# Secrets — NE JAMAIS COMMITTER (règle n°6)
 .env
 *.env
 secrets/
+tls/
+*.pem
+*.key
+*.crt
+*.p12
+wg_private*
+ouvrir-ports-editeur.bat
 
-# Python
+# Python & Django
 __pycache__/
 *.py[cod]
 *.pyc
@@ -13,33 +20,44 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-rustup-init.exe
-*.exe
-*.egg
 venv/
 .venv/
 env/
 .tox/
 node_modules/
-
-# Django
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 staticfiles/
 media/
+htmlcov/
+.coverage
+.pytest_cache/
+*.cover
 
 # Rust / Cargo
 target/
 core-rust/target/
 spike/target/
 spike/.cargo/
+rustup-init.exe
+*.exe
 
-# Docker
+# Binaires compilés Go
+/testcontainers
+/wgmesh
+orchestrator-go/wgmesh
+.ci/testcontainers/testcontainers
+coverage.out
+cov-prod.out
+*.test
+/tmp/
+
+# Docker & Infrastructure
 docker-compose.override.yml
 
-# IDE
+# IDE & Editeurs
 .vscode/
 .idea/
 *.swp
@@ -47,14 +65,13 @@ docker-compose.override.yml
 .DS_Store
 Thumbs.db
 
-# Test / Coverage
-htmlcov/
-.coverage
-.pytest_cache/
-*.cover
+# Documentation locale & PDF (documents générés)
+docs/*
+!docs/bench/
+docs/bench/*
+!docs/bench/baseline.json
+*.pdf
 
-# Fichiers locaux sensibles
-*.key
-*.pem
-*.p12
-ouvrir-ports-editeur.bat
+# Agents IA / configuration opencode
+.opencode/
+AGENTS.md
