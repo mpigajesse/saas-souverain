@@ -6,9 +6,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true) // Génère aussi le serveur pour le Mock Server de test
         .build_client(true)
         .compile(
-            &["../../proto/framework.proto"],
+            &["../../proto/amane/framework/v1/framework.proto"],
             &["../../proto"],
         )?;
-    println!("cargo:rerun-if-changed=../../proto/framework.proto");
+    println!("cargo:rerun-if-changed=../../proto/amane/framework/v1/framework.proto");
     Ok(())
 }
