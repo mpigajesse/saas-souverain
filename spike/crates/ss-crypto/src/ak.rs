@@ -93,8 +93,13 @@ impl AccessKeyPair {
 
         let mut hasher = Blake2b512::new();
         hasher.update(shared.as_bytes());
-        hasher.update(self.public.as_bytes());
-        hasher.update(peer_public.as_bytes());
+        if self.public.as_bytes() < peer_public.as_bytes() {
+            hasher.update(self.public.as_bytes());
+            hasher.update(peer_public.as_bytes());
+        } else {
+            hasher.update(peer_public.as_bytes());
+            hasher.update(self.public.as_bytes());
+        }
         let digest = hasher.finalize();
 
         let mut derived_key = [0u8; 32];

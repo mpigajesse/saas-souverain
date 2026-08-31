@@ -3,7 +3,6 @@ members = [
     "crates/ss-crypto",
     "crates/ss-journal",
     "crates/ss-consensus",
-    "../core-rust/ss-client",
     "node",
     "relay",
 ]

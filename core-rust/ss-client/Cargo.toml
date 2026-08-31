@@ -12,6 +12,7 @@ ss-journal = { path = "../../spike/crates/ss-journal" }
 # gRPC & Protobuf (Mission B & C)
 tonic = "0.10"
 prost = "0.12"
+prost-types = "0.12"
 tokio = { version = "1.0", features = ["full"] }
 
 # Sérialisation & Données local
