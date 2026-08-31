@@ -58,11 +58,12 @@ export default function Layout({ children }: LayoutProps) {
     display: 'flex',
     flexDirection: 'column',
     zIndex: 100,
+    overflowY: 'auto',
   }
 
   const headerStyle: React.CSSProperties = {
-    padding: '20px',
-    borderBottom: '1px solid rgba(196,151,42,0.3)',
+    padding: '20px 16px',
+    borderBottom: '1px solid rgba(196,151,42,0.25)',
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
@@ -81,26 +82,27 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const navStyle: React.CSSProperties = {
-    padding: '16px 12px',
-    flex: 1,
+    padding: '16px 12px 8px 12px',
   }
 
   const sectionLabelStyle: React.CSSProperties = {
-    color: 'rgba(232,184,75,0.5)',
+    color: 'rgba(232,184,75,0.6)',
     fontSize: '10px',
     letterSpacing: '1.5px',
     textTransform: 'uppercase',
-    padding: '8px',
+    padding: '4px 8px',
     display: 'block',
-    marginBottom: '4px',
+    marginBottom: '6px',
   }
 
   const footerStyle: React.CSSProperties = {
+    marginTop: 'auto',
     padding: '16px',
     borderTop: '1px solid rgba(255,255,255,0.1)',
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
+    background: 'rgba(0,0,0,0.2)',
   }
 
   const contentStyle: React.CSSProperties = {
@@ -140,6 +142,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <>
       <aside style={sidebarStyle}>
+        {/* En-tête avec Grand Logo Éditeur */}
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
             <img src="/logoentreprise.png" alt="EL BARAA CONSULT logo" style={{ height: '68px', maxWidth: '100%', objectFit: 'contain' }} />
@@ -148,6 +151,7 @@ export default function Layout({ children }: LayoutProps) {
           <span style={brandSubStyle}>Console d'Administration Éditeur</span>
         </div>
 
+        {/* Menu Principal */}
         <nav style={navStyle}>
           <span style={sectionLabelStyle}>GESTION SAAS</span>
           {NAV_LINKS.map(({ to, label, exact, Icon }) => (
@@ -168,6 +172,70 @@ export default function Layout({ children }: LayoutProps) {
             </NavLink>
           ))}
         </nav>
+
+        {/* SECTION 1 ADDITIONNELLE : STATUT INFRASTRUCTURE & RELAIS AVEUGLE */}
+        <div style={{ padding: '8px 12px 12px 12px', margin: '0 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(196,151,42,0.15)' }}>
+          <span style={sectionLabelStyle}>INFRASTRUCTURE & INFOS</span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.8)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Relais Aveugle :</span>
+              <span style={{ color: '#4CAF50', fontWeight: 700 }}>🟢 Actif</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>VPN WireGuard :</span>
+              <span style={{ color: 'var(--gold)', fontWeight: 600, fontFamily: 'monospace' }}>10.10.0.0/24</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Crypto Clés :</span>
+              <span style={{ color: '#FFF', fontWeight: 600 }}>AK / DEK (100%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 2 ADDITIONNELLE : RACCOURCIS OUTILS & ACCÈS DIRECTS */}
+        <div style={{ padding: '12px', margin: '8px 8px 0 8px' }}>
+          <span style={sectionLabelStyle}>ACCÈS RAPIDES</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+            <a
+              href="http://localhost:3000"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'rgba(255,255,255,0.7)',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                background: 'rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none',
+              }}
+            >
+              <span>📊</span> Live Grafana (Port 3000)
+            </a>
+
+            <a
+              href="http://localhost:8000/admin/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'rgba(255,255,255,0.7)',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                background: 'rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none',
+              }}
+            >
+              <span>⚙️</span> Admin Django Backend
+            </a>
+          </div>
+        </div>
 
         {/* Pied de Sidebar & Profil Éditeur avec Bouton Déconnexion */}
         <div style={footerStyle}>
