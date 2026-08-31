@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -99,8 +100,10 @@ func TestGenerateConfigWrites0600AndSkipsWhenUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Fatalf("permissions attendues 0600, obtenues %o", info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("permissions attendues 0600, obtenues %o", info.Mode().Perm())
+		}
 	}
 	content, _ := os.ReadFile(path)
 	s := string(content)

@@ -2,6 +2,7 @@ package mesh
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -99,7 +100,9 @@ func TestWriteConfPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("permissions = %o, want 600 (clé privée protégée)", perm)
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Errorf("permissions = %o, want 600 (clé privée protégée)", perm)
+		}
 	}
 }
