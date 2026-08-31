@@ -1,4 +1,7 @@
 services:
+
+  # ── CLUSTER SOUVERAIN (Mission C) ─────────────────────────
+
   etcd:
     image: quay.io/coreos/etcd:v3.5.5
     container_name: etcd-amane
@@ -96,7 +99,61 @@ services:
       etcd:
         condition: service_healthy
 
+  # ── CONSOLE ÉDITEUR SAAS (Mission B) ──────────────────────
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: saas_editor_backend
+    restart: always
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://amane_admin:amane_password_sec2026@postgres-primary:5432/saas_editor
+      - DEBUG=True
+    depends_on:
+      - postgres-primary
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: saas_editor_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  # ── MONITORING (Mission B) ─────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: saas_editor_prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: saas_editor_grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+
 volumes:
   etcd-data:
   pgdata-primary:
   pgdata-replica:
+  grafana_data:

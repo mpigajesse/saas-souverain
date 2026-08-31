@@ -155,6 +155,9 @@ export default function TenantDetail() {
         </div>
       </div>
 
+      {/* Graphiques Télémétrie & Activité Spécifique du Tenant PME */}
+      <TenantActivityCharts tenantName={tenant.name} />
+
       {/* Licences */}
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ borderLeft: '3px solid var(--crimson)', paddingLeft: '12px', fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
