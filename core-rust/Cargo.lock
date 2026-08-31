@@ -1383,6 +1383,7 @@ dependencies = [
  "cbor4ii",
  "ed25519-dalek",
  "prost",
+ "prost-types",
  "protoc-bin-vendored",
  "rand",
  "rusqlite",
@@ -1400,12 +1401,13 @@ dependencies = [
 
 [[package]]
 name = "ss-crypto"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "argon2",
  "base64 0.22.1",
  "blake2",
  "chacha20poly1305",
+ "chrono",
  "hex",
  "rand",
  "rand_core",
@@ -1417,13 +1419,12 @@ dependencies = [
 
 [[package]]
 name = "ss-journal"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "ciborium",
  "serde",
  "ss-crypto",
- "tempfile",
  "thiserror 2.0.20",
  "uuid",
 ]
