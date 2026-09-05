@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Pourquoi mon cluster affiche-t-il une alerte disque ?",
+      "expected_keywords": ["disque", "space", "alert", "nœud", "site"],
+      "category": "diagnostic"
+    },
+    {
+      "id": "q2",
+      "question": "Le nœud site-eshop est-il toujours en ligne ?",
+      "expected_keywords": ["en ligne", "en ligne", "site-eshop", "status"],
+      "category": "status"
+    },
+    {
+      "id": "q3",
+      "question": "Que se passe-t-il si un nœud redémarre tout seul ?",
+      "expected_keywords": ["redémarrage", "service", "automatique", "recovery"],
+      "category": "action"
+    },
+    {
+      "id": "q4",
+      "question": "Pourquoi y a-t-il un délai entre mes écritures et leur confirmation ?",
+      "expected_keywords": ["latence", "réplication", "synchrone", "quorum"],
+      "category": "performance"
+    },
+    {
+      "id": "q5",
+      "question": "Mon cluster est en mode lecture seule, que faire ?",
+      "expected_keywords": ["lecture seule", "readonly", "cause", "solution"],
+      "category": "dépannage"
+    },
+    {
+      "id": "q6",
+      "question": "À quoi sert la clé publique AK dans l'enrôlement ?",
+      "expected_keywords": ["clé publique", "enrôlement", "membership", "identification"],
+      "category": "membership"
+    },
+    {
+      "id": "q7",
+      "question": "Comment le cluster choisit-il qui est le leader ?",
+      "expected_keywords": ["leader", "élection", "etcd", "quorum"],
+      "category": "consensus"
+    },
+    {
+      "id": "q8",
+      "question": "Que se passe-t-il en cas de coupure réseau entre sites ?",
+      "expected_keywords": ["coupure", "réseau", "site", "WireGuard", "partition"],
+      "category": "partition"
+    },
+    {
+      "id": "q9",
+      "question": "Pourquoi mes données ne perdent-elles jamais même après un crash ?",
+      "expected_keywords": ["pas de perte", "synchrone", "replique", "sûreté"],
+      "category": "sûreté"
+    },
+    {
+      "id": "q10",
+      "question": "Comment puis-je redémarrer un service qui ne répond plus ?",
+      "expected_keywords": ["redémarrer", "service", "planté", "confirmation"],
+      "category": "action"
+    }
+  ]
+}

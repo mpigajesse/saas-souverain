@@ -1,0 +1,20 @@
+# Branche dédiée agent IA — tout sauf ai-assistant/ (+ clusterreader/) est ignoré
+/*
+!/.gitignore
+!/ai-assistant/
+!/orchestrator-go/
+/orchestrator-go/*
+!/orchestrator-go/clusterreader/
+/orchestrator-go/clusterreader/*
+!/orchestrator-go/clusterreader/cluster_reader.go
+
+# fichiers classiques
+node_modules/
+*.pem
+*.key
+*.crt
+tls/
+.venv/
+__pycache__/
+*.pdf
+coverage.out
