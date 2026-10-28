@@ -31,7 +31,7 @@ type Leadership interface {
 	IsLeader() bool
 }
 
-// Server implémente le contrat pb.AmaneServiceServer (proto/framework.proto).
+// Server implémente le contrat pb.AmaneServiceServer (proto/amane/framework/v1/framework.proto).
 type Server struct {
 	pb.UnimplementedAmaneServiceServer
 	logger     *slog.Logger

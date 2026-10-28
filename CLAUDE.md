@@ -166,7 +166,7 @@ La licence est liée à un **UUID d'installation authentifié** (`installation_i
 
 ## Pièges connus
 
-- **Deux fichiers proto coexistent** : `proto/amane/framework/v1/framework.proto` fait autorité (généré, testé, utilisé par Go et Rust) ; `proto/framework.proto` est un vestige V1 déclarant le même `package` et le même service — ne pas s'en servir comme référence, et vérifier `buf lint` avant d'ajouter des fichiers sous `proto/`.
+- **Un seul fichier proto** : `proto/amane/framework/v1/framework.proto` fait autorité (généré, testé, utilisé par Go et Rust). Le vestige V1 `proto/framework.proto` a été supprimé en V3 ; vérifier `buf lint` avant d'ajouter des fichiers sous `proto/`.
 - **Workspaces Rust croisés** : `core-rust/ss-client` dépend de `spike/crates/*` par chemin relatif. Déplacer l'un casse l'autre ; un `cargo test` à la racine de `core-rust` ne couvre pas le socle A.
 - **Seuils CI bloquants** : couverture Go agrégée ≥ 70 % **et** ≥ 60 % par paquet produit (`gen/` exclu) ; SLO failover et writable lus dans `docs/bench/baseline.json`. `gosec` et `govulncheck` bloquent en sévérité *high*.
 - **Réseau Docker** : `--network host` côté Linux ; sur Windows Docker Desktop, bridge nommé à IP fixes (cf. `spike/docker-compose.yml`, sous-réseau `172.20.0.0/24`).
