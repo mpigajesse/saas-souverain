@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.0
+version: 1.1
 date: 2026-10-28
 branche: main3
-statut: Étape 0 terminée — nettoyage à venir
+statut: Étape 1 terminée — bascule HA (étape 2) à venir
 ---
 
 # Fiche du document
@@ -19,6 +19,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | Version | Date | Branche / commit | Changements |
 |---|---|---|---|
 | 1.0 | 2026-10-28 | main3 / 6da5022 | Création : état V2, tri initial, décisions ADR-001 à ADR-003, plan par étapes |
+| 1.1 | 2026-10-28 | main3 / dc06197 | Étape 1 (nettoyage) terminée ; tri corrigé (§ 4.3) ; points à vérifier ajoutés (§ 7) |
 
 # 1. Objet de la refonte
 
@@ -152,22 +153,22 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | `spike/node/src/stock/` et les routes HTML liées au stock | Métier AMANE remplacé par le SaaS externe |
 | `core-rust/ss-client/src/invariants.rs` | Invariants propres au stock |
 | `frontend/src/pages/StockPage.tsx` | Écran du métier supprimé |
-| `ss-consensus/src/quorum.rs` | Élection écrite à la main, remplacée par etcd/Patroni (ADR-001) |
+| `ss-consensus/src/quorum.rs` | Élection écrite à la main, remplacée par etcd/Patroni (ADR-001). **Retrait reporté à l'étape 2** : la supprimer avant l'arrivée d'etcd/Patroni dans la pile PME laisserait les clusters sans bascule automatique |
 | `proto/framework.proto` | Vestige V1, même paquet que le contrat qui fait autorité |
-| Console Django en double : `templates/**/*.html`, `views_web.py`, `views.py`, `dashboard/views_architecture.py`, `static/` | Doublon de la console React. Les `.tmpl` (générateurs d'installeurs) sont conservés. **À vérifier** : couverture complète par React avant suppression |
+| Console Django en double : `templates/**/*.html`, `views_web.py`, `views_espace.py`, `dashboard/views*.py`, `urls.py` web, `static/` | Doublon de la console React (couverture vérifiée écran par écran). Les `.tmpl` (générateurs d'installeurs) sont conservés. **Correction** : les `views.py` de `tenants/`, `licenses/` et `devices/` sont les ViewSets DRF de l'API et restent en place |
 | `spike/node/Dockerfile.stub`, `.gitkeep` inutiles | Vestiges |
 | `fix_locks.py`, `verify.py`, `docker-cleanup.ps1` | Scripts ponctuels ; `fix_locks.py` contient un mot de passe en clair |
 | `.agenthub/sessions/` | Sans rapport avec le projet |
 | `paroles_explication_mission_b.txt` | Note personnelle |
-| `impact_missions_v1_vers_v2 (1).md`, `Stack_Technique_Framework_Souverainete_SaaS (1).md` | Déplacés vers `docs/archive/` plutôt que supprimés |
+| `impact_missions_v1_vers_v2 (1).md`, `Stack_Technique_Framework_Souverainete_SaaS (1).md`, `schema_soutenance.html` | Déplacés vers `docs/archive/` plutôt que supprimés (le schéma de soutenance n'a pas d'équivalent React) |
 
 # 5. Plan de travail par étapes
 
 | Étape | Contenu | Statut |
 |---|---|---|
 | 0 | Branche `main3`, instantané V2, présent document | Terminée |
-| 1 | Nettoyage : suppressions du § 4.3, un commit par catégorie | À faire |
-| 2 | HA de production : etcd + Patroni + orchestrateur Go dans la pile PME ; retrait de la promotion par le nœud (ADR-001) | À faire |
+| 1 | Nettoyage : suppressions du § 4.3, un commit par catégorie | Terminée (sauf `quorum.rs`, reporté à l'étape 2) |
+| 2 | HA de production : etcd + Patroni + orchestrateur Go dans la pile PME ; retrait de `quorum.rs` et de la promotion par le nœud (ADR-001) | À faire |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
@@ -185,6 +186,30 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 - Décisions ADR-001, ADR-002 et ADR-003 actées.
 - Création du présent document et de son générateur PDF.
 
+## Étape 1 — Nettoyage (2026-10-28)
+
+Quatre commits, un par catégorie, pour que chacun reste lisible et réversible.
+
+| Commit | Contenu |
+|---|---|
+| `7ca8e78` | Racine : retrait de `fix_locks.py` (mot de passe en clair), `verify.py`, `docker-cleanup.ps1`, `.agenthub/`, d'une note personnelle ; deux notes de cadrage archivées dans `docs/archive/` |
+| `81d7081` | Vestiges : `proto/framework.proto` (V1), `spike/node/Dockerfile.stub`, `.gitkeep` inutiles, dossier `infra/` vide. `CLAUDE.md` et le serveur gRPC pointent vers le seul proto restant |
+| `5609fb6` | Métier stock : module `spike/node/src/stock/`, `ss-client/src/invariants.rs`, `StockPage.tsx` (routée nulle part). La racine `/` du nœud affiche une page « Application hébergée », futur point d'entrée du reverse proxy (étape 3). Authentification et console cluster du nœud conservées |
+| `dc06197` | Console Django : vues et gabarits HTML retirés ; les fonctions partagées avec l'API passent dans des modules `services.py` (historique conservé), la voie PME par jeton dans `tenants/api_pme.py`. Aucune URL d'API ne change |
+
+**Choix faits pendant l'étape.**
+
+- `quorum.rs` reste en place jusqu'à l'étape 2 : le retirer avant qu'etcd/Patroni n'arrivent dans la pile PME supprimerait toute bascule automatique chez les clients.
+- Les tables `articles` et `mouvements_stock` déjà créées dans les bases PME ne sont pas supprimées : le nœud ne les crée plus, mais effacer des données client n'est pas du ressort d'un nettoyage de code.
+- Le schéma de soutenance, sans équivalent React, est archivé plutôt que supprimé.
+
+**Vérifications.**
+
+- Django : `manage.py check` sans erreur ; 75 tests exécutés sur SQLite en mémoire, 74 réussis. L'échec (`test_options_de_replication_postgres`) existait déjà avant le nettoyage (vérifié sur le commit `098f1de`), voir § 7.
+- Frontend : `npm run build` et `npm run lint` sans erreur.
+- Go : `go build ./...` sans erreur.
+- Rust : **non compilé** pendant l'étape (Docker arrêté sur le poste, aucun toolchain local) ; diff relu à la main. Compilation à confirmer, voir § 7.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -195,6 +220,8 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
 | Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? | ADR-002 |
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
+| Compilation Rust de l'étape 1 | Lancer `cargo test` sur `spike/` et `core-rust/` (via Docker) pour confirmer le retrait du stock et des invariants | Étape 1 |
+| Test `test_options_de_replication_postgres` | Le test attend `max_wal_senders=3`, le gabarit compose fixe 5 depuis la V2 : lequel fait foi ? Sera tranché à l'étape 2, qui réécrit la pile PostgreSQL | Étape 2 |
 
 # Annexe — Mettre à jour ce document
 
