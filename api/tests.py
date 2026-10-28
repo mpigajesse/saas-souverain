@@ -1083,11 +1083,15 @@ class PilePmeTests(TestCase):
         REGISTRY_PORT='5000',
     )
     def test_options_de_replication_postgres(self):
+        # max_wal_senders=5 : 2 standbys en flux + un pg_basebackup -Xs (qui
+        # occupe 2 émetteurs) doivent pouvoir coexister sur un cluster de 3.
+        # wal_keep_size=512 (Mo) : un standby redémarré rattrape son retard sans
+        # être recloné. Mêmes valeurs que pme-deploy/docker-compose.yml.
         corps = self._compose()
         for option in (
             'wal_level=replica',
-            'max_wal_senders=3',
-            'wal_keep_size=64',
+            'max_wal_senders=5',
+            'wal_keep_size=512',
             'listen_addresses=*',
             'synchronous_commit=remote_write',
         ):

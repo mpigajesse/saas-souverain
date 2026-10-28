@@ -84,14 +84,21 @@ STYLES = {
 def inline(texte):
     """Convertit le balisage en ligne (code, gras) en balises reportlab."""
     texte = texte.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    morceaux = re.split(r"(`[^`]+`)", texte)
-    sortie = []
-    for m in morceaux:
-        if m.startswith("`") and m.endswith("`") and len(m) > 1:
-            sortie.append(f'<font name="{MONO}" color="#8A2D3B">{m[1:-1]}</font>')
-        else:
-            sortie.append(re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", m))
-    return "".join(sortie)
+    # Le code est mis de côté avant le gras : un passage en gras peut contenir
+    # du code, et le contenu du code ne doit pas être interprété.
+    codes = []
+
+    def mettre_de_cote(m):
+        codes.append(m.group(1))
+        return f"\x00{len(codes) - 1}\x00"
+
+    texte = re.sub(r"`([^`]+)`", mettre_de_cote, texte)
+    texte = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", texte)
+    return re.sub(
+        r"\x00(\d+)\x00",
+        lambda m: f'<font name="{MONO}" color="#8A2D3B">{codes[int(m.group(1))]}</font>',
+        texte,
+    )
 
 
 def lire_entete(lignes):

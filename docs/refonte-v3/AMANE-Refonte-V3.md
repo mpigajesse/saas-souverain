@@ -2,7 +2,7 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.1
+version: 1.2
 date: 2026-10-28
 branche: main3
 statut: Étape 1 terminée — bascule HA (étape 2) à venir
@@ -20,6 +20,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 |---|---|---|---|
 | 1.0 | 2026-10-28 | main3 / 6da5022 | Création : état V2, tri initial, décisions ADR-001 à ADR-003, plan par étapes |
 | 1.1 | 2026-10-28 | main3 / dc06197 | Étape 1 (nettoyage) terminée ; tri corrigé (§ 4.3) ; points à vérifier ajoutés (§ 7) |
+| 1.2 | 2026-10-28 | main3 | Compléments à l'étape 1 : compilation Rust confirmée, test de réplication corrigé, test V1 `mock_server.rs` retiré ; réplication synchrone ajoutée à ADR-001 et à l'étape 2 |
 
 # 1. Objet de la refonte
 
@@ -92,6 +93,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 - `ss-consensus/src/quorum.rs` et la boucle de supervision/promotion du nœud Rust (`supervision.rs`, `run_supervision_loop`, `cmd/failover.rs`) sont retirés ou réduits à la lecture d'état ; le nœud ne promeut plus PostgreSQL lui-même.
 - La règle « 2 nœuds → bascule manuelle ; ≥ 3 nœuds → failover automatique par quorum » est conservée et portée par etcd/Patroni. Avec 2 nœuds etcd n'a pas de quorum tolérant à une panne : la bascule reste manuelle et le SaaS signale à la PME qu'elle est sous le seuil.
 - L'époque et le fencing (`epoch.rs`, `fencing.rs`) restent dans le socle : les écritures restent conditionnées à la lease de leader etcd.
+- **Réplication synchrone effective.** La pile V2 positionne `synchronous_commit=remote_write` sans définir `synchronous_standby_names` : PostgreSQL valide alors chaque transaction sur la seule écriture locale, la réplication est en réalité asynchrone. Cela contredit la règle « synchrone pour les invariants forts, blocage si aucun passif n'est joignable ». L'étape 2 la rend effective via Patroni (`synchronous_mode` et `synchronous_mode_strict`), qui bloque les écritures plutôt que de dégrader silencieusement en asynchrone (décision du 2026-10-28).
 
 ## ADR-002 — Formats d'exécutables acceptés
 
@@ -168,7 +170,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 |---|---|---|
 | 0 | Branche `main3`, instantané V2, présent document | Terminée |
 | 1 | Nettoyage : suppressions du § 4.3, un commit par catégorie | Terminée (sauf `quorum.rs`, reporté à l'étape 2) |
-| 2 | HA de production : etcd + Patroni + orchestrateur Go dans la pile PME ; retrait de `quorum.rs` et de la promotion par le nœud (ADR-001) | À faire |
+| 2 | HA de production : etcd + Patroni + orchestrateur Go dans la pile PME ; retrait de `quorum.rs` et de la promotion par le nœud ; réplication synchrone effective (ADR-001) | À faire |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
@@ -208,7 +210,26 @@ Quatre commits, un par catégorie, pour que chacun reste lisible et réversible.
 - Django : `manage.py check` sans erreur ; 75 tests exécutés sur SQLite en mémoire, 74 réussis. L'échec (`test_options_de_replication_postgres`) existait déjà avant le nettoyage (vérifié sur le commit `098f1de`), voir § 7.
 - Frontend : `npm run build` et `npm run lint` sans erreur.
 - Go : `go build ./...` sans erreur.
-- Rust : **non compilé** pendant l'étape (Docker arrêté sur le poste, aucun toolchain local) ; diff relu à la main. Compilation à confirmer, voir § 7.
+- Rust : **non compilé** pendant l'étape (Docker arrêté sur le poste, aucun toolchain local) ; diff relu à la main. Compilation confirmée ensuite, voir les compléments ci-dessous.
+
+## Étape 1 — Compléments (2026-10-28)
+
+**Compilation Rust (via Docker, `rust:1.88-bookworm`).**
+
+- `spike/` : compile, 74 tests réussis, 0 échec.
+- `core-rust/ss-client` : compile, 7 tests unitaires réussis.
+- Les avertissements restants (`delete_session` jamais appelée, champ `node_id` jamais lu, variable `e` inutilisée dans `ss-journal`) existaient avant le nettoyage ; ceux du module stock ont disparu avec lui.
+
+**Test d'intégration `core-rust/ss-client/tests/mock_server.rs` retiré.** Il implémentait le contrat V1 (`RegisterNode`, `WriteOperation`, `GetClusterStatus`) alors que `build.rs` génère les bindings depuis le contrat V2 : 25 erreurs de compilation, déjà présentes avant le nettoyage (vérifié sur `098f1de`). Il empêchait `cargo test` de lancer les tests unitaires de `ss-client`. Une version alignée sur le contrat V2 pourra être écrite si le besoin revient.
+
+**Test `test_options_de_replication_postgres` corrigé.** Le test attendait `max_wal_senders=3` et `wal_keep_size=64` ; le gabarit compose (comme `pme-deploy/`) utilise 5 et 512. Le second écart était masqué par l'arrêt du test au premier échec. Les valeurs du gabarit font foi :
+
+- `max_wal_senders=5` : deux standbys en flux et un `pg_basebackup -Xs` (qui occupe deux émetteurs) doivent pouvoir coexister sur un cluster de trois nœuds ; avec 3, le reclonage d'un standby peut être refusé.
+- `wal_keep_size=512` (Mo) : un standby redémarré ou brièvement coupé rattrape son retard sans être recloné ; 64 Mo n'offrent pas cette marge.
+
+Le test est aligné et commenté. Suite Django : 75 tests, 75 réussis.
+
+**Constat reporté à l'étape 2.** En analysant ce test, la réplication s'est révélée asynchrone de fait (`synchronous_commit=remote_write` sans `synchronous_standby_names`). Correction décidée pour l'étape 2, consignée dans ADR-001.
 
 # 7. Points ouverts
 
@@ -220,8 +241,7 @@ Quatre commits, un par catégorie, pour que chacun reste lisible et réversible.
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
 | Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? | ADR-002 |
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
-| Compilation Rust de l'étape 1 | Lancer `cargo test` sur `spike/` et `core-rust/` (via Docker) pour confirmer le retrait du stock et des invariants | Étape 1 |
-| Test `test_options_de_replication_postgres` | Le test attend `max_wal_senders=3`, le gabarit compose fixe 5 depuis la V2 : lequel fait foi ? Sera tranché à l'étape 2, qui réécrit la pile PostgreSQL | Étape 2 |
+| Réplication synchrone et disponibilité | Avec `synchronous_mode_strict`, un cluster de 2 nœuds dont le standby tombe bloque toute écriture. Faut-il l'accepter, ou n'activer le mode strict qu'à partir de 3 nœuds ? Le réglage est global au cluster (Patroni) et l'application externe n'étant pas modifiée, il ne peut pas être affiné par transaction | ADR-001, étape 2 |
 
 # Annexe — Mettre à jour ce document
 
