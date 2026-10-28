@@ -3,9 +3,11 @@ package supervisor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -38,9 +40,23 @@ func newHBWriter(cli *clientv3.Client, logger *slog.Logger, ttl time.Duration) *
 
 func hbKey(name string) string { return hbPrefix + name }
 
+// session retourne la session (lease) du heartbeat de `name`, recréée si la
+// précédente est morte. Une isolation réseau plus longue que le TTL fait
+// expirer la lease côté etcd : la session en cache ne pourra plus jamais
+// écrire (« requested lease not found »), et le nœud resterait sans heartbeat
+// après son retour — la garde anti-partition ne le protégerait plus.
 func (w *hbWriter) session(name string) (*concurrency.Session, error) {
 	if s, ok := w.leases[name]; ok {
-		return s, nil
+		select {
+		case <-s.Done():
+			// Orphan, pas Close : la lease n'existe plus, inutile de la révoquer
+			// (Close attendrait la révocation jusqu'au TTL).
+			s.Orphan()
+			delete(w.leases, name)
+			w.logger.Info("heartbeat : lease expirée, nouvelle session", "node", name)
+		default:
+			return s, nil
+		}
 	}
 	sess, err := concurrency.NewSession(w.cli, concurrency.WithTTL(int(w.ttl.Seconds())))
 	if err != nil {
@@ -75,6 +91,12 @@ func (w *hbWriter) publish(name string, st patroniStatus, ok bool, now time.Time
 	}
 	if _, err := w.cli.Put(ctx, hbKey(name), string(val), clientv3.WithLease(sess.Lease())); err != nil {
 		w.logger.Warn("heartbeat écriture impossible", "node", name, "err", err)
+		// Lease inconnue d'etcd alors que la session ne s'en est pas encore
+		// aperçue : on l'abandonne pour en recréer une au prochain tick.
+		if errors.Is(err, rpctypes.ErrLeaseNotFound) {
+			sess.Orphan()
+			delete(w.leases, name)
+		}
 	}
 }
 

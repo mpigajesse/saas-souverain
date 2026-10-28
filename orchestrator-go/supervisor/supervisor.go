@@ -21,6 +21,10 @@ const forceRightKey = "/amane/supervisor/force-right"
 // supervisorKey est le prefixe etcd de détection (heartbeats + droit de forcer).
 const supervisorKey = "/amane/supervisor/"
 
+// etcdWriteTimeout borne une écriture etcd décisive (libération du lock
+// Patroni). Distinct de ProbeTimeout, calibré pour une sonde REST locale.
+const etcdWriteTimeout = 2 * time.Second
+
 // Supervisor détecte la mort d'un primary PostgreSQL et déclenche
 // POST /failover Patroni (option C — décision d'architecture AGENTS.md). Il
 // NE décide PAS la promotion : Patroni reste l'autorité de fencing et de
@@ -218,7 +222,11 @@ func (s *Supervisor) tick(ctx context.Context) {
 // Patroni promeut dès que le cluster est déverrouillé, sans attendre la lease.
 func (s *Supervisor) releasePatroniLock(ctx context.Context, leader string) error {
 	key := "/service/" + s.cfg.Scope + "/leader"
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.ProbeTimeout)
+	// Délai d'écriture etcd, et non de sonde REST : juste après une partition,
+	// le client etcd doit parfois changer de membre avant que la suppression
+	// passe par Raft. Avec 300 ms, l'échec réarmait toute la détection et la
+	// bascule retombait sur le ttl de Patroni (~20 s) — constaté en laboratoire.
+	ctx, cancel := context.WithTimeout(ctx, etcdWriteTimeout)
 	defer cancel()
 	resp, err := s.cli.Delete(ctx, key)
 	if err != nil {

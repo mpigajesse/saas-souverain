@@ -67,7 +67,8 @@ jobs:
             --listen-peer-urls http://0.0.0.0:2380 \
             --initial-advertise-peer-urls http://127.0.0.1:2380 \
             --initial-cluster coverage=http://127.0.0.1:2380 \
-            --initial-cluster-state new
+            --initial-cluster-state new \
+            --grpc-keepalive-min-time 1s
           for i in $(seq 1 20); do
             docker exec etcd-coverage etcdctl endpoint health >/dev/null 2>&1 && break
             sleep 1

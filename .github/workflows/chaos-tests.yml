@@ -5,6 +5,7 @@
 # Contenu :
 #   * failover sur crash              TestSupervisorAgainstEtcd (faux Patroni + vrai etcd)
 #   * garde anti-partition            TestSupervisorPartitionGuardAgainstEtcd
+#   * heartbeat après isolation       TestHeartbeatSessionRecreatedAfterLeaseLoss
 #   * élection/fencing                TestLeadershipFencingAgainstEtcd
 #   * convergence CRDT                tests replication (réordonnés/doublés/trous de seq)
 # Tous exécutés contre un etcd réel (testcontainers) — la panne est simulée
@@ -45,7 +46,7 @@ jobs:
       - name: Failover crash + garde anti-partition (etcd réel)
         working-directory: .ci/testcontainers
         run: go run . -workdir ../../orchestrator-go -- go test ./supervisor/ \
-          -run 'TestSupervisorAgainstEtcd|TestSupervisorPartitionGuardAgainstEtcd' \
+          -run 'TestSupervisorAgainstEtcd|TestSupervisorPartitionGuardAgainstEtcd|TestHeartbeatSessionRecreatedAfterLeaseLoss' \
           -v -count=1 -timeout 5m
 
       - name: Élection / fencing lease (etcd réel)

@@ -52,6 +52,9 @@ func main() {
 				"--initial-advertise-peer-urls", "http://0.0.0.0:2380",
 				"--initial-cluster", "etcd-ci=http://0.0.0.0:2380",
 				"--initial-cluster-state", "new",
+				// Même réglage qu'en production : accepte le keepalive gRPC
+				// d'une seconde des clients (orchestrator-go/consensus/client.go).
+				"--grpc-keepalive-min-time", "1s",
 			},
 			WaitingFor: wait.ForLog("ready to serve client requests").
 				WithStartupTimeout(90 * time.Second),
