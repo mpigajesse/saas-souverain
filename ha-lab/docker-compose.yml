@@ -1,0 +1,209 @@
+# Laboratoire HA — simule sur un seul poste un cluster PME de trois machines
+# (refonte V3, sous-étape 2a, ADR-001 et ADR-004).
+#
+# Chaque « machine » mN est un groupe de conteneurs reliés par un réseau privé
+# `mN` (son bus local) et par le réseau `lan` (le réseau de la PME). Isoler une
+# machine = débrancher ses conteneurs de `lan` : ils continuent de se voir
+# entre eux, comme sur une vraie machine coupée du réseau.
+#
+# Sur `lan`, chaque conteneur a une IP FIXE et les services se désignent par
+# IP, comme les machines d'une PME (pas de DNS entre machines). Un nom de
+# conteneur arrêté met plusieurs secondes à échouer en DNS Docker : cela
+# fausserait les mesures de bascule.
+#
+#   machine   etcd          PostgreSQL/Patroni   orchestrateur
+#   m1        10.77.0.11    10.77.0.12           10.77.0.13
+#   m2        10.77.0.21    10.77.0.22           10.77.0.23
+#   m3        10.77.0.31    10.77.0.32           10.77.0.33
+#
+# Deux topologies, choisies par profil :
+#   (défaut)            m1 et m2 : etcd + PostgreSQL/Patroni + orchestrateur,
+#                       m3 : TÉMOIN etcd seul (ADR-004, décision 1) ;
+#   --profile trois-pg  m3 porte aussi PostgreSQL/Patroni + orchestrateur.
+#
+# Le mode synchrone strict suit ADR-004, décision 2 : non strict à deux
+# serveurs PostgreSQL, strict à trois (variable SYNC_STRICT, posée par
+# chaos.sh). Pilotage : bash ha-lab/chaos.sh (voir ha-lab/README.md).
+
+name: amane-ha-lab
+
+networks:
+  lan:
+    ipam:
+      config:
+        - subnet: 10.77.0.0/24
+  m1:
+  m2:
+  m3:
+
+x-etcd: &etcd
+  image: quay.io/coreos/etcd:v3.5.5
+  environment: &etcd-env
+    ETCD_DATA_DIR: /etcd-data
+    ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+    ETCD_INITIAL_CLUSTER: etcd-m1=http://10.77.0.11:2380,etcd-m2=http://10.77.0.21:2380,etcd-m3=http://10.77.0.31:2380
+    ETCD_INITIAL_CLUSTER_STATE: new
+    ETCD_INITIAL_CLUSTER_TOKEN: amane-ha-lab
+    # Accepte le keepalive gRPC d'une seconde des orchestrateurs (défaut etcd :
+    # 5 s) ; voir orchestrator-go/consensus/client.go.
+    ETCD_GRPC_KEEPALIVE_MIN_TIME: 1s
+  healthcheck:
+    test: ["CMD", "etcdctl", "endpoint", "health"]
+    interval: 2s
+    timeout: 2s
+    retries: 30
+
+x-patroni: &patroni
+  image: ghcr.io/zalando/spilo-17:4.0-p3
+  environment: &patroni-env
+    SCOPE: amane-lab
+    PATRONI_SCOPE: amane-lab
+    ETCD3_HOSTS: "10.77.0.11:2379,10.77.0.21:2379,10.77.0.31:2379"
+    PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+    PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+    PGPASSWORD_SUPERUSER: postgres
+    PGPASSWORD_REPLICATION: repl_pass
+    PATRONI_SUPERUSER_USERNAME: postgres
+    PATRONI_SUPERUSER_PASSWORD: postgres
+    PATRONI_REPLICATION_USERNAME: repl
+    PATRONI_REPLICATION_PASSWORD: repl_pass
+    # Adresses annoncées dans etcd (RESTAPI_CONNECT_ADDRESS, PG_CONNECT_ADDRESS,
+    # posées par service) : Spilo lit ces variables et NON les PATRONI_*, avec
+    # pour défaut l'IP du conteneur sur son premier réseau. En production :
+    # l'IP LAN de la machine (étape 2b).
+    #
+    # ttl ≥ loop_wait + 2 × retry_timeout (contrainte Patroni). Le superviseur
+    # Go détecte un crash bien avant l'expiration de ttl ; ttl borne en revanche
+    # le temps au bout duquel un primaire isolé se rétrograde lui-même.
+    SPILO_CONFIGURATION: |
+      bootstrap:
+        dcs:
+          ttl: 20
+          loop_wait: 2
+          retry_timeout: 5
+          synchronous_mode: true
+          synchronous_mode_strict: ${SYNC_STRICT:-false}
+          postgresql:
+            parameters:
+              synchronous_commit: "on"
+              max_wal_senders: 5
+              max_slot_wal_keep_size: 1024MB
+  depends_on:
+    etcd-m1: { condition: service_healthy }
+    etcd-m2: { condition: service_healthy }
+    etcd-m3: { condition: service_healthy }
+
+x-orchestrateur: &orchestrateur
+  image: amane-orchestrator:lab
+  build: ../orchestrator-go
+  command:
+    - -etcd-endpoints=10.77.0.11:2379,10.77.0.21:2379,10.77.0.31:2379
+    - -supervisor
+    - -patroni-scope=amane-lab
+    - -patroni-nodes=${LAB_PATRONI_NODES:-pg-m1@http://10.77.0.12:8008,pg-m2@http://10.77.0.22:8008}
+
+services:
+  # ── Machine m1 ──────────────────────────────────────────────────────────
+  etcd-m1:
+    <<: *etcd
+    container_name: etcd-m1
+    networks:
+      lan: { ipv4_address: 10.77.0.11 }
+      m1:
+    environment:
+      <<: *etcd-env
+      ETCD_NAME: etcd-m1
+      ETCD_ADVERTISE_CLIENT_URLS: http://10.77.0.11:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://10.77.0.11:2380
+  pg-m1:
+    <<: *patroni
+    container_name: pg-m1
+    hostname: pg-m1
+    networks:
+      lan: { ipv4_address: 10.77.0.12 }
+      m1:
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg-m1
+      RESTAPI_CONNECT_ADDRESS: 10.77.0.12:8008
+      PG_CONNECT_ADDRESS: 10.77.0.12:5432
+  orch-m1:
+    <<: *orchestrateur
+    container_name: orch-m1
+    networks:
+      lan: { ipv4_address: 10.77.0.13 }
+      m1:
+    environment:
+      AMANE_NODE_ID: pg-m1
+    depends_on: [pg-m1]
+
+  # ── Machine m2 ──────────────────────────────────────────────────────────
+  etcd-m2:
+    <<: *etcd
+    container_name: etcd-m2
+    networks:
+      lan: { ipv4_address: 10.77.0.21 }
+      m2:
+    environment:
+      <<: *etcd-env
+      ETCD_NAME: etcd-m2
+      ETCD_ADVERTISE_CLIENT_URLS: http://10.77.0.21:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://10.77.0.21:2380
+  pg-m2:
+    <<: *patroni
+    container_name: pg-m2
+    hostname: pg-m2
+    networks:
+      lan: { ipv4_address: 10.77.0.22 }
+      m2:
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg-m2
+      RESTAPI_CONNECT_ADDRESS: 10.77.0.22:8008
+      PG_CONNECT_ADDRESS: 10.77.0.22:5432
+  orch-m2:
+    <<: *orchestrateur
+    container_name: orch-m2
+    networks:
+      lan: { ipv4_address: 10.77.0.23 }
+      m2:
+    environment:
+      AMANE_NODE_ID: pg-m2
+    depends_on: [pg-m2]
+
+  # ── Machine m3 : témoin etcd (défaut) ou nœud complet (profil trois-pg) ──
+  etcd-m3:
+    <<: *etcd
+    container_name: etcd-m3
+    networks:
+      lan: { ipv4_address: 10.77.0.31 }
+      m3:
+    environment:
+      <<: *etcd-env
+      ETCD_NAME: etcd-m3
+      ETCD_ADVERTISE_CLIENT_URLS: http://10.77.0.31:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://10.77.0.31:2380
+  pg-m3:
+    <<: *patroni
+    profiles: [trois-pg]
+    container_name: pg-m3
+    hostname: pg-m3
+    networks:
+      lan: { ipv4_address: 10.77.0.32 }
+      m3:
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg-m3
+      RESTAPI_CONNECT_ADDRESS: 10.77.0.32:8008
+      PG_CONNECT_ADDRESS: 10.77.0.32:5432
+  orch-m3:
+    <<: *orchestrateur
+    profiles: [trois-pg]
+    container_name: orch-m3
+    networks:
+      lan: { ipv4_address: 10.77.0.33 }
+      m3:
+    environment:
+      AMANE_NODE_ID: pg-m3
+    depends_on: [pg-m3]

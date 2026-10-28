@@ -4,7 +4,7 @@ Usage : python docs/refonte-v3/generer_pdf.py [source.md] [sortie.pdf]
 
 Le Markdown reconnu est volontairement restreint : en-tête `---` clé: valeur,
 titres `#`/`##`/`###`, paragraphes, listes `-` et `1.`, tableaux `|`,
-citations `>`, `**gras**` et `code`. Les titres `#` ouvrent une nouvelle page
+citations `>`, `**gras**`, `*italique*` et `code`. Les titres `#` ouvrent une nouvelle page
 et alimentent la table des matières.
 """
 
@@ -40,18 +40,20 @@ FOND_CODE = colors.HexColor("#F2F4F7")
 def enregistrer_polices():
     """Police TTF avec accents et flèches (→, ≥, ↔) ; Helvetica en dernier recours."""
     candidats = [
-        ("C:/Windows/Fonts", "arial.ttf", "arialbd.ttf", "consola.ttf"),
+        ("C:/Windows/Fonts", "arial.ttf", "arialbd.ttf", "ariali.ttf", "consola.ttf"),
         ("/usr/share/fonts/truetype/dejavu", "DejaVuSans.ttf", "DejaVuSans-Bold.ttf",
-         "DejaVuSansMono.ttf"),
-        ("/Library/Fonts", "Arial.ttf", "Arial Bold.ttf", "Courier New.ttf"),
+         "DejaVuSans-Oblique.ttf", "DejaVuSansMono.ttf"),
+        ("/Library/Fonts", "Arial.ttf", "Arial Bold.ttf", "Arial Italic.ttf", "Courier New.ttf"),
     ]
-    for dossier, normal, gras, mono in candidats:
-        chemins = [os.path.join(dossier, f) for f in (normal, gras, mono)]
+    for dossier, normal, gras, italique, mono in candidats:
+        chemins = [os.path.join(dossier, f) for f in (normal, gras, italique, mono)]
         if all(os.path.exists(c) for c in chemins):
             pdfmetrics.registerFont(TTFont("Texte", chemins[0]))
             pdfmetrics.registerFont(TTFont("Texte-Gras", chemins[1]))
-            pdfmetrics.registerFont(TTFont("Mono", chemins[2]))
-            pdfmetrics.registerFontFamily("Texte", normal="Texte", bold="Texte-Gras")
+            pdfmetrics.registerFont(TTFont("Texte-Italique", chemins[2]))
+            pdfmetrics.registerFont(TTFont("Mono", chemins[3]))
+            pdfmetrics.registerFontFamily("Texte", normal="Texte", bold="Texte-Gras",
+                                          italic="Texte-Italique", boldItalic="Texte-Gras")
             return "Texte", "Texte-Gras", "Mono"
     print("Avertissement : aucune police TTF trouvée, repli sur Helvetica "
           "(les flèches et symboles peuvent manquer).")
@@ -82,7 +84,7 @@ STYLES = {
 
 
 def inline(texte):
-    """Convertit le balisage en ligne (code, gras) en balises reportlab."""
+    """Convertit le balisage en ligne (code, gras, italique) en balises reportlab."""
     texte = texte.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     # Le code est mis de côté avant le gras : un passage en gras peut contenir
     # du code, et le contenu du code ne doit pas être interprété.
@@ -94,6 +96,8 @@ def inline(texte):
 
     texte = re.sub(r"`([^`]+)`", mettre_de_cote, texte)
     texte = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", texte)
+    # Italique : *texte*, sans espace contre les astérisques.
+    texte = re.sub(r"(?<![*\w])\*(?=\S)(.+?)(?<=\S)\*(?![*\w])", r"<i>\1</i>", texte)
     return re.sub(
         r"\x00(\d+)\x00",
         lambda m: f'<font name="{MONO}" color="#8A2D3B">{codes[int(m.group(1))]}</font>',
