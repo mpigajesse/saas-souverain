@@ -75,6 +75,8 @@ docs/bench/*
 # Journal de refonte V3 : source, générateur et PDF partagés avec l'équipe
 !docs/refonte-v3/
 !docs/refonte-v3/*.pdf
+# Documents historiques conservés pour mémoire (V1/V2)
+!docs/archive/
 
 # Agents IA / configuration opencode
 .opencode/
