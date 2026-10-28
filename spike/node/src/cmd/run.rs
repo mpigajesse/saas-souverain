@@ -93,7 +93,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     println!("=== Noeud {} démarré en mode {:?} ===", config.node_id, mode);
     println!("  Journal : {} entrée(s)", journal.len());
 
-    // Connexion PostgreSQL anticipée — nécessaire pour le module stock
+    // Connexion PostgreSQL anticipée — nécessaire à l'authentification et à la supervision
     let web_port: u16 = std::env::var("WEB_PORT")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -139,12 +139,9 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
             if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
                 println!("  Auth     : création admin échouée — {}", e);
             }
-            if let Err(e) = crate::stock::run_migrations(&pool).await {
-                println!("  Stock    : migration échouée — {}", e);
-            }
         }
 
-        // Serveur web métier
+        // Serveur web du nœud
         let web_pool = pool.clone();
         let web_node_id = config.node_id;
         let web_tenant = config.tenant_name.clone()

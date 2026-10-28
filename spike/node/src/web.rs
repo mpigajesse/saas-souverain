@@ -12,7 +12,6 @@ use uuid::Uuid;
 
 use crate::auth::{self, AppState};
 use crate::auth::routes as auth_routes;
-use crate::stock::routes as stock_routes;
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
 
@@ -71,17 +70,7 @@ pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) 
     // Logout is here so that a valid session is required (expired → already logged out)
     let user_routes = Router::new()
         .route("/logout", post(auth_routes::logout))
-        .route("/", get(stock_routes::dashboard))
-        .route("/articles", get(stock_routes::articles_list))
-        .route(
-            "/articles/nouveau",
-            get(stock_routes::article_form).post(stock_routes::article_create),
-        )
-        .route("/articles/:id/supprimer", post(stock_routes::article_delete))
-        .route(
-            "/mouvements",
-            get(stock_routes::mouvements_page).post(stock_routes::mouvement_create),
-        )
+        .route("/", get(auth_routes::accueil))
         .route_layer(middleware::from_fn_with_state(state.clone(), auth_middleware));
 
     // Admin-only routes

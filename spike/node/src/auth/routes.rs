@@ -158,9 +158,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let role_label = if is_admin { "Administrateur" } else { "Employé" };
     let role_class = if is_admin { "admin" } else { "employee" };
 
-    let da = if active == "dashboard" { "active" } else { "" };
-    let aa = if active == "articles" { "active" } else { "" };
-    let ma = if active == "mouvements" { "active" } else { "" };
+    let da = if active == "accueil" { "active" } else { "" };
     let ca = if active == "cluster" { "active" } else { "" };
     let ua = if active == "utilisateurs" { "active" } else { "" };
 
@@ -205,31 +203,18 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     <div class="sb-sq">{initial}</div>
     <div>
       <div class="sb-name">{tenant_esc}</div>
-      <div class="sb-sub">Gestion PME</div>
+      <div class="sb-sub">Nœud AMANE</div>
     </div>
   </div>
 
-  <div class="sb-section">Gestion de stock</div>
+  <div class="sb-section">Application</div>
   <nav class="sb-nav">
     <a href="/" class="{da}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
         <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
       </svg>
-      Tableau de bord
-    </a>
-    <a href="/articles" class="{aa}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 8V21H3V8"/><path d="M23 3H1v5h22V3z"/><path d="M10 12h4"/>
-      </svg>
-      Articles
-    </a>
-    <a href="/mouvements" class="{ma}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-        <polyline points="17 6 23 6 23 12"/>
-      </svg>
-      Mouvements
+      Application hébergée
     </a>
   </nav>
 {admin_section}
@@ -440,6 +425,26 @@ pub async fn logout(
         .into_response()
 }
 
+// ── Accueil — application hébergée ────────────────────────────────────────────
+
+/// Page d'accueil du nœud. L'application métier intégrée (stock) a été retirée
+/// en V3 : c'est ici que sera servie l'interface du SaaS externe confié à
+/// AMANE (étape 3 de la refonte, reverse proxy).
+pub async fn accueil(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+) -> Html<String> {
+    let content = r#"<div class="page-title">Application hébergée</div>
+<div class="page-sub">Le SaaS confié à AMANE s'exécute sur ce cluster</div>
+
+<div class="cluster-card">
+  <div class="empty">Aucune application n'est encore hébergée sur ce nœud.<br>
+  Son interface sera servie ici, telle que son éditeur l'a conçue.</div>
+</div>"#;
+
+    Html(layout("Application hébergée", "accueil", &user, &state.tenant_name, content))
+}
+
 // ── Admin dashboard ───────────────────────────────────────────────────────────
 
 pub async fn admin_dashboard(
@@ -648,7 +653,7 @@ pub async fn user_form(
       <div class="fg">
         <label for="role">Rôle *</label>
         <select id="role" name="role">
-          <option value="employee">Employé — accès stock uniquement</option>
+          <option value="employee">Employé — accès à l'application hébergée</option>
           <option value="admin">Administrateur — accès complet</option>
         </select>
       </div>

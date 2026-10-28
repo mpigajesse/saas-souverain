@@ -8,7 +8,6 @@ mod auth;
 mod cmd;
 mod config;
 mod relay_client;
-mod stock;
 mod web;
 
 #[derive(Parser)]
