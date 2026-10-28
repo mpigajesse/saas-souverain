@@ -24,7 +24,7 @@ from rest_framework.response import Response
 
 from api.permissions import IsStaffUser
 from tenants.models import Tenant
-from tenants.views_web import _saas_host_port
+from tenants.services import _saas_host_port
 
 NODE_IMAGES_DIR = 'node-images'
 MANIFEST_FILENAME = 'manifeste.json'

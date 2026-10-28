@@ -1,11 +1,10 @@
+"""État du relais zero-knowledge vu par l'éditeur (`GET /api/relay/status/`)."""
 import json
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.conf import settings
-from django.shortcuts import render
 
 from tenants.models import Tenant
 
@@ -119,8 +118,3 @@ def build_relay_status() -> dict:
         "relay_subnet": relay_subnet,
         "pme_subnet": pme_subnet,
     }
-
-
-@staff_member_required
-def relay_monitor(request):
-    return render(request, "dashboard/relay.html", build_relay_status())

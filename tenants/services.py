@@ -1,87 +1,29 @@
-import io
-import uuid
-from datetime import date, timedelta
+"""Logique métier de l'espace tenant, appelée par l'API REST.
+
+Regroupe ce qui était partagé entre les anciennes vues web Django (retirées en
+V3, la console est désormais en React) et l'API : création de compte,
+contextes d'accueil et d'espace PME, génération du docker-compose et des
+installeurs.
+"""
+import hashlib
+from datetime import date, datetime, timedelta
+import unicodedata
 
 from django.conf import settings
-from django.utils.text import slugify
-from django.contrib import messages
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
+from django.shortcuts import render
+from django.utils.text import slugify
 
 from licenses.models import License
-from devices.models import Device
-from .forms import InscriptionForm, TenantForm
 from .models import Tenant
-
-
-@login_required
-def tenant_list(request):
-    tenants = Tenant.objects.order_by('-created_at')
-    return render(request, 'tenants/list.html', {'tenants': tenants})
-
-
-@login_required
-def tenant_detail(request, pk):
-    tenant = get_object_or_404(Tenant, pk=pk)
-    licenses = License.objects.filter(tenant=tenant).order_by('-created_at')
-    devices = Device.objects.filter(tenant=tenant).order_by('-last_seen')
-    return render(request, 'tenants/detail.html', {
-        'tenant': tenant,
-        'licenses': licenses,
-        'devices': devices,
-    })
-
-
-@login_required
-def tenant_create(request):
-    if request.method == 'POST':
-        form = TenantForm(request.POST)
-        if form.is_valid():
-            tenant = form.save()
-            messages.success(request, f'Tenant « {tenant.name} » créé avec succès.')
-            return redirect('tenant-detail', pk=tenant.pk)
-    else:
-        form = TenantForm()
-    return render(request, 'tenants/form.html', {'form': form, 'action': 'Créer un tenant'})
-
-
-@login_required
-def tenant_update(request, pk):
-    tenant = get_object_or_404(Tenant, pk=pk)
-    if request.method == 'POST':
-        form = TenantForm(request.POST, instance=tenant)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f'Tenant « {tenant.name} » mis à jour.')
-            return redirect('tenant-detail', pk=tenant.pk)
-    else:
-        form = TenantForm(instance=tenant)
-    return render(request, 'tenants/form.html', {'form': form, 'tenant': tenant, 'action': 'Modifier le tenant'})
-
-
-@login_required
-def tenant_delete(request, pk):
-    tenant = get_object_or_404(Tenant, pk=pk)
-    if request.method == 'POST':
-        name = tenant.name
-        tenant.delete()
-        messages.success(request, f'Tenant « {name} » supprimé.')
-        return redirect('tenant-list')
-    return render(request, 'tenants/confirm_delete.html', {'tenant': tenant})
 
 
 def _create_tenant_account(cleaned_data: dict) -> tuple[User, Tenant]:
     """Crée le `User` Django, le `Tenant` lié et sa licence d'essai.
 
-    Partagé par la vue web `inscription` et `POST /api/auth/register/` — les
-    deux passent par `InscriptionForm` en amont, donc les mêmes validations
-    (email unique, mots de passe identiques) s'appliquent dans les deux cas.
+    Appelé par `POST /api/auth/register/`, après validation par
+    `InscriptionForm` (email unique, mots de passe identiques).
     """
     d = cleaned_data
 
@@ -123,32 +65,8 @@ def _create_tenant_account(cleaned_data: dict) -> tuple[User, Tenant]:
     return user, tenant
 
 
-def inscription(request):
-    """Page d'inscription publique — accessible sans login."""
-    if request.user.is_authenticated:
-        if hasattr(request.user, 'tenant'):
-            return redirect('bienvenue')
-        return redirect('dashboard')
-
-    if request.method == 'POST':
-        form = InscriptionForm(request.POST)
-        if form.is_valid():
-            user, tenant = _create_tenant_account(form.cleaned_data)
-            # Connecter automatiquement
-            login(request, user)
-            messages.success(request, f'Bienvenue chez EL BARAA CONSULT, {tenant.name} !')
-            return redirect('bienvenue')
-    else:
-        form = InscriptionForm()
-
-    return render(request, 'tenants/inscription.html', {'form': form})
-
-
 def build_bienvenue_context(tenant: Tenant) -> dict:
-    """Contexte de la page d'accueil post-inscription.
-
-    Partagé par la vue web `bienvenue` et `GET /api/tenants/me/onboarding/`.
-    """
+    """Contexte de l'accueil post-inscription (`GET /api/tenants/me/onboarding/`)."""
     active_license = tenant.licenses.filter(is_active=True).order_by('-created_at').first()
     active_devices = tenant.devices.filter(is_active=True).count()
     relay_url = getattr(settings, 'RELAY_URL', 'http://localhost:8080')
@@ -160,22 +78,59 @@ def build_bienvenue_context(tenant: Tenant) -> dict:
     }
 
 
-@login_required
-def bienvenue(request):
-    """Page d'accueil post-inscription — guide l'installation du cluster Docker."""
-    tenant = getattr(request.user, 'tenant', None)
-    if tenant is None:
-        return redirect('dashboard')
+def _derive_credentials(registration_token: str, tenant_name: str) -> dict:
+    def _sha24(suffix: str) -> str:
+        return hashlib.sha256(
+            f"{registration_token}-{suffix}".encode()
+        ).hexdigest()[:24]
 
-    return render(request, 'tenants/bienvenue.html', build_bienvenue_context(tenant))
+    slug = slugify(tenant_name)
+    return {
+        'pgadmin_email': f"admin@pme{slug}.com",
+        'pgadmin_password': _sha24('pgadmin'),
+        'db_password': _sha24('pg'),
+    }
+
+
+def _pgadmin_url(tenant) -> str:
+    """URL LAN de pgAdmin (port 5050, exposé par docker-compose.yml.tmpl).
+
+    Dérivée de l'IP du nœud primaire connu (ou, à défaut, du dernier nœud actif
+    annoncé) — sans nœud annoncé, aucune IP n'est connue et l'URL est vide.
+    N'affecte pas `_derive_credentials`, qui reste la seule source des
+    identifiants pgAdmin.
+    """
+    device = (
+        tenant.devices.filter(is_active=True, node_role='primary').order_by('-last_seen').first()
+        or tenant.devices.filter(is_active=True).order_by('-last_seen').first()
+    )
+    if device and device.node_addr:
+        host = device.node_addr.split(':')[0]
+        return f"http://{host}:5050"
+    return ""
+
+
+def build_mon_espace_context(tenant) -> dict:
+    """Contexte de l'espace PME (`GET /api/tenants/me/`)."""
+    active_license = tenant.licenses.filter(is_active=True).order_by('-created_at').first()
+    devices = tenant.devices.filter(is_active=True).order_by('-last_seen')
+    pgadmin = _derive_credentials(
+        str(tenant.registration_token), tenant.name
+    )
+
+    return {
+        'tenant': tenant,
+        'active_license': active_license,
+        'devices': devices,
+        'pgadmin': pgadmin,
+    }
 
 
 def _saas_host_port(request) -> tuple[str, str]:
     """Dérive host/port SaaS à partir de la requête.
 
     L'installeur sera téléchargé depuis la VM PME, donc `request.get_host()`
-    retourne l'IP LAN du PC physique — logique inchangée, juste extraite pour
-    être appelée à la fois par les vues web et par l'API.
+    retourne l'IP LAN du PC physique.
     """
     host_full = request.get_host()
     if ':' in host_full:
@@ -222,8 +177,8 @@ def _mode_noeud_par_defaut(tenant: Tenant) -> str:
 def build_compose_response(request, tenant: Tenant) -> HttpResponse:
     """Génère la réponse docker-compose.yml pré-configurée pour ce tenant.
 
-    Partagé par la vue web `telecharger_compose` et
-    `GET /api/tenants/me/download/compose/`.
+    Appelé par `GET /api/tenants/me/download/compose/` et par la voie PME
+    `GET /api/tenants/pme/compose/`.
     """
     relay_url = getattr(settings, 'RELAY_URL', 'http://localhost:8080')
     node_image = _node_image(request)
@@ -244,33 +199,19 @@ def build_compose_response(request, tenant: Tenant) -> HttpResponse:
     return response
 
 
-@login_required
-def telecharger_compose(request):
-    """Génère et télécharge un docker-compose.yml pré-configuré pour ce tenant."""
-    tenant = getattr(request.user, 'tenant', None)
-    if tenant is None:
-        return redirect('dashboard')
-
-    return build_compose_response(request, tenant)
-
-
 def build_installeur_response(request, tenant: Tenant, os_type: str) -> HttpResponse:
     """
     Génère la réponse installateur PME pour Windows (.bat) ou Linux (.sh).
     L'installateur inclut l'installation automatique de Docker et la configuration
     du nœud pré-remplie. Les mises à jour sont gérées automatiquement par Watchtower.
 
-    Partagé par la vue web `telecharger_installeur` et
-    `GET /api/tenants/me/download/installer/<os>/`. `os_type` doit valoir
-    `'windows'` ou `'linux'` — à valider par l'appelant.
+    Appelé par `GET /api/tenants/me/download/installer/<os>/`. `os_type` doit
+    valoir `'windows'` ou `'linux'` — à valider par l'appelant.
     """
     relay_url = getattr(settings, 'RELAY_URL', 'http://localhost:8080')
     node_image = _node_image(request)
     registry_host = _registry_host(request)
     saas_host, saas_port = _saas_host_port(request)
-
-    from datetime import datetime
-    import unicodedata
 
     # Nom replié en ASCII pur pour l'installeur Windows. `cmd` lit un fichier
     # .bat par décalage d'octets : un caractère multi-octets (accent, guillemet
@@ -317,51 +258,3 @@ def build_installeur_response(request, tenant: Tenant, os_type: str) -> HttpResp
         response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}.sh"'
 
     return response
-
-
-@login_required
-def telecharger_installeur(request, os_type):
-    """
-    Vue web : télécharge l'installateur PME pour Windows (.bat) ou Linux (.sh).
-    """
-    tenant = getattr(request.user, 'tenant', None)
-    if tenant is None:
-        return redirect('dashboard')
-    if os_type not in ('windows', 'linux'):
-        return redirect('bienvenue')
-
-    return build_installeur_response(request, tenant, os_type)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def compose_telecharger_pme(request):
-    """`GET /api/tenants/pme/compose/?token=<registration_token>`.
-
-    Voie de repli des installeurs PME, calquée sur
-    `dashboard.api_images.node_image_telecharger_pme` : la machine qui déploie
-    le nœud n'a aucune session éditeur, elle ne peut donc pas passer par
-    `/api/tenants/me/download/compose/`. Elle s'authentifie avec le seul secret
-    dont elle dispose — le jeton d'enregistrement du tenant — exactement comme
-    `devices/api_cluster_status.py`.
-
-    C'est ce point d'entrée qui fait de `templates/tenants/docker-compose.yml.tmpl`
-    la définition UNIQUE de la pile : les deux installeurs la téléchargent au
-    lieu de la régénérer chacun à sa façon, donc Windows et Linux déploient
-    rigoureusement les mêmes services.
-    """
-    token_raw = request.GET.get('token', '').strip()
-    if not token_raw:
-        return Response({'detail': 'Paramètre token manquant.'}, status=400)
-
-    try:
-        uuid.UUID(token_raw)
-    except ValueError:
-        return Response({'detail': 'Format UUID invalide.'}, status=400)
-
-    try:
-        tenant = Tenant.objects.get(registration_token=token_raw, is_active=True)
-    except Tenant.DoesNotExist:
-        return Response({'detail': 'Token invalide ou tenant inactif.'}, status=403)
-
-    return build_compose_response(request, tenant)

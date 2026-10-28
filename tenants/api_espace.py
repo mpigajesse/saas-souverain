@@ -1,9 +1,8 @@
 """Espace PME — `/api/tenants/me/...` — voir CONTRAT-API.md section 3.
 
 Toutes les vues sont réservées aux comptes non-staff rattachés à un tenant
-(`api.permissions.IsTenantUser` → 403 sinon). La logique métier est celle de
-`tenants.views_espace` et `tenants.views_web` : on ne la réécrit pas, on
-l'appelle.
+(`api.permissions.IsTenantUser` → 403 sinon). La logique métier vit dans
+`tenants.services` : on ne la réécrit pas, on l'appelle.
 """
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
@@ -14,11 +13,12 @@ from devices.serializers import DeviceSerializer
 from licenses.serializers import LicenseSerializer
 
 from .serializers import TenantSerializer
-from .views_espace import build_mon_espace_context, _pgadmin_url
-from .views_web import (
+from .services import (
+    _pgadmin_url,
     build_bienvenue_context,
     build_compose_response,
     build_installeur_response,
+    build_mon_espace_context,
 )
 
 

@@ -1,6 +1,6 @@
 """`GET /api/dashboard/stats/` — voir CONTRAT-API.md section 2.
 
-Réservé aux comptes éditeur (staff). Logique identique à `dashboard.views.dashboard`.
+Réservé aux comptes éditeur (staff). Compteurs calculés par `dashboard.services`.
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from api.permissions import IsStaffUser
 from tenants.serializers import TenantSerializer
 
-from .views import build_dashboard_context
+from .services import build_dashboard_context
 
 
 @api_view(['GET'])

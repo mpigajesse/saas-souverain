@@ -4,31 +4,6 @@ from django.contrib.auth.models import User
 from .models import Tenant
 
 
-class TenantForm(forms.ModelForm):
-    class Meta:
-        model = Tenant
-        fields = ['name', 'email', 'phone', 'address', 'employee_count', 'is_active']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': "Nom de l'entreprise"}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contact@entreprise.com'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+33 1 23 45 67 89'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Adresse complète'}),
-            'employee_count': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        labels = {
-            'name': "Nom de l'entreprise",
-            'email': 'Email de contact',
-            'phone': 'Téléphone',
-            'address': 'Adresse',
-            'employee_count': "Nombre d'employés",
-            'is_active': 'Compte actif',
-        }
-        help_texts = {
-            'employee_count': 'Détermine le nombre de postes autorisés dans la licence.',
-        }
-
-
 class InscriptionForm(forms.Form):
     # Compte entreprise
     name = forms.CharField(max_length=200, label="Nom de l'entreprise")

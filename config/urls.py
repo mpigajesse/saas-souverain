@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -15,14 +14,10 @@ from devices.api_clusters import clusters_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('login/', auth_views.LoginView.as_view(), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('', include('dashboard.urls')),
-    path('tenants/', include('tenants.urls')),
-    path('licenses/', include('licenses.urls')),
-    path('devices/', include('devices.urls')),
 
     # API REST — console React (session + CSRF). Voir CONTRAT-API.md.
+    # La console HTML Django a été retirée en V3 : seules l'API et l'admin
+    # Django sont servies par le backend.
     path('api/auth/', include('api.urls')),
     path('api/dashboard/stats/', dashboard_stats, name='api-dashboard-stats'),
     path('api/clusters/', clusters_view, name='api-clusters'),

@@ -1,8 +1,8 @@
 """Authentification — `/api/auth/` — voir CONTRAT-API.md section 1.
 
-Session Django + cookie CSRF, pas de JWT. `register` reprend exactement la
-logique de `tenants.views_web.inscription` (même formulaire, mêmes validations,
-même création User + Tenant + licence d'essai).
+Session Django + cookie CSRF, pas de JWT. `register` valide avec
+`InscriptionForm` puis crée User + Tenant + licence d'essai via
+`tenants.services._create_tenant_account`.
 """
 from django.contrib.auth import authenticate, login as django_login, logout as django_logout
 from django.middleware.csrf import get_token
@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from tenants.forms import InscriptionForm
-from tenants.views_web import _create_tenant_account
+from tenants.services import _create_tenant_account
 
 from .serializers import serialize_user
 

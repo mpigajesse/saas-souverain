@@ -1,7 +1,7 @@
 """`GET /api/clusters/` — voir CONTRAT-API.md section 2.
 
-Réservé aux comptes éditeur (staff). Logique identique à
-`devices.views_web.cluster_overview` (seuil en ligne : 2 minutes).
+Réservé aux comptes éditeur (staff). Vue calculée par
+`devices.services.build_cluster_overview` (seuil en ligne : 2 minutes).
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from api.permissions import IsStaffUser
 
 from .serializers import DeviceSerializer
-from .views_web import build_cluster_overview
+from .services import build_cluster_overview
 
 
 def _serialize_node(node_info):

@@ -1,9 +1,8 @@
 """Permissions partagées par les vues API — voir CONTRAT-API.md.
 
 Les deux rôles applicatifs (« editor » = staff, « tenant » = compte PME) sont
-dérivés de `User.is_staff` et de la relation inverse `User.tenant`, exactement
-comme le fait déjà le reste du code Django (`hasattr(request.user, 'tenant')`
-dans tenants/views_web.py et tenants/views_espace.py).
+dérivés de `User.is_staff` et de la relation inverse `User.tenant`
+(`hasattr(request.user, 'tenant')`).
 """
 from rest_framework.permissions import BasePermission
 

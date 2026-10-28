@@ -1,7 +1,7 @@
 """`GET /api/relay/status/` — voir CONTRAT-API.md section 2.
 
-Réservé aux comptes éditeur (staff). Logique identique à
-`dashboard.views_relay.relay_monitor`. Le relais injoignable reste un état
+Réservé aux comptes éditeur (staff). État collecté par
+`dashboard.relay.build_relay_status`. Le relais injoignable reste un état
 normal (`health.reachable: False`), jamais une 500.
 """
 from rest_framework.decorators import api_view, permission_classes
@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from api.permissions import IsStaffUser
 
-from .views_relay import build_relay_status
+from .relay import build_relay_status
 
 
 @api_view(['GET'])

@@ -110,7 +110,7 @@ export interface LoginPayload {
   password: string
 }
 
-/** Corps de POST /api/auth/register/ — reprend tenants/views_web.inscription. */
+/** Corps de POST /api/auth/register/ — validé par tenants.forms.InscriptionForm. */
 export interface RegisterPayload {
   name: string
   email: string
@@ -138,7 +138,7 @@ export interface DashboardStats {
   recent_tenants: Tenant[]
 }
 
-/** Motif de santé d'un cluster PME — voir devices/views_web.cluster_overview. */
+/** Motif de santé d'un cluster PME — voir devices/services.build_cluster_overview. */
 export type ClusterHealth =
   | 'ok'
   | 'empty'
