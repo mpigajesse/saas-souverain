@@ -17,9 +17,11 @@ def device_list(request):
     return render(request, 'devices/list.html', {'devices': devices})
 
 
-@login_required
-def cluster_overview(request):
-    """Supervision des clusters PME — vue par tenant avec santé et licence."""
+def build_cluster_overview() -> dict:
+    """Supervision des clusters PME — vue par tenant avec santé et licence.
+
+    Partagé par la vue web `cluster_overview` et `GET /api/clusters/`.
+    """
     now = timezone.now()
     threshold = now - ONLINE_THRESHOLD
 
@@ -84,11 +86,16 @@ def cluster_overview(request):
     # Trier : alertes en premier
     clusters.sort(key=lambda c: (0 if c['is_alert'] else 1, c['tenant'].name))
 
-    return render(request, 'devices/clusters.html', {
+    return {
         'clusters': clusters,
         'alerts_total': alerts_total,
         'total_tenants': len(clusters),
-    })
+    }
+
+
+@login_required
+def cluster_overview(request):
+    return render(request, 'devices/clusters.html', build_cluster_overview())
 
 
 @login_required

@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+# Django 6.0 exige Python >= 3.12 : rester sur 3.11 rend l'image inconstructible
+# (pip ne trouve alors aucune distribution pour Django==6.0.6).
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

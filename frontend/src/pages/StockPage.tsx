@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useState } from 'react'
+import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 
 interface StockItem {
   id: string
@@ -40,7 +41,7 @@ export default function StockPage() {
     // Verification de l'Invariant Métier (Phase 5 - ss-client Rust)
     if (newQty < 0) {
       setAlertError(
-        `❌ Transaction rejetée par le SDK ss-client : Stock insuffisant ! Quantité actuelle disponible : ${targetItem.quantity}, demandée : ${Math.abs(changeQty)}.`
+        `Transaction rejetée par le SDK ss-client : Stock insuffisant ! Quantité actuelle disponible : ${targetItem.quantity}, demandée : ${Math.abs(changeQty)}.`
       )
       return
     }
@@ -53,7 +54,7 @@ export default function StockPage() {
     const nextIndex = journalIndex + 1
     setJournalIndex(nextIndex)
     setAlertSuccess(
-      `✅ Mouvement de stock validé et chiffré ! Nouveau stock : ${newQty} unités. Index du journal CBOR append-only : #${nextIndex}`
+      `Mouvement de stock validé et chiffré ! Nouveau stock : ${newQty} unités. Index du journal CBOR append-only : #${nextIndex}`
     )
   }
 
@@ -73,6 +74,9 @@ export default function StockPage() {
       {alertError && (
         <div
           style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
             background: '#FEE8E8',
             border: '1px solid var(--crimson)',
             color: 'var(--crimson)',
@@ -82,13 +86,17 @@ export default function StockPage() {
             fontWeight: 600,
           }}
         >
-          {alertError}
+          <XCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>{alertError}</span>
         </div>
       )}
 
       {alertSuccess && (
         <div
           style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
             background: '#E8F5E9',
             border: '1px solid #2E7D32',
             color: '#1B5E20',
@@ -98,7 +106,8 @@ export default function StockPage() {
             fontWeight: 600,
           }}
         >
-          {alertSuccess}
+          <CheckCircle2 size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>{alertSuccess}</span>
         </div>
       )}
 
@@ -147,7 +156,15 @@ export default function StockPage() {
                       color: item.quantity <= 5 ? 'var(--crimson)' : 'var(--text-primary)',
                     }}
                   >
-                    {item.quantity} unités {item.quantity <= 5 && '⚠️ (Critique)'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      {item.quantity} unités
+                      {item.quantity <= 5 && (
+                        <>
+                          <AlertTriangle size={13} />
+                          (Critique)
+                        </>
+                      )}
+                    </span>
                   </td>
                 </tr>
               ))}

@@ -39,8 +39,11 @@ def _format_uptime(secs: int) -> str:
     return f"{h}h {m}min"
 
 
-@staff_member_required
-def relay_monitor(request):
+def build_relay_status() -> dict:
+    """État du relais + nœuds par tenant. Partagé par la vue web `relay_monitor`
+    et `GET /api/relay/status/`. Le relais injoignable est un état normal
+    (`reachable: False`), jamais une exception qui remonterait.
+    """
     relay_url = getattr(settings, "RELAY_URL", "http://localhost:8080").rstrip("/")
 
     # ── Health ────────────────────────────────────────────────
@@ -107,7 +110,7 @@ def relay_monitor(request):
 
     pme_subnet = getattr(settings, "PME_SUBNET_LABEL", "")
 
-    return render(request, "dashboard/relay.html", {
+    return {
         "relay_url": relay_url,
         "health": health,
         "tenants_data": tenants_data,
@@ -115,4 +118,9 @@ def relay_monitor(request):
         "editeur_subnet": editeur_subnet,
         "relay_subnet": relay_subnet,
         "pme_subnet": pme_subnet,
-    })
+    }
+
+
+@staff_member_required
+def relay_monitor(request):
+    return render(request, "dashboard/relay.html", build_relay_status())

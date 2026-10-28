@@ -35,8 +35,8 @@ services:
     command: >
       postgres
         -c wal_level=replica
-        -c max_wal_senders=3
-        -c wal_keep_size=64
+        -c max_wal_senders=5
+        -c wal_keep_size=512
         -c listen_addresses=*
         -c synchronous_commit=remote_write
     healthcheck:
@@ -62,6 +62,9 @@ services:
       WEB_PORT: "9001"
       NODE_ADDR: "${NODE_ADDR}"
       NODE_MODE: "${NODE_MODE:-passive}"
+      # Garde de quorum : liste de TOUS les autres nœuds, éteints compris.
+      # C'est elle qui donne la taille du cluster, donc le seuil de majorité.
+      CLUSTER_PEERS: "${CLUSTER_PEERS:-}"
       RELAY_URL: "${RELAY_URL}"
       SAAS_URL: "${SAAS_URL:-}"
       REGISTRATION_TOKEN: "${REGISTRATION_TOKEN:-}"

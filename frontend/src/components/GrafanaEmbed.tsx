@@ -1,49 +1,34 @@
-import { useState, useEffect } from 'react'
+// Intégration Grafana — pas de télémétrie fabriquée : ce composant se contente
+// d'intégrer un panneau Grafana réel (iframe) et de proposer un lien de repli
+// s'il ne peut pas s'afficher (X-Frame-Options, instance injoignable, etc.).
+//
+// L'URL de l'instance Grafana est configurable via la variable d'environnement
+// VITE_GRAFANA_URL (ex: https://grafana.exemple.fr). À défaut, on retombe sur
+// l'instance locale de développement http://localhost:3000 — sans garantie
+// qu'elle soit joignable en dehors d'un poste de dev.
+import { useState } from 'react'
+import { Activity, ExternalLink } from 'lucide-react'
 
 interface GrafanaPanelProps {
   title: string
+  /** Type de métrique affichée par le panneau ciblé (informatif, sert au libellé). */
   metricType: 'GRPC_LATENCY' | 'CLUSTER_NODES' | 'LICENSE_VERIFICATIONS'
+  /** Intervalle de rafraîchissement du panneau Grafana, en secondes. */
   refreshRateSeconds?: number
 }
 
-export default function GrafanaEmbed({ title, metricType }: GrafanaPanelProps) {
-  const [useLiveIframe, setUseLiveIframe] = useState(false)
-  
-  // Données de points dynamiques animés en temps réel
-  const [wavePoints, setWavePoints] = useState<number[]>([40, 65, 30, 85, 45, 70, 55, 90, 60, 75])
-  const [liveLatency, setLiveLatency] = useState<number>(2.4)
-  const [liveVerifications, setLiveVerifications] = useState<number>(1420)
+const GRAFANA_BASE_URL: string =
+  (import.meta.env.VITE_GRAFANA_URL as string | undefined) || 'http://localhost:3000'
 
-  // Boucle d'animation en temps réel toutes les 1.5 secondes (Animation vivante qui bouge)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWavePoints((prev) => {
-        const nextPoints = [...prev.slice(1)]
-        // Génère un nouveau point de télémétrie aléatoire mais réaliste
-        const newPoint = Math.floor(Math.random() * 50) + 35
-        nextPoints.push(newPoint)
-        return nextPoints
-      })
+const METRIC_LABELS: Record<GrafanaPanelProps['metricType'], string> = {
+  GRPC_LATENCY: 'Latence réseau',
+  CLUSTER_NODES: 'Disponibilité des nœuds',
+  LICENSE_VERIFICATIONS: 'Vérifications de licence',
+}
 
-      // Mettre à jour la latence en direct (ex: 2.1 ms -> 2.6 ms)
-      const newLat = parseFloat((2.0 + Math.random() * 0.8).toFixed(2))
-      setLiveLatency(newLat)
-
-      // Ingrémenter les vérifications de licences
-      setLiveVerifications((v) => v + Math.floor(Math.random() * 3))
-    }, 1500)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  // Construction de la courbe SVG dynamique fluide
-  const svgPathD = wavePoints.reduce((acc, point, idx) => {
-    const x = idx * 42
-    const y = 110 - point
-    return idx === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`
-  }, '')
-
-  const svgAreaD = `${svgPathD} L ${9 * 42} 120 L 0 120 Z`
+export default function GrafanaEmbed({ title, metricType, refreshRateSeconds = 30 }: GrafanaPanelProps) {
+  const [iframeFailed, setIframeFailed] = useState(false)
+  const src = `${GRAFANA_BASE_URL}/?kiosk&refresh=${refreshRateSeconds}s`
 
   return (
     <div
@@ -58,106 +43,56 @@ export default function GrafanaEmbed({ title, metricType }: GrafanaPanelProps) {
         flex: 1,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--crimson)',
-              boxShadow: '0 0 8px var(--crimson)',
-              animation: 'pulse 1.5s infinite',
-            }}
-          />
+          <Activity size={15} color="var(--gold)" />
           <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h4>
         </div>
-
-        <button
-          onClick={() => setUseLiveIframe(!useLiveIframe)}
+        <a
+          href={GRAFANA_BASE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            background: useLiveIframe ? 'var(--crimson)' : 'rgba(196,151,42,0.12)',
-            color: useLiveIframe ? '#FFFFFF' : 'var(--crimson-dark)',
-            border: '1px solid var(--gold)',
-            borderRadius: '4px',
-            padding: '4px 8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
             fontSize: '11px',
             fontWeight: 600,
-            cursor: 'pointer',
+            color: 'var(--crimson-dark)',
+            textDecoration: 'none',
           }}
         >
-          {useLiveIframe ? 'Mode Live Iframe (Port 3000)' : 'Mode Intégré En Direct 🔴'}
-        </button>
+          Ouvrir dans Grafana <ExternalLink size={12} />
+        </a>
       </div>
 
-      {useLiveIframe ? (
-        <iframe
-          src="http://localhost:3000/d-solo/amane-telemetry?panelId=1&refresh=5s"
-          width="100%"
-          height="160"
-          frameBorder="0"
-          title={title}
-          style={{ borderRadius: '4px' }}
-        />
-      ) : (
-        <div>
-          {/* Métrique en direct */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {metricType === 'GRPC_LATENCY' && 'Latence gRPC en direct'}
-              {metricType === 'CLUSTER_NODES' && 'Disponibilité Raft / etcd'}
-              {metricType === 'LICENSE_VERIFICATIONS' && 'Vérifications Ed25519 totales'}
-            </span>
-            <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--crimson)', fontFamily: 'monospace' }}>
-              {metricType === 'GRPC_LATENCY' && `${liveLatency} ms`}
-              {metricType === 'CLUSTER_NODES' && '99.9% (3/3 Nœuds)'}
-              {metricType === 'LICENSE_VERIFICATIONS' && `${liveVerifications.toLocaleString()} jetons`}
-            </span>
-          </div>
+      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+        {METRIC_LABELS[metricType]}
+      </div>
 
-          {/* Graphique SVG Animé en Temps Réel respectant la charte visuelle (Crimson + Gold) */}
-          <div style={{ background: '#FAF7F4', borderRadius: '6px', padding: '10px 4px 4px 4px', border: '1px solid var(--border)' }}>
-            <svg viewBox="0 0 378 120" style={{ width: '100%', height: '120px', overflow: 'visible' }}>
-              <defs>
-                <linearGradient id={`grad-${metricType}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--crimson)" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="var(--gold)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Lignes de grille en arrière-plan */}
-              <line x1="0" y1="30" x2="378" y2="30" stroke="var(--border)" strokeDasharray="3 3" />
-              <line x1="0" y1="60" x2="378" y2="60" stroke="var(--border)" strokeDasharray="3 3" />
-              <line x1="0" y1="90" x2="378" y2="90" stroke="var(--border)" strokeDasharray="3 3" />
-
-              {/* Remplissage dégradé sous la courbe */}
-              <path d={svgAreaD} fill={`url(#grad-${metricType})`} />
-
-              {/* Courbe animée dynamique bordeaux / crimson */}
-              <path
-                d={svgPathD}
-                fill="none"
-                stroke="var(--crimson)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ transition: 'd 0.5s ease-in-out' }}
-              />
-
-              {/* Point de pulsation en direct sur la fin de la courbe */}
-              {wavePoints.length > 0 && (
-                <circle
-                  cx={378}
-                  cy={110 - wavePoints[wavePoints.length - 1]}
-                  r="5"
-                  fill="var(--gold)"
-                  stroke="var(--crimson)"
-                  strokeWidth="2"
-                />
-              )}
-            </svg>
-          </div>
+      {iframeFailed ? (
+        <div
+          style={{
+            background: '#FAF7F4',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
+            padding: '20px 12px',
+            textAlign: 'center',
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+          }}
+        >
+          Le panneau Grafana n'a pas pu s'afficher ici. Utilisez le lien « Ouvrir dans Grafana » ci-dessus.
         </div>
+      ) : (
+        <iframe
+          src={src}
+          width="100%"
+          height="200"
+          style={{ border: 'none', borderRadius: '4px' }}
+          title={title}
+          onError={() => setIframeFailed(true)}
+        />
       )}
     </div>
   )

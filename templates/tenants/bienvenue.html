@@ -111,9 +111,13 @@
         <div class="onboarding-header-tenant">{{ tenant.name }}</div>
       </div>
     </div>
-    <a href="{% url 'logout' %}" style="color:rgba(255,255,255,.6); font-size:0.85rem; text-decoration:none;">
-      Déconnexion
-    </a>
+    {# Déconnexion en POST : Django refuse le GET sur /logout/ (405). #}
+    <form method="post" action="{% url 'logout' %}" style="margin:0;">
+      {% csrf_token %}
+      <button type="submit" style="background:none; border:none; padding:0; cursor:pointer; font:inherit; color:rgba(255,255,255,.6); font-size:0.85rem;">
+        Déconnexion
+      </button>
+    </form>
   </header>
 
   <!-- ─── Contenu ─── -->

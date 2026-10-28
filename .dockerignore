@@ -1,0 +1,36 @@
+# Contexte de build de l'image Django (Dockerfile racine).
+# Sans ce fichier, COPY . . embarque le .env (secrets), le venv Windows et les
+# répertoires target/ des workspaces Rust — plusieurs Go de contexte inutile.
+
+# Secrets — ne doivent jamais entrer dans une couche d'image
+.env
+*.env
+!.env.example
+secrets/
+tls/
+*.pem
+*.key
+*.crt
+*.p12
+
+# Environnements et artefacts locaux
+env/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+db.sqlite3
+staticfiles/
+media/
+
+# Autres composants du monorepo : inutiles à l'image Django
+core-rust/target/
+spike/target/
+frontend/node_modules/
+frontend/dist/
+orchestrator-go/
+node_modules/
+
+.git/
+.github/
+*.log

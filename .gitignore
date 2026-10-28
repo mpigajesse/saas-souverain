@@ -2,6 +2,7 @@
 .env
 *.env
 secrets/
+IDENTIFIANTS-LOCAUX.md
 tls/
 *.pem
 *.key
@@ -75,3 +76,7 @@ docs/bench/*
 # Agents IA / configuration opencode
 .opencode/
 AGENTS.md
+.env.bak-*
+
+# Procédure de test du banc : contient mot de passe et jetons d'enregistrement
+PROCEDURE-TESTS.md

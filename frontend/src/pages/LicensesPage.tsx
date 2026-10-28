@@ -1,158 +1,278 @@
+// Gestion des licences — CRUD réel via l'API. Plus aucune mutation en mémoire.
+
 import type React from 'react'
-import { useEffect, useState } from 'react'
-import { getLicenses, getTenants } from '../api/client'
-import type { License, Tenant } from '../types/index'
+import { useCallback, useEffect, useState } from 'react'
+import { AlertCircle, KeyRound, Loader2, Pencil, Plus, PowerOff, RotateCw, Trash2, X } from 'lucide-react'
+import {
+  createLicense,
+  deleteLicense,
+  getLicenses,
+  getTenants,
+  normalizeApiError,
+  updateLicense,
+  type LicenseWritePayload,
+} from '../api/client'
+import { PLAN_LABELS } from '../types/index'
+import type { FieldErrors, License, LicensePlan, Tenant } from '../types/index'
 import StatusBadge from '../components/StatusBadge'
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null): string {
+  if (!iso) return 'sans échéance'
   return new Date(iso).toLocaleDateString('fr-FR')
+}
+
+function toDateInput(iso: string | null): string {
+  if (!iso) return ''
+  return iso.slice(0, 10)
+}
+
+function LoadingState() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', padding: '48px 0' }}>
+      <Loader2 size={18} className="lp-spin" />
+      <span>Chargement des licences...</span>
+      <style>{`.lp-spin { animation: lp-spin 0.8s linear infinite; } @keyframes lp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '12px',
+        background: '#FDECEC',
+        border: '1px solid #F3B7B7',
+        color: 'var(--danger)',
+        borderRadius: 'var(--radius)',
+        padding: '18px 20px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <AlertCircle size={18} />
+        <span>{message}</span>
+      </div>
+      <button
+        onClick={onRetry}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: '#FFFFFF',
+          border: '1px solid var(--danger)',
+          color: 'var(--danger)',
+          borderRadius: '6px',
+          padding: '6px 12px',
+          fontSize: '12px',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        <RotateCw size={14} /> Réessayer
+      </button>
+    </div>
+  )
+}
+
+function FieldError({ messages }: { messages?: string[] }) {
+  if (!messages || messages.length === 0) return null
+  return <div style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '4px' }}>{messages[0]}</div>
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  borderRadius: '6px',
+  border: '1px solid var(--border)',
+  fontSize: '13px',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '12px',
+  color: 'var(--text-secondary)',
+  display: 'block',
+  marginBottom: '4px',
+  fontWeight: 600,
+}
+
+interface FormState {
+  tenant: string
+  plan: LicensePlan
+  seats: number
+  starts_at: string
+  expires_at: string
+  is_active: boolean
+}
+
+function emptyForm(defaultTenant: string): FormState {
+  return {
+    tenant: defaultTenant,
+    plan: 'starter',
+    seats: 1,
+    starts_at: new Date().toISOString().slice(0, 10),
+    expires_at: '',
+    is_active: true,
+  }
 }
 
 export default function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'EXPIRED'>('ALL')
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
 
-  // Modal d'émission de licence
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [selectedTenantId, setSelectedTenantId] = useState('')
-  const [planTier, setPlanTier] = useState('ENTERPRISE_SOUVERAIN')
-  const [maxNodes, setMaxNodes] = useState(3)
-  const [signedTokenResult, setSignedTokenResult] = useState<string | null>(null)
-  
-  // Notification Toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [editingLicense, setEditingLicense] = useState<License | null>(null)
+  const [form, setForm] = useState<FormState>(emptyForm(''))
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const [licensesData, tenantsData] = await Promise.all([getLicenses(), getTenants()])
-        if (!cancelled) {
-          setLicenses(licensesData)
-          setTenants(tenantsData)
-          if (tenantsData.length > 0) setSelectedTenantId(tenantsData[0].id)
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
+  const [rowActionId, setRowActionId] = useState<string | null>(null)
+  const [rowError, setRowError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [licensesData, tenantsData] = await Promise.all([getLicenses(), getTenants()])
+      setLicenses(licensesData)
+      setTenants(tenantsData)
+    } catch (err) {
+      setError(normalizeApiError(err).message)
+    } finally {
+      setLoading(false)
     }
   }, [])
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg)
-    setTimeout(() => setToastMessage(null), 3500)
+  useEffect(() => {
+    // Chargement initial differe d'une micro-tache : appeler load() dans la
+    // phase synchrone de l'effet declenche des rendus en cascade (React 19,
+    // regle react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      void load()
+    })
+  }, [load])
+
+  function openCreateModal() {
+    setEditingLicense(null)
+    setForm(emptyForm(tenants[0]?.id ?? ''))
+    setFormError(null)
+    setFieldErrors(null)
+    setShowModal(true)
   }
 
-  // Renouveler une licence (+30 jours)
-  const handleExtendLicense = (licId: string) => {
-    setLicenses((prev) =>
-      prev.map((lic) => {
-        if (lic.id === licId) {
-          const newDate = new Date()
-          newDate.setDate(newDate.getDate() + 30)
-          return {
-            ...lic,
-            expires_at: newDate.toISOString(),
-            is_active: true,
-            signed_token: `ed25519:renewed_${Math.random().toString(36).substring(2, 10)}`,
-          }
-        }
-        return lic
-      })
-    )
-    triggerToast('🔄 Licence prolongée de 30 jours et re-signée en Ed25519 !')
+  function openEditModal(lic: License) {
+    setEditingLicense(lic)
+    setForm({
+      tenant: lic.tenant,
+      plan: lic.plan,
+      seats: lic.seats,
+      starts_at: toDateInput(lic.starts_at),
+      expires_at: toDateInput(lic.expires_at),
+      is_active: lic.is_active,
+    })
+    setFormError(null)
+    setFieldErrors(null)
+    setShowModal(true)
   }
 
-  // Révoquer une licence (Inscription CRL < 1s)
-  const handleRevokeLicense = (licId: string) => {
-    setLicenses((prev) =>
-      prev.map((lic) => (lic.id === licId ? { ...lic, is_active: false } : lic))
-    )
-    triggerToast('🚫 Licence révoquée ! AK inscrite dans la CRL (effet en < 1 seconde).')
+  function closeModal() {
+    setShowModal(false)
   }
 
-  const handleGenerateLicense = (e: React.FormEvent) => {
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const targetTenant = tenants.find((t) => t.id === selectedTenantId)
-    const tenantName = targetTenant ? targetTenant.name : 'PME'
-    const dummyToken = `ed25519:sig_${Math.random().toString(36).substring(2, 10)}_tenant_${selectedTenantId}_nodes_${maxNodes}`
-
-    const newLic: License = {
-      id: `lic-${Date.now()}`,
-      tenant: selectedTenantId,
-      tenant_name: tenantName,
-      max_nodes: maxNodes,
-      plan_tier: planTier,
-      expires_at: '2026-12-31T23:59:59Z',
-      is_active: true,
-      signed_token: dummyToken,
+    setFormError(null)
+    setFieldErrors(null)
+    setSubmitting(true)
+    const payload: LicenseWritePayload = {
+      tenant: form.tenant,
+      plan: form.plan,
+      seats: form.seats,
+      starts_at: form.starts_at,
+      expires_at: form.expires_at || null,
+      is_active: form.is_active,
     }
+    try {
+      if (editingLicense) {
+        const updated = await updateLicense(editingLicense.id, payload)
+        setLicenses((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))
+      } else {
+        const created = await createLicense(payload)
+        setLicenses((prev) => [created, ...prev])
+      }
+      setShowModal(false)
+    } catch (err) {
+      const apiError = normalizeApiError(err)
+      setFormError(apiError.message)
+      setFieldErrors(apiError.fieldErrors)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-    setLicenses([newLic, ...licenses])
-    setSignedTokenResult(dummyToken)
-    triggerToast('🔑 Nouvelle licence émise avec succès !')
+  async function handleDelete(lic: License) {
+    const ok = window.confirm(`Supprimer définitivement cette licence (${lic.tenant_name ?? 'tenant'} — ${PLAN_LABELS[lic.plan] || lic.plan}) ?`)
+    if (!ok) return
+    setRowError(null)
+    setRowActionId(lic.id)
+    try {
+      await deleteLicense(lic.id)
+      setLicenses((prev) => prev.filter((l) => l.id !== lic.id))
+    } catch (err) {
+      setRowError(normalizeApiError(err).message)
+    } finally {
+      setRowActionId(null)
+    }
+  }
+
+  async function handleToggleActive(lic: License) {
+    setRowError(null)
+    setRowActionId(lic.id)
+    try {
+      const updated = await updateLicense(lic.id, { is_active: !lic.is_active })
+      setLicenses((prev) => prev.map((l) => (l.id === updated.id ? updated : l)))
+    } catch (err) {
+      setRowError(normalizeApiError(err).message)
+    } finally {
+      setRowActionId(null)
+    }
   }
 
   const filteredLicenses = licenses.filter((lic) => {
     const matchesSearch =
       (lic.tenant_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lic.plan_tier || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lic.signed_token || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (PLAN_LABELS[lic.plan] || lic.plan || '').toLowerCase().includes(searchTerm.toLowerCase())
 
     if (filterStatus === 'ACTIVE') return matchesSearch && lic.is_active
-    if (filterStatus === 'EXPIRED') return matchesSearch && !lic.is_active
+    if (filterStatus === 'INACTIVE') return matchesSearch && !lic.is_active
     return matchesSearch
   })
 
-  if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Chargement des licences...</p>
+  const selectedTenant = tenants.find((t) => t.id === form.tenant) ?? null
 
   return (
     <div>
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: 'var(--sidebar-bg)',
-            color: '#FFFFFF',
-            padding: '14px 20px',
-            borderRadius: '8px',
-            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
-            fontWeight: 600,
-            fontSize: '13px',
-            zIndex: 2000,
-            borderLeft: '4px solid var(--gold)',
-          }}
-        >
-          {toastMessage}
-        </div>
-      )}
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Gestion des Licences (Éditeur SaaS)
-          </h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>Licences</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Émission, signature Ed25519, prolongation et révocation instantanée (CRL)
+            Émission et gestion des licences des tenants
           </p>
         </div>
         <button
-          onClick={() => {
-            setSignedTokenResult(null)
-            setShowCreateModal(true)
-          }}
+          onClick={openCreateModal}
+          disabled={loading || tenants.length === 0}
           style={{
             background: 'var(--crimson)',
             color: '#FFFFFF',
@@ -160,142 +280,206 @@ export default function LicensesPage() {
             borderRadius: '6px',
             padding: '10px 16px',
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: loading || tenants.length === 0 ? 'default' : 'pointer',
+            opacity: loading || tenants.length === 0 ? 0.6 : 1,
             boxShadow: 'var(--shadow)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          🔑 Émettre une nouvelle licence Ed25519
+          <Plus size={15} /> Nouvelle licence
         </button>
       </div>
 
-      {/* Barre de Recherche et Filtres */}
-      <div
-        style={{
-          background: '#FFFFFF',
-          padding: '16px 20px',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          marginBottom: '20px',
-          display: 'flex',
-          gap: '16px',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <input
-          type="text"
-          placeholder="🔍 Rechercher par PME, jeton Ed25519 ou offre..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+      {rowError && (
+        <div
+          role="alert"
           style={{
-            flex: 1,
-            maxWidth: '400px',
-            padding: '8px 14px',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: '#FDECEC',
+            border: '1px solid #F3B7B7',
+            color: 'var(--danger)',
+            borderRadius: '8px',
+            padding: '10px 14px',
             fontSize: '13px',
+            marginBottom: '18px',
           }}
-        />
+        >
+          <AlertCircle size={16} />
+          <span>{rowError}</span>
+        </div>
+      )}
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {(['ALL', 'ACTIVE', 'EXPIRED'] as const).map((st) => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
+      {loading && <LoadingState />}
+      {!loading && error && <ErrorState message={error} onRetry={() => void load()} />}
+
+      {!loading && !error && (
+        <>
+          <div
+            style={{
+              background: '#FFFFFF',
+              padding: '14px 20px',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              marginBottom: '20px',
+              display: 'flex',
+              gap: '16px',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Rechercher par tenant ou offre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
-                padding: '6px 12px',
+                flex: 1,
+                minWidth: '220px',
+                maxWidth: '400px',
+                padding: '8px 14px',
                 borderRadius: '6px',
                 border: '1px solid var(--border)',
-                background: filterStatus === st ? 'var(--sidebar-bg)' : '#FFFFFF',
-                color: filterStatus === st ? '#FFFFFF' : 'var(--text-primary)',
-                fontWeight: 600,
-                fontSize: '12px',
-                cursor: 'pointer',
+                fontSize: '13px',
               }}
-            >
-              {st === 'ALL' ? 'Toutes' : st === 'ACTIVE' ? 'Actives 🟢' : 'Inactives / Révoquées 🔴'}
-            </button>
-          ))}
-        </div>
-      </div>
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setFilterStatus(st)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: filterStatus === st ? 'var(--sidebar-bg)' : '#FFFFFF',
+                    color: filterStatus === st ? '#FFFFFF' : 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {st === 'ALL' ? 'Toutes' : st === 'ACTIVE' ? 'Actives' : 'Inactives'}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Table des Licences */}
-      <div style={{ background: '#FFFFFF', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-          <thead style={{ background: '#F5EFE8', borderBottom: '2px solid var(--gold)' }}>
-            <tr>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Tenant PME</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Offre / Tier</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Quota Postes</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Expiration</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Signature Ed25519</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Statut</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Actions Rapides</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLicenses.map((lic) => (
-              <tr key={lic.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.tenant_name || 'Tenant PME'}</td>
-                <td style={{ padding: '14px 16px' }}>
-                  <span style={{ background: '#FFF3CD', color: '#856404', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 600 }}>
-                    {lic.plan_tier || 'STANDARD'}
-                  </span>
-                </td>
-                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.max_nodes || 3} postes</td>
-                <td style={{ padding: '14px 16px' }}>{formatDate(lic.expires_at)}</td>
-                <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {lic.signed_token ? `${lic.signed_token.substring(0, 24)}...` : 'Ed25519-Token'}
-                </td>
-                <td style={{ padding: '14px 16px' }}>
-                  <StatusBadge active={lic.is_active} />
-                </td>
-                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button
-                      onClick={() => handleExtendLicense(lic.id)}
-                      title="Prolonger de 30 jours et re-signer"
-                      style={{
-                        background: '#E8F5E9',
-                        color: '#2E7D32',
-                        border: '1px solid #A5D6A7',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      🔄 +30 Jours
-                    </button>
-                    {lic.is_active && (
-                      <button
-                        onClick={() => handleRevokeLicense(lic.id)}
-                        title="Révoquer la licence (Inscrire dans la CRL)"
-                        style={{
-                          background: '#FEE8E8',
-                          color: 'var(--crimson)',
-                          border: '1px solid #EF9A9A',
-                          borderRadius: '4px',
-                          padding: '4px 8px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        🚫 Révoquer (CRL)
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <div style={{ background: '#FFFFFF', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+            {licenses.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}>
+                <KeyRound size={28} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                <p>Aucune licence enregistrée</p>
+              </div>
+            ) : filteredLicenses.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}>
+                <p>Aucune licence ne correspond à ces critères</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead style={{ background: '#F5EFE8', borderBottom: '2px solid var(--gold)' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Tenant</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Offre</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Sièges</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Début</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Expiration</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Statut</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLicenses.map((lic) => (
+                    <tr key={lic.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.tenant_name || '—'}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ background: '#FFF3CD', color: '#856404', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 600 }}>
+                          {PLAN_LABELS[lic.plan] || lic.plan}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.seats} poste{lic.seats > 1 ? 's' : ''}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-secondary)' }}>{formatDate(lic.starts_at)}</td>
+                      <td style={{ padding: '14px 16px' }}>{formatDate(lic.expires_at)}</td>
+                      <td style={{ padding: '14px 16px' }}><StatusBadge active={lic.is_active} /></td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => openEditModal(lic)}
+                            title="Modifier la licence"
+                            style={{
+                              background: '#F5EFE8',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '4px',
+                              padding: '5px 8px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <Pencil size={12} /> Modifier
+                          </button>
+                          <button
+                            onClick={() => void handleToggleActive(lic)}
+                            disabled={rowActionId === lic.id}
+                            title={lic.is_active ? 'Désactiver la licence' : 'Réactiver la licence'}
+                            style={{
+                              background: lic.is_active ? '#FEE8E8' : '#E8F5E9',
+                              color: lic.is_active ? 'var(--danger)' : '#2E7D32',
+                              border: `1px solid ${lic.is_active ? '#EF9A9A' : '#A5D6A7'}`,
+                              borderRadius: '4px',
+                              padding: '5px 8px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: rowActionId === lic.id ? 'default' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {rowActionId === lic.id ? <Loader2 size={12} className="lp-spin" /> : <PowerOff size={12} />}
+                            {lic.is_active ? 'Désactiver' : 'Réactiver'}
+                          </button>
+                          <button
+                            onClick={() => void handleDelete(lic)}
+                            disabled={rowActionId === lic.id}
+                            title="Supprimer la licence"
+                            style={{
+                              background: 'transparent',
+                              color: 'var(--danger)',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '5px 8px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: rowActionId === lic.id ? 'default' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <Trash2 size={12} /> Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
 
-      {/* Modal d'émission de licence */}
-      {showCreateModal && (
+      {/* Modal de création / édition */}
+      {showModal && (
         <div
           style={{
             position: 'fixed',
@@ -311,81 +495,150 @@ export default function LicensesPage() {
           }}
         >
           <div style={{ background: '#FFFFFF', borderRadius: '12px', padding: '28px', maxWidth: '480px', width: '100%', boxShadow: 'var(--shadow)' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Émission de Licence Ed25519 (Blind Relay)</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{editingLicense ? 'Modifier la licence' : 'Nouvelle licence'}</h3>
+              <button onClick={closeModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Le serveur Éditeur génère un jeton signé avec sa clé privée Ed25519. Le client Rust validera ce jeton en local sans appeler le cloud pendant 30 jours.
+              Le nombre de sièges ne peut pas dépasser l'effectif déclaré du tenant
+              {selectedTenant ? ` (${selectedTenant.employee_count} employé${selectedTenant.employee_count > 1 ? 's' : ''})` : ''} : l'API rejette
+              toute licence dont seats &gt; employee_count.
             </p>
 
-            {signedTokenResult ? (
-              <div style={{ background: '#E8F5E9', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
-                <div style={{ fontWeight: 700, color: '#1B5E20', marginBottom: '8px' }}>✅ Jeton Ed25519 émis et signé avec succès !</div>
-                <div style={{ fontFamily: 'monospace', fontSize: '11px', wordBreak: 'break-all', background: '#FFFFFF', padding: '8px', borderRadius: '4px', border: '1px solid #A5D6A7' }}>
-                  {signedTokenResult}
-                </div>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ width: '100%', marginTop: '16px', padding: '10px', background: '#2E7D32', color: '#FFF', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+            {formError && (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  background: '#FDECEC',
+                  border: '1px solid #F3B7B7',
+                  color: 'var(--danger)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Tenant</label>
+                <select
+                  value={form.tenant}
+                  onChange={(e) => updateField('tenant', e.target.value)}
+                  required
+                  style={inputStyle}
                 >
-                  Terminer
+                  <option value="" disabled>Sélectionner un tenant</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.employee_count} employés)</option>
+                  ))}
+                </select>
+                <FieldError messages={fieldErrors?.tenant} />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Offre</label>
+                <select
+                  value={form.plan}
+                  onChange={(e) => updateField('plan', e.target.value as LicensePlan)}
+                  style={inputStyle}
+                >
+                  <option value="starter">Starter</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+                <FieldError messages={fieldErrors?.plan} />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Sièges (postes autorisés)</label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={form.seats}
+                  onChange={(e) => updateField('seats', parseInt(e.target.value, 10) || 1)}
+                  style={inputStyle}
+                />
+                <FieldError messages={fieldErrors?.seats} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Date de début</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.starts_at}
+                    onChange={(e) => updateField('starts_at', e.target.value)}
+                    style={inputStyle}
+                  />
+                  <FieldError messages={fieldErrors?.starts_at} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Date d'expiration (optionnelle)</label>
+                  <input
+                    type="date"
+                    value={form.expires_at}
+                    onChange={(e) => updateField('expires_at', e.target.value)}
+                    style={inputStyle}
+                  />
+                  <FieldError messages={fieldErrors?.expires_at} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  id="license-active"
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(e) => updateField('is_active', e.target.checked)}
+                />
+                <label htmlFor="license-active" style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+                  Licence active
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  style={{ flex: 1, padding: '10px', background: '#FFF', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: submitting ? '#C46A72' : 'var(--crimson)',
+                    color: '#FFF',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    cursor: submitting ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {submitting && <Loader2 size={14} className="lp-spin" />}
+                  {editingLicense ? 'Enregistrer' : 'Émettre la licence'}
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleGenerateLicense} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Sélectionner le Tenant PME</label>
-                  <select
-                    value={selectedTenantId}
-                    onChange={(e) => setSelectedTenantId(e.target.value)}
-                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                  >
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name} ({t.subdomain})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Offre / Niveau d'Abonnement</label>
-                  <select
-                    value={planTier}
-                    onChange={(e) => setPlanTier(e.target.value)}
-                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                  >
-                    <option value="ENTERPRISE_SOUVERAIN">ENTERPRISE SOUVERAIN</option>
-                    <option value="PRO_CLUSTER">PRO CLUSTER</option>
-                    <option value="STANDARD">STANDARD</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Nombre Maximum de Postes Autorisés</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={maxNodes}
-                    onChange={(e) => setMaxNodes(parseInt(e.target.value) || 1)}
-                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    style={{ flex: 1, padding: '10px', background: '#FFF', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    style={{ flex: 1, padding: '10px', background: 'var(--crimson)', color: '#FFF', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Signer & Émettre
-                  </button>
-                </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
       )}

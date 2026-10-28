@@ -1,52 +1,84 @@
 import type React from 'react'
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import { useAuth } from '../context/AuthContext'
+import type { ComponentType, ReactNode } from 'react'
+import {
+  BarChart3,
+  Boxes,
+  Building2,
+  Container,
+  Download,
+  HardDrive,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Network,
+  Radio,
+  Settings,
+} from 'lucide-react'
+import { useAuth } from '../context/useAuth'
+import type { UserRole } from '../types/index'
 
 interface LayoutProps {
   children: ReactNode
 }
 
-const IconDashboard = () => (
-  <svg viewBox="0 0 16 16" width={16} height={16} fill="currentColor" aria-hidden="true">
-    <rect x="1" y="1" width="6" height="6" rx="1" />
-    <rect x="9" y="1" width="6" height="6" rx="1" />
-    <rect x="1" y="9" width="6" height="6" rx="1" />
-    <rect x="9" y="9" width="6" height="6" rx="1" />
-  </svg>
-)
+interface NavItem {
+  to: string
+  label: string
+  exact: boolean
+  Icon: ComponentType<{ size?: number }>
+}
 
-const IconTenants = () => (
-  <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-    <path d="M2 14V6l6-4 6 4v8H2z" />
-    <rect x="5" y="9" width="2" height="3" />
-    <rect x="9" y="9" width="2" height="3" />
-  </svg>
-)
-
-const IconLicenses = () => (
-  <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-    <path d="M12.5 7.5A3.5 3.5 0 1 0 9 11h1v2h2v-2h.5a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5z" />
-    <circle cx="5.5" cy="6.5" r="2.5" />
-  </svg>
-)
-
-const NAV_LINKS = [
-  { to: '/', label: 'Console Éditeur', exact: true, Icon: IconDashboard },
-  { to: '/tenants', label: 'Tenants (Clients PME)', exact: false, Icon: IconTenants },
-  { to: '/licenses', label: 'Licences Ed25519', exact: false, Icon: IconLicenses },
+const EDITOR_LINKS: NavItem[] = [
+  { to: '/', label: 'Console', exact: true, Icon: LayoutDashboard },
+  { to: '/tenants', label: 'Tenants', exact: false, Icon: Building2 },
+  { to: '/licenses', label: 'Licences', exact: false, Icon: KeyRound },
+  { to: '/devices', label: 'Appareils', exact: false, Icon: HardDrive },
+  { to: '/clusters', label: 'Clusters', exact: false, Icon: Network },
+  { to: '/relay', label: 'Relais', exact: false, Icon: Radio },
+  { to: '/deploiement', label: 'Déploiement', exact: false, Icon: Container },
+  { to: '/architecture', label: 'Architecture', exact: false, Icon: Boxes },
 ]
+
+const TENANT_LINKS: NavItem[] = [
+  { to: '/mon-espace', label: 'Mon espace', exact: true, Icon: LayoutDashboard },
+  { to: '/bienvenue', label: 'Installation', exact: false, Icon: Download },
+]
+
+const ROLE_SECTION_LABEL: Record<UserRole, string> = {
+  editor: 'GESTION SAAS',
+  tenant: 'MON ENTREPRISE',
+}
+
+const ROLE_SUBTITLE: Record<UserRole, string> = {
+  editor: "Console d'administration éditeur",
+  tenant: 'Espace client PME',
+}
+
+function navLinksFor(role: UserRole | null): NavItem[] {
+  if (role === 'tenant') return TENANT_LINKS
+  return EDITOR_LINKS
+}
 
 export default function Layout({ children }: LayoutProps) {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
-  const { user, logout } = useAuth()
+  const { user, role, logout } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
+      .catch(() => {
+        // logout() désauthentifie déjà localement dans son bloc finally ;
+        // une erreur réseau ici ne doit pas empêcher le retour à l'écran de connexion.
+      })
+      .finally(() => navigate('/login', { replace: true }))
   }
+
+  const displayName = user?.username ?? 'Utilisateur'
+  const displayInitials = displayName.slice(0, 2).toUpperCase()
+  const displaySubtitle = role ? ROLE_SUBTITLE[role] : ''
+  const brandName = role === 'tenant' ? user?.tenant?.name ?? displayName : 'SaaS Souverain'
 
   const sidebarStyle: React.CSSProperties = {
     width: '240px',
@@ -139,22 +171,33 @@ export default function Layout({ children }: LayoutProps) {
     color: '#FFFFFF',
   }
 
+  const quickLinkStyle: React.CSSProperties = {
+    color: 'rgba(255,255,255,0.7)',
+    padding: '6px 8px',
+    borderRadius: '4px',
+    background: 'rgba(255,255,255,0.05)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    textDecoration: 'none',
+  }
+
   return (
     <>
       <aside style={sidebarStyle}>
-        {/* En-tête avec Grand Logo Éditeur */}
+        {/* En-tête */}
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-            <img src="/logoentreprise.png" alt="EL BARAA CONSULT logo" style={{ height: '68px', maxWidth: '100%', objectFit: 'contain' }} />
+            <img src="/logoentreprise.png" alt="SaaS Souverain" style={{ height: '68px', maxWidth: '100%', objectFit: 'contain' }} />
           </div>
-          <span style={brandNameStyle}>{user?.company || 'EL BARAA CONSULT'}</span>
-          <span style={brandSubStyle}>Console d'Administration Éditeur</span>
+          <span style={brandNameStyle}>{brandName}</span>
+          <span style={brandSubStyle}>{displaySubtitle}</span>
         </div>
 
-        {/* Menu Principal */}
+        {/* Menu principal, dépendant du rôle */}
         <nav style={navStyle}>
-          <span style={sectionLabelStyle}>GESTION SAAS</span>
-          {NAV_LINKS.map(({ to, label, exact, Icon }) => (
+          <span style={sectionLabelStyle}>{role ? ROLE_SECTION_LABEL[role] : ''}</span>
+          {navLinksFor(role).map(({ to, label, exact, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -167,77 +210,28 @@ export default function Layout({ children }: LayoutProps) {
               onMouseEnter={() => setHoveredLink(to)}
               onMouseLeave={() => setHoveredLink(null)}
             >
-              <Icon />
+              <Icon size={16} />
               {label}
             </NavLink>
           ))}
         </nav>
 
-        {/* SECTION 1 ADDITIONNELLE : STATUT INFRASTRUCTURE & RELAIS AVEUGLE */}
-        <div style={{ padding: '8px 12px 12px 12px', margin: '0 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(196,151,42,0.15)' }}>
-          <span style={sectionLabelStyle}>INFRASTRUCTURE & INFOS</span>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.8)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Relais Aveugle :</span>
-              <span style={{ color: '#4CAF50', fontWeight: 700 }}>🟢 Actif</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>VPN WireGuard :</span>
-              <span style={{ color: 'var(--gold)', fontWeight: 600, fontFamily: 'monospace' }}>10.10.0.0/24</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Crypto Clés :</span>
-              <span style={{ color: '#FFF', fontWeight: 600 }}>AK / DEK (100%)</span>
+        {/* Accès rapides — uniquement pour l'éditeur */}
+        {role === 'editor' && (
+          <div style={{ padding: '12px', margin: '8px 8px 0 8px' }}>
+            <span style={sectionLabelStyle}>ACCÈS RAPIDES</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+              <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" style={quickLinkStyle}>
+                <BarChart3 size={14} /> Grafana
+              </a>
+              <a href="http://localhost:8000/admin/" target="_blank" rel="noopener noreferrer" style={quickLinkStyle}>
+                <Settings size={14} /> Admin Django
+              </a>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* SECTION 2 ADDITIONNELLE : RACCOURCIS OUTILS & ACCÈS DIRECTS */}
-        <div style={{ padding: '12px', margin: '8px 8px 0 8px' }}>
-          <span style={sectionLabelStyle}>ACCÈS RAPIDES</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
-            <a
-              href="http://localhost:3000"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'rgba(255,255,255,0.7)',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                background: 'rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none',
-              }}
-            >
-              <span>📊</span> Live Grafana (Port 3000)
-            </a>
-
-            <a
-              href="http://localhost:8000/admin/"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'rgba(255,255,255,0.7)',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                background: 'rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none',
-              }}
-            >
-              <span>⚙️</span> Admin Django Backend
-            </a>
-          </div>
-        </div>
-
-        {/* Pied de Sidebar & Profil Éditeur avec Bouton Déconnexion */}
+        {/* Pied de sidebar : profil connecté + déconnexion */}
         <div style={footerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
@@ -252,15 +246,18 @@ export default function Layout({ children }: LayoutProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
-              {user?.name.substring(0, 2).toUpperCase() || 'AD'}
+              {displayInitials}
             </div>
             <div style={{ overflow: 'hidden' }}>
               <div style={{ color: '#FFF', fontSize: '12px', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                {user?.name || 'Administrateur'}
+                {displayName}
               </div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>{user?.role || 'SaaS Admin'}</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>
+                {role === 'editor' ? 'Administrateur SaaS' : 'Compte PME'}
+              </div>
             </div>
           </div>
 
@@ -276,9 +273,13 @@ export default function Layout({ children }: LayoutProps) {
               fontSize: '11px',
               cursor: 'pointer',
               fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
             }}
           >
-            🚪 Déconnexion
+            <LogOut size={13} /> Déconnexion
           </button>
         </div>
       </aside>

@@ -1,216 +1,210 @@
-import { useEffect, useState } from 'react'
-import { getTenants, getLicenses, getDevices } from '../api/client'
-import type { Tenant, License, Device } from '../types/index'
-import StatusBadge from '../components/StatusBadge'
-import { GrowthChart, PlanDistributionChart } from '../components/AnalyticsCharts'
-import GrafanaEmbed from '../components/GrafanaEmbed'
+// Console d'administration éditeur — vue d'ensemble.
+// Remplace templates/dashboard/index.html. Données réelles uniquement :
+// GET /api/dashboard/stats/ (compteurs + tenants récents).
 
-interface StatCardProps {
-  label: string
-  value: number | string
-  subLabel: string
-  accentColor: string
+import { useCallback, useEffect, useState, type ComponentType } from 'react'
+import { Link } from 'react-router-dom'
+import { AlertCircle, AlertTriangle, Building2, Inbox, KeyRound, Loader2, MonitorSmartphone, RotateCw } from 'lucide-react'
+import { getDashboardStats, normalizeApiError } from '../api/client'
+import type { DashboardStats } from '../types/index'
+import StatusBadge from '../components/StatusBadge'
+
+function LoadingState() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', padding: '48px 0' }}>
+      <Loader2 size={18} className="ds-spin" />
+      <span>Chargement du tableau de bord...</span>
+      <style>{`.ds-spin { animation: ds-spin 0.8s linear infinite; } @keyframes ds-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 }
 
-function StatCard({ label, value, subLabel, accentColor }: StatCardProps) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div
       style={{
-        background: '#FFFFFF',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '12px',
+        background: '#FDECEC',
+        border: '1px solid #F3B7B7',
+        color: 'var(--danger)',
+        borderRadius: 'var(--radius)',
+        padding: '18px 20px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <AlertCircle size={18} />
+        <span>{message}</span>
+      </div>
+      <button
+        onClick={onRetry}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: '#FFFFFF',
+          border: '1px solid var(--danger)',
+          color: 'var(--danger)',
+          borderRadius: '6px',
+          padding: '6px 12px',
+          fontSize: '12px',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        <RotateCw size={14} /> Réessayer
+      </button>
+    </div>
+  )
+}
+
+interface StatCardProps {
+  icon: ComponentType<{ size?: number; color?: string }>
+  label: string
+  value: number
+  subLabel: string
+  accentColor: string
+  background?: string
+}
+
+function StatCard({ icon: Icon, label, value, subLabel, accentColor, background }: StatCardProps) {
+  return (
+    <div
+      style={{
+        background: background ?? '#FFFFFF',
         border: '1px solid var(--border)',
         borderTop: `3px solid ${accentColor}`,
         borderRadius: 'var(--radius)',
-        padding: '24px',
+        padding: '22px',
         boxShadow: 'var(--shadow)',
         flex: 1,
       }}
     >
-      <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '8px' }}>{label}</div>
-      <div style={{ fontSize: '36px', fontWeight: 700, color: accentColor, lineHeight: 1, marginBottom: '6px' }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '10px' }}>
+        <Icon size={15} color={accentColor} />
+        {label}
+      </div>
+      <div style={{ fontSize: '34px', fontWeight: 700, color: accentColor, lineHeight: 1, marginBottom: '6px' }}>{value}</div>
       <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{subLabel}</div>
     </div>
   )
 }
 
 export default function DashboardPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [licenses, setLicenses] = useState<License[]>([])
-  const [devices, setDevices] = useState<Device[]>([])
+  const [data, setData] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      try {
-        const [tenantsData, licensesData, devicesData] = await Promise.all([
-          getTenants(),
-          getLicenses(),
-          getDevices(),
-        ])
-        if (!cancelled) {
-          setTenants(tenantsData)
-          setLicenses(licensesData)
-          setDevices(devicesData)
-        }
-      } catch (err: unknown) {
-        console.error('Erreur dashboard:', err)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const stats = await getDashboardStats()
+      setData(stats)
+    } catch (err) {
+      setError(normalizeApiError(err).message)
+    } finally {
+      setLoading(false)
     }
   }, [])
 
-  if (loading) {
-    return <p style={{ color: 'var(--text-secondary)' }}>Chargement des données analytiques Éditeur…</p>
-  }
-
-  const activeLicenses = licenses.filter((l) => l.is_active).length
+  useEffect(() => {
+    // Chargement initial differe d'une micro-tache : appeler load() dans la
+    // phase synchrone de l'effet declenche des rendus en cascade (React 19,
+    // regle react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      void load()
+    })
+  }, [load])
 
   return (
     <div>
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>
-          Console d'Administration Éditeur SaaS
-        </h1>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>Tableau de bord</h1>
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-          Télémétrie, graphiques Grafana et analytiques en temps réel de vos abonnés PME
+          Vue d'ensemble de la plateforme SaaS Souverain
         </p>
       </div>
 
-      {/* Cartes Métriques Éditeur */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '28px' }}>
-        <StatCard
-          label="Entreprises Abonnées (Tenants)"
-          value={tenants.length}
-          subLabel="PME enregistrées en base de données"
-          accentColor="var(--crimson)"
-        />
-        <StatCard
-          label="Licences Cryptographiques"
-          value={activeLicenses}
-          subLabel="Signées en Ed25519 (Blind Relay)"
-          accentColor="var(--gold)"
-        />
-        <StatCard
-          label="Postes PME Enrôlés"
-          value={devices.length}
-          subLabel="Appairés via Sealed Box X25519"
-          accentColor="#2E7D32"
-        />
-      </div>
+      {loading && <LoadingState />}
+      {!loading && error && <ErrorState message={error} onRetry={() => void load()} />}
 
-      {/* SECTION TÉLÉMÉTRIE & PANNEAUX GRAFANA EMBEDDED */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h2 style={{ borderLeft: '3px solid var(--gold)', paddingLeft: '12px', fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-            Observabilité Grafana & Télémétrie gRPC en Temps Réel
-          </h2>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Propulsé par Prometheus & Grafana (Port 3000)
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <GrafanaEmbed title="Latence Réseau gRPC (ms)" metricType="GRPC_LATENCY" refreshRateSeconds={10} />
-          <GrafanaEmbed title="Disponibilité Quorum etcd / Patroni" metricType="CLUSTER_NODES" refreshRateSeconds={15} />
-          <GrafanaEmbed title="Vérifications Licences Ed25519" metricType="LICENSE_VERIFICATIONS" refreshRateSeconds={30} />
-        </div>
-      </div>
-
-      {/* GRAPHIQUES ANALYTIQUES COMMERCIAUX RÉELS (Liés à la Base de Données) */}
-      <div style={{ display: 'flex', gap: '24px', marginBottom: '28px' }}>
-        <GrowthChart tenants={tenants} />
-        <PlanDistributionChart licenses={licenses} />
-      </div>
-
-      {/* Tables des Tenants et des Licences */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Table Tenants */}
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            padding: '20px',
-            boxShadow: 'var(--shadow)',
-          }}
-        >
-          <h2 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', color: 'var(--text-primary)' }}>
-            Dernières PME Enregistrées
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {tenants.map((tenant) => (
-              <div
-                key={tenant.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px',
-                  background: '#F8F9FA',
-                  borderRadius: '6px',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {tenant.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {tenant.subdomain}.amane.local
-                  </div>
-                </div>
-                <StatusBadge active={tenant.is_active} />
-              </div>
-            ))}
+      {!loading && !error && data && (
+        <>
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '28px', flexWrap: 'wrap' }}>
+            <StatCard
+              icon={Building2}
+              label="Tenants enregistrés"
+              value={data.stats.total_tenants}
+              subLabel="entreprises clientes"
+              accentColor="var(--crimson)"
+            />
+            <StatCard
+              icon={KeyRound}
+              label="Licences actives"
+              value={data.stats.active_licenses}
+              subLabel="abonnements en cours"
+              accentColor="var(--gold)"
+            />
+            <StatCard
+              icon={MonitorSmartphone}
+              label="Machines enregistrées"
+              value={data.stats.total_devices}
+              subLabel="postes installés"
+              accentColor="#2E7D32"
+            />
+            {data.stats.tenants_over_limit > 0 && (
+              <StatCard
+                icon={AlertTriangle}
+                label="Hors conformité"
+                value={data.stats.tenants_over_limit}
+                subLabel="tenant(s) dépassant leur licence"
+                accentColor="var(--crimson)"
+                background="#FFF5F5"
+              />
+            )}
           </div>
-        </div>
 
-        {/* Table Licences Ed25519 */}
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            padding: '20px',
-            boxShadow: 'var(--shadow)',
-          }}
-        >
-          <h2 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', color: 'var(--text-primary)' }}>
-            Licences Cryptographiques Signées
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {licenses.map((lic) => (
-              <div
-                key={lic.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px',
-                  background: '#F8F9FA',
-                  borderRadius: '6px',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {lic.tenant_name || 'Tenant PME'} — {lic.plan_tier || 'ENTERPRISE'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                    Quota : {lic.max_nodes || 3} postes • Jeton Ed25519 Valide
-                  </div>
-                </div>
-                <StatusBadge active={lic.is_active} />
+          <div style={{ background: '#FFFFFF', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Tenants récents
+            </div>
+            {data.recent_tenants.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                <Inbox size={28} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                <p>Aucun tenant enregistré</p>
               </div>
-            ))}
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                <thead style={{ background: '#F5EFE8' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Entreprise</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Email</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Employés</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recent_tenants.map((tenant) => (
+                    <tr key={tenant.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '14px 16px' }}>
+                        <Link to={`/tenants/${tenant.id}`} style={{ color: 'var(--crimson)', fontWeight: 600, textDecoration: 'none' }}>
+                          {tenant.name}
+                        </Link>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tenant.email}</td>
+                      <td style={{ padding: '14px 16px' }}>{tenant.employee_count}</td>
+                      <td style={{ padding: '14px 16px' }}><StatusBadge active={tenant.is_active} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }

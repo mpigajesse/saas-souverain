@@ -225,7 +225,11 @@
     </div>
     <div class="espace-header-nav">
       <a href="{% url 'bienvenue' %}">Installation</a>
-      <a href="{% url 'logout' %}">Déconnexion</a>
+      {# Déconnexion en POST : Django refuse le GET sur /logout/ (405). #}
+      <form method="post" action="{% url 'logout' %}" style="margin:0; display:inline;">
+        {% csrf_token %}
+        <button type="submit" style="background:none; border:none; padding:0; cursor:pointer; font:inherit; color:inherit; text-decoration:inherit;">Déconnexion</button>
+      </form>
     </div>
   </header>
 

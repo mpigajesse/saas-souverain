@@ -6,12 +6,10 @@ from licenses.models import License
 from devices.models import Device
 
 
-@login_required
-def dashboard(request):
-    # Les utilisateurs PME (non-staff) sont redirigés vers leur espace
-    if not request.user.is_staff and hasattr(request.user, 'tenant'):
-        return redirect('bienvenue')
-
+def build_dashboard_context() -> dict:
+    """Compteurs + tenants récents. Partagé par la vue web `dashboard` et
+    `GET /api/dashboard/stats/`.
+    """
     all_tenants = Tenant.objects.prefetch_related('licenses', 'devices').all()
     tenants_over_limit = sum(1 for t in all_tenants if not t.licence_status['ok'])
 
@@ -22,7 +20,13 @@ def dashboard(request):
         'tenants_over_limit': tenants_over_limit,
     }
     recent_tenants = Tenant.objects.order_by('-created_at')[:5]
-    return render(request, 'dashboard/index.html', {
-        'stats': stats,
-        'recent_tenants': recent_tenants,
-    })
+    return {'stats': stats, 'recent_tenants': recent_tenants}
+
+
+@login_required
+def dashboard(request):
+    # Les utilisateurs PME (non-staff) sont redirigés vers leur espace
+    if not request.user.is_staff and hasattr(request.user, 'tenant'):
+        return redirect('bienvenue')
+
+    return render(request, 'dashboard/index.html', build_dashboard_context())

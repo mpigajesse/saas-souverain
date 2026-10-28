@@ -1,19 +1,30 @@
 import type React from 'react'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { AlertCircle, Loader2, LogIn } from 'lucide-react'
+import { useAuth } from '../context/useAuth'
+import type { ApiError } from '../types/index'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@elbaraa-consult.com')
-  const [password, setPassword] = useState('••••••••••••')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email) {
-      login(email, password)
-      navigate('/')
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      const user = await login({ username, password })
+      navigate(user.role === 'editor' ? '/' : '/mon-espace', { replace: true })
+    } catch (err) {
+      const apiError = err as ApiError
+      setFormError(apiError.message)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -40,22 +51,44 @@ export default function LoginPage() {
       >
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <img src="/logoentreprise.png" alt="EL BARAA CONSULT" style={{ height: '48px', marginBottom: '12px' }} />
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#17090C' }}>Connexion Éditeur SaaS</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#17090C' }}>Connexion</h1>
           <p style={{ fontSize: '13px', color: '#666666', marginTop: '4px' }}>
-            Accédez à la console de gestion de vos clients PME
+            Accédez à votre espace SaaS Souverain
           </p>
         </div>
+
+        {formError && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              background: '#FDECEC',
+              border: '1px solid #F3B7B7',
+              color: 'var(--danger)',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              fontSize: '13px',
+              marginBottom: '18px',
+            }}
+          >
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <span>{formError}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#444', marginBottom: '6px' }}>
-              Email professionnel
+              Nom d'utilisateur
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -73,6 +106,7 @@ export default function LoginPage() {
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{
@@ -87,30 +121,41 @@ export default function LoginPage() {
 
           <button
             type="submit"
+            disabled={submitting}
             style={{
               width: '100%',
               padding: '14px',
-              background: '#800020',
+              background: submitting ? '#A64B5B' : '#800020',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '8px',
               fontWeight: 700,
               fontSize: '15px',
-              cursor: 'pointer',
+              cursor: submitting ? 'default' : 'pointer',
               marginTop: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
             }}
           >
-            Se Connecter à la Console
+            {submitting ? <Loader2 size={18} className="spin" /> : <LogIn size={18} />}
+            {submitting ? 'Connexion en cours...' : 'Se connecter'}
           </button>
         </form>
 
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: '#666' }}>
-          Vous n'avez pas encore de compte éditeur ?{' '}
+          Vous n'avez pas encore de compte ?{' '}
           <Link to="/register" style={{ color: '#800020', fontWeight: 600, textDecoration: 'none' }}>
             Créer un compte
           </Link>
         </div>
       </div>
+
+      <style>{`
+        .spin { animation: spin 0.8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

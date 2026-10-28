@@ -1,39 +1,204 @@
-{% autoescape off %}# Configuration générée automatiquement pour {{ tenant.name }}
+{% autoescape off %}# -----------------------------------------------------------------------------
+# EL BARAA CONSULT — Pile PME complète pour {{ tenant.name }}
 # Généré le : {% now "d/m/Y à H:i" %}
-# NE PAS MODIFIER : TENANT_ID, REGISTRATION_TOKEN
 #
-# NODE_ADDR : remplacer <IP_VM> par l'adresse IP réelle de cette machine
-#             sur le réseau de la PME (ex: 192.168.200.133:9001)
-#             Ce champ est pré-rempli automatiquement par installer-pme.bat
+# DÉFINITION UNIQUE DE LA PILE. Ce fichier est la seule description de la pile
+# PME : les installeurs Windows (.bat) et Linux (.sh) le TÉLÉCHARGENT depuis le
+# portail éditeur au lieu de le régénérer chacun de leur côté. Trois
+# définitions divergentes de la même pile, c'était la cause des parcs
+# hétérogènes intestables (Windows sans PostgreSQL, donc sans supervision, sans
+# réplication et sans failover).
+#
+# Il ne dépend d'AUCUN fichier annexe : la logique d'initialisation PostgreSQL
+# (bascule primaire/standby, pg_basebackup, création de l'utilisateur
+# « replicator », pg_hba.conf) est écrite en ligne dans l'entrypoint du service
+# postgres. Reproduire l'écriture d'un script bash depuis un .bat est une
+# source de bugs majeure (échappement de « > », « | », « % ») : on ne le fait
+# plus.
+#
+# Seul paramétrage : le fichier « .env » déposé à côté par l'installeur.
+# Toutes les variables ont une valeur par défaut, donc le fichier reste
+# utilisable tel quel après un téléchargement manuel depuis la console.
+#
+#   NODE_ROLE=primary|standby   rôle PostgreSQL (réplication physique)
+#   NODE_MODE=active|passive    rôle annoncé au portail par ss-node
+#   PG_USER / PG_PASSWORD / PG_DB
+#   REPLICATION_PASSWORD        DOIT être identique sur tous les nœuds
+#   PG_REPLICATION_SUBNET       sous-réseau autorisé en réplication
+#   PRIMARY_IP                  IP du primaire (standby uniquement)
+#   NODE_ADDR                   ip:port annoncés au portail
+#   NODE_HOSTNAME               nom de la machine affiché dans la console
+#   WEB_PORT                    port de l'interface web métier — voir ci-dessous
+#   RELAY_URL / SAAS_URL / REGISTRATION_TOKEN / TENANT_ID
+#   PGADMIN_EMAIL / PGADMIN_PASSWORD
+#
+# PORT WEB : 9001 sur les DEUX systèmes. Le binaire ss-node prend 3000 par
+# défaut, l'ancien gabarit publiait 9001 ET 3000, l'installeur Linux imposait
+# WEB_PORT=9001 et n'ouvrait que 9001 : trois conventions pour un seul service.
+# On tranche sur 9001, déjà l'adresse annoncée au portail dans NODE_ADDR
+# (« ip:9001 ») et la seule ouverte par le pare-feu Linux. Un port unique pour
+# l'inter-nœuds et pour l'interface métier évite d'ouvrir, d'annoncer et de
+# documenter deux ports là où un seul suffit.
+# -----------------------------------------------------------------------------
 
 networks:
   ss-pme:
     driver: bridge
 
 services:
-  node1:
-    image: {{ node_image }}
-    networks:
-      - ss-pme
-    ports:
-      - "9001:9001"
-      - "3000:3000"
+  # -- PostgreSQL 16 : données métier + réplication physique primaire/standby --
+  postgres:
+    image: postgres:16-bookworm
+    container_name: pg-node
+    restart: unless-stopped
+    networks: [ss-pme]
+    environment:
+      POSTGRES_USER: "${PG_USER:-metier}"
+      POSTGRES_PASSWORD: "${PG_PASSWORD:-metier}"
+      POSTGRES_DB: "${PG_DB:-metier}"
+      PGDATA: /var/lib/postgresql/data
+      NODE_ROLE: "${NODE_ROLE:-primary}"
+      PRIMARY_IP: "${PRIMARY_IP:-}"
+      REPLICATION_PASSWORD: "${REPLICATION_PASSWORD:-replication}"
+      PG_REPLICATION_SUBNET: "${PG_REPLICATION_SUBNET:-0.0.0.0/0}"
     volumes:
-      - node1-data:/data
+      - pg-data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    # Entrypoint EN LIGNE : aucun script monté depuis l'hôte, donc rien que
+    # l'installeur .bat aurait à écrire lui-même. « $$ » échappe le dollar pour
+    # qu'il arrive intact au shell du conteneur (Compose interpole « $ » sinon).
+    # Le « -- » final sert de $0 à « bash -c » ; les arguments de « command: »
+    # deviennent $@ et sont repassés tels quels à l'entrypoint de l'image.
+    entrypoint:
+      - "/bin/bash"
+      - "-c"
+      - |
+        set -e
+        DATA_DIR="$${PGDATA:-/var/lib/postgresql/data}"
+        if [ "$${NODE_ROLE:-primary}" = "standby" ]; then
+          if [ ! -f "$${DATA_DIR}/PG_VERSION" ]; then
+            echo "[standby] Repertoire vide - pg_basebackup depuis $${PRIMARY_IP}:5432"
+            until PGPASSWORD="$${REPLICATION_PASSWORD}" psql \
+                    -h "$${PRIMARY_IP}" -p 5432 -U replicator -d postgres \
+                    -c "SELECT 1" >/dev/null 2>&1; do
+              echo "[standby] Attente du primaire $${PRIMARY_IP}..."
+              sleep 3
+            done
+            PGPASSWORD="$${REPLICATION_PASSWORD}" pg_basebackup \
+              -h "$${PRIMARY_IP}" -p 5432 -U replicator \
+              -D "$${DATA_DIR}" -Fp -Xs -P -R --checkpoint=fast
+            echo "[standby] pg_basebackup termine - replication configuree"
+          else
+            echo "[standby] Donnees existantes - reprise en mode standby"
+          fi
+        else
+          mkdir -p /docker-entrypoint-initdb.d
+          cat > /docker-entrypoint-initdb.d/10-replication.sh <<'PRIMARY_INIT'
+        #!/bin/bash
+        set -e
+        SUBNET="$${PG_REPLICATION_SUBNET:-0.0.0.0/0}"
+        psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" <<SQL
+        CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '$${REPLICATION_PASSWORD}';
+        SQL
+        {
+          echo ""
+          echo "host    replication     replicator      $${SUBNET}       scram-sha-256"
+          echo "host    all             all             $${SUBNET}       scram-sha-256"
+        } >> "$${PGDATA}/pg_hba.conf"
+        pg_ctl reload -D "$${PGDATA}"
+        echo "[primary-init] Utilisateur replicator cree, pg_hba.conf mis a jour."
+        PRIMARY_INIT
+          chmod +x /docker-entrypoint-initdb.d/10-replication.sh
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - "--"
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "max_wal_senders=5"
+      - "-c"
+      - "wal_keep_size=512"
+      - "-c"
+      - "listen_addresses=*"
+      - "-c"
+      - "synchronous_commit=remote_write"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-metier} -d ${PG_DB:-metier}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  # -- Nœud PME (Rust) : interface web métier, supervision, bascule -----------
+  ss-node:
+    image: {{ node_image }}
+    container_name: ss-node
+    restart: unless-stopped
+    networks: [ss-pme]
+    ports:
+      - "${WEB_PORT:-9001}:${WEB_PORT:-9001}"
+    volumes:
+      - node-data:/data
     environment:
       SS_NODE_DIR: /data
-      TENANT_ID: "{{ tenant.id }}"
-      REGISTRATION_TOKEN: "{{ tenant.registration_token }}"
-      RELAY_URL: "{{ relay_url }}"
-      SAAS_URL: "http://{{ saas_host }}:{{ saas_port }}"
-      NODE_ADDR: "<IP_VM>:9001"
-      HOSTNAME: node1
-    command: ["run", "--mode", "active"]
-    restart: unless-stopped
+      WEB_PORT: "${WEB_PORT:-9001}"
+      TENANT_ID: "${TENANT_ID:-{{ tenant.id }}}"
+      REGISTRATION_TOKEN: "${REGISTRATION_TOKEN:-{{ tenant.registration_token }}}"
+      RELAY_URL: "${RELAY_URL:-{{ relay_url }}}"
+      SAAS_URL: "${SAAS_URL:-http://{{ saas_host }}:{{ saas_port }}}"
+      # Vide = détection automatique par le portail, depuis l'adresse source de
+      # la connexion d'enregistrement (le conteneur ne voit que son 172.x).
+      NODE_ADDR: "${NODE_ADDR:-}"
+      # Valeur choisie par le portail au téléchargement : « {{ node_mode }} ».
+      # C'est cette variable — et non l'argument --mode — qui détermine le rôle
+      # annoncé au portail ET la génération de la clé au premier démarrage.
+      # Deux nœuds en « active » sur le même cluster, c'est un split-brain.
+      NODE_MODE: "${NODE_MODE:-{{ node_mode }}}"
+      # Garde de quorum : liste des AUTRES nœuds du cluster, séparés par des
+      # virgules (port 5432 ajouté si omis). Doit inclure les nœuds éteints —
+      # c'est cette liste qui donne la taille du cluster, donc le seuil de
+      # majorité. Vide = bascule automatique désactivée, promotion manuelle
+      # avec `ss-node failover`.
+      CLUSTER_PEERS: "${CLUSTER_PEERS:-}"
+      # Sans PG_URL, le nœud ne supervise rien et ne peut pas basculer : c'est
+      # exactement ce qui manquait à l'installeur Windows.
+      PG_URL: "postgres://${PG_USER:-metier}:${PG_PASSWORD:-metier}@postgres:5432/${PG_DB:-metier}"
+      # Nom de la machine tel qu'il apparaîtra dans la console éditeur.
+      # Figé à « node1 », les deux machines d'un même parc s'annonçaient sous
+      # le même nom et devenaient indiscernables dans /devices : l'installeur
+      # dépose donc le vrai nom de la machine dans le .env.
+      HOSTNAME: "${NODE_HOSTNAME:-node1}"
+      RUST_LOG: info
+    command: ["run", "--mode", "${NODE_MODE:-{{ node_mode }}}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # Watchtower vérifie les mises à jour toutes les heures (géré par EL BARAA CONSULT)
+  # -- pgAdmin : consultation des données métier par la PME ------------------
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin
+    restart: unless-stopped
+    networks: [ss-pme]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@pme.local}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:-pgadmin}"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports: ["5050:80"]
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # -- Watchtower : mise à jour automatique de l'image du nœud (éditeur) -----
   updater:
     image: containrrr/watchtower
+    container_name: pme-updater
+    restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -41,8 +206,9 @@ services:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_INCLUDE_STOPPED: "false"
       WATCHTOWER_LABEL_ENABLE: "false"
-    restart: unless-stopped
 
 volumes:
-  node1-data:
+  pg-data:
+  node-data:
+  pgadmin-data:
 {% endautoescape %}

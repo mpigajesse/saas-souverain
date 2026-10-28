@@ -1,81 +1,106 @@
-import type React from 'react'
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+// Authentification réelle par session Django + cookie CSRF (voir CONTRAT-API.md).
+// Plus aucune authentification simulée : l'état vient exclusivement de
+// GET /api/auth/me/ et des réponses de /api/auth/login/, /register/, /logout/.
 
-interface UserProfile {
-  name: string
-  email: string
-  company: string
-  role: string
-}
-
-interface AuthContextType {
-  user: UserProfile | null
-  isAuthenticated: boolean
-  login: (email: string, pass: string) => boolean
-  register: (company: string, email: string, pass: string) => boolean
-  logout: () => void
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-const DEFAULT_USER: UserProfile = {
-  name: 'Admin Éditeur',
-  email: 'admin@elbaraa-consult.com',
-  company: 'EL BARAA CONSULT',
-  role: 'Administrateur SaaS',
-}
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import {
+  ensureCsrf,
+  getCurrentUser,
+  login as apiLogin,
+  logout as apiLogout,
+  normalizeApiError,
+  register as apiRegister,
+} from '../api/client'
+import type { ApiError, LoginPayload, RegisterPayload, User } from '../types/index'
+import { AuthContext } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('amane_saas_user')
-    return saved ? JSON.parse(saved) : DEFAULT_USER
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // Détermine l'état de session au montage : chargement -> connecté/anonyme.
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('amane_saas_user', JSON.stringify(user))
-    } else {
-      localStorage.removeItem('amane_saas_user')
-    }
-  }, [user])
+    let cancelled = false
 
-  const login = (email: string, _pass: string) => {
-    const newUser: UserProfile = {
-      name: email.split('@')[0],
-      email,
-      company: 'EL BARAA CONSULT',
-      role: 'Administrateur SaaS',
+    async function bootstrap() {
+      try {
+        await ensureCsrf()
+      } catch {
+        // Le cookie CSRF n'a pas pu être posé (backend injoignable) : on tente
+        // quand même /auth/me/ ci-dessous, qui échouera de la même façon et
+        // laissera l'utilisateur dans l'état anonyme plutôt que de bloquer.
+      }
+      try {
+        const current = await getCurrentUser()
+        if (!cancelled) setUser(current)
+      } catch {
+        if (!cancelled) setUser(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    setUser(newUser)
-    return true
-  }
 
-  const register = (company: string, email: string, _pass: string) => {
-    const newUser: UserProfile = {
-      name: email.split('@')[0],
-      email,
-      company,
-      role: 'Fondateur Éditeur',
+    bootstrap()
+    return () => {
+      cancelled = true
     }
-    setUser(newUser)
-    return true
-  }
+  }, [])
 
-  const logout = () => {
-    setUser(null)
-  }
+  const login = useCallback(async (payload: LoginPayload): Promise<User> => {
+    setError(null)
+    try {
+      const current = await apiLogin(payload)
+      setUser(current)
+      return current
+    } catch (err) {
+      const apiError: ApiError = normalizeApiError(err)
+      setError(apiError.message)
+      throw apiError
+    }
+  }, [])
+
+  const register = useCallback(async (payload: RegisterPayload): Promise<User> => {
+    setError(null)
+    try {
+      const current = await apiRegister(payload)
+      setUser(current)
+      return current
+    } catch (err) {
+      const apiError: ApiError = normalizeApiError(err)
+      setError(apiError.message)
+      throw apiError
+    }
+  }, [])
+
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await apiLogout()
+    } finally {
+      // On désauthentifie côté client même si l'appel réseau échoue : rester
+      // « connecté » dans une UI qui n'arrive plus à parler au serveur serait pire.
+      setUser(null)
+    }
+  }, [])
+
+  const clearError = useCallback(() => setError(null), [])
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        role: user?.role ?? null,
+        loading,
+        error,
+        isAuthenticated: user !== null,
+        login,
+        register,
+        logout,
+        clearError,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth doit être utilisé à l\'intérieur de AuthProvider')
-  }
-  return context
-}

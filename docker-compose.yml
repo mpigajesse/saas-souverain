@@ -57,6 +57,10 @@ services:
       - pgdata-primary:/home/postgres/pgdata
     ports:
       - "5432:5432"
+      # Port de secours : sur un poste Windows où un PostgreSQL natif occupe
+      # déjà 5432, c'est lui qui répond sur localhost et le mapping ci-dessus
+      # est masqué. 5434 donne une route sûre vers le primaire du cluster.
+      - "5434:5432"
       - "8008:8008"
     depends_on:
       etcd:
@@ -107,12 +111,26 @@ services:
       dockerfile: Dockerfile
     container_name: saas_editor_backend
     restart: always
-    command: python manage.py runserver 0.0.0.0:8000
+    # migrate avant runserver : le conteneur peut redémarrer tant que Patroni
+    # n'a pas encore élu de primaire (restart: always relance jusqu'au succès).
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
+    # config/settings.py lit SECRET_KEY et DB_* via python-decouple : le fichier
+    # .env local (jamais committé) est la seule source de ces valeurs.
+    env_file:
+      - .env
+    volumes:
+      # Archives `docker save` de l'image du nœud PME. Montage lié (et non
+      # volume nommé) : le script de publication tourne sur l'hôte Windows et
+      # écrit directement dans ./media, que Django sert ensuite en
+      # téléchargement à la console.
+      - ./media:/app/media
     environment:
-      - DATABASE_URL=postgres://amane_admin:amane_password_sec2026@postgres-primary:5432/saas_editor
-      - DEBUG=True
+      # Depuis le réseau compose, on joint le primaire par son nom de service et
+      # son port interne — surtout pas le port publié côté hôte.
+      - DB_HOST=postgres-primary
+      - DB_PORT=5432
     depends_on:
       - postgres-primary
 
@@ -138,6 +156,25 @@ services:
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
 
+  # ── DISTRIBUTION DE L'IMAGE DU NŒUD PME ────────────────────
+
+  # Registre Docker de l'éditeur. Les machines PME du réseau local y tirent
+  # l'image du nœud : `docker pull <IP_DU_PC_EDITEUR>:5000/ss-node:v2`.
+  # Publié sur 0.0.0.0 comme le reste de la stack, donc joignable depuis le LAN.
+  # Registre en clair (HTTP) : réservé au banc de test, les postes clients
+  # doivent le déclarer en `insecure-registries` (les installeurs le font).
+  registry:
+    image: registry:2
+    container_name: saas_editor_registry
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      # Autorise la suppression d'une révision d'image (republication d'un tag).
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry_data:/var/lib/registry
+
   grafana:
     image: grafana/grafana:latest
     container_name: saas_editor_grafana
@@ -157,3 +194,4 @@ volumes:
   pgdata-primary:
   pgdata-replica:
   grafana_data:
+  registry_data:

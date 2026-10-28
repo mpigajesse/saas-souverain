@@ -3,10 +3,13 @@ from .models import License
 
 
 class LicenseSerializer(serializers.ModelSerializer):
+    # Nom du tenant aplati : la console React affiche le nom, pas l'UUID.
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True)
+
     class Meta:
         model = License
         fields = [
-            'id', 'tenant', 'plan', 'seats', 'starts_at',
+            'id', 'tenant', 'tenant_name', 'plan', 'seats', 'starts_at',
             'expires_at', 'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']

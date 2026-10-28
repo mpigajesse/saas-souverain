@@ -1,5 +1,7 @@
+import ipaddress
 import uuid
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -8,6 +10,89 @@ from rest_framework import status
 
 from tenants.models import Tenant
 from .models import Device
+
+
+def _ip_client(request) -> str:
+    """Adresse IP de la machine qui appelle, vue depuis le SaaS.
+
+    Le nœud tourne dans un conteneur : il ne connaît que son IP interne
+    (172.x) et n'a aucun moyen fiable de découvrir l'IP LAN de sa machine
+    hôte — celle par laquelle les autres nœuds le joindront. Le serveur, lui,
+    la voit dans la connexion entrante, car Docker fait sortir le trafic du
+    conteneur derrière l'adresse de l'hôte.
+
+    Derrière le proxy nginx, `REMOTE_ADDR` désigne le conteneur nginx : la
+    vraie adresse est en tête de `X-Forwarded-For`. Cet en-tête est falsifiable
+    par le client, mais sans conséquence ici — le nœud peut de toute façon
+    annoncer l'adresse qu'il veut dans `node_addr`.
+    """
+    transfere = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if transfere:
+        candidat = transfere.split(',')[0].strip()
+        if candidat:
+            return candidat
+    return request.META.get('REMOTE_ADDR', '') or ''
+
+
+def _est_une_ip(valeur: str) -> bool:
+    try:
+        ipaddress.ip_address(valeur)
+        return True
+    except ValueError:
+        return False
+
+
+def _ip_exploitable(ip: str) -> bool:
+    """Écarte les adresses internes au réseau Docker, inutilisables comme
+    adresse d'annonce.
+
+    **Docker Desktop (Windows et macOS) masque l'IP source** : le trafic entrant
+    par un port publié est réécrit à l'adresse de la passerelle du réseau bridge
+    (172.x.0.1). Toutes les machines du LAN arrivent donc avec la même adresse,
+    celle de la passerelle — inexploitable. Sur un hôte Docker Linux, l'IP réelle
+    du client est en revanche préservée et la détection fonctionne.
+
+    On écarte donc les plages listées dans `RESEAUX_NON_ANNONCABLES`
+    (par défaut `172.16.0.0/12`, celle où Docker place ses réseaux bridge).
+    Mieux vaut ne rien enregistrer qu'une adresse fausse mais crédible : un
+    champ vide se voit, `172.18.0.1:9001` passe inaperçu.
+
+    Réglage plutôt que détection dynamique : la règle doit donner le même
+    résultat que Django tourne dans un conteneur ou directement sur l'hôte.
+    Une PME dont le LAN est réellement en 172.16/12 renseignera `NODE_ADDR`.
+    """
+    if not _est_une_ip(ip):
+        return False
+
+    adresse = ipaddress.ip_address(ip)
+    for prefixe in getattr(settings, 'RESEAUX_NON_ANNONCABLES', ['172.16.0.0/12']):
+        try:
+            if adresse in ipaddress.ip_network(prefixe, strict=False):
+                return False
+        except ValueError:
+            continue
+    return True
+
+
+def _resoudre_adresse(annoncee: str, ip_client: str, port_defaut: str) -> str:
+    """Complète l'adresse annoncée par le nœud avec l'IP vue par le serveur.
+
+    Si le nœud a annoncé une vraie IP, on la respecte — il peut avoir une bonne
+    raison (machine multi-domiciliée, adresse de publication différente). Sinon
+    — champ vide, ou gabarit `<IP_VM>` laissé tel quel dans le compose — on
+    substitue l'adresse source de la requête en conservant le port annoncé.
+    """
+    hote, _, port = (annoncee or '').rpartition(':')
+    if not port.isdigit():
+        hote, port = (annoncee or ''), port_defaut
+
+    if _est_une_ip(hote):
+        return annoncee
+    if not _ip_exploitable(ip_client):
+        # Ni le nœud ni le serveur ne connaissent l'adresse : on laisse vide
+        # plutôt que d'enregistrer un gabarit ou une adresse du réseau Docker.
+        return ''
+    return f'{ip_client}:{port}'
 
 
 @api_view(['POST'])
@@ -59,9 +144,12 @@ def device_register(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    # Créer ou retrouver la machine par installation_id
-    node_addr = request.data.get('node_addr', '')
-    web_addr = request.data.get('web_addr', '')
+    # Créer ou retrouver la machine par installation_id.
+    # Les adresses annoncées sont complétées par l'IP source vue du serveur : le
+    # nœud, enfermé dans son conteneur, ne connaît pas l'IP LAN de son hôte.
+    ip_client = _ip_client(request)
+    node_addr = _resoudre_adresse(request.data.get('node_addr', ''), ip_client, '9001')
+    web_addr = _resoudre_adresse(request.data.get('web_addr', ''), ip_client, '3000')
     node_role = request.data.get('node_role', '')
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,

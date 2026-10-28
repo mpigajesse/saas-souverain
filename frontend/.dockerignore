@@ -1,0 +1,8 @@
+# Le Dockerfile fait `npm install` puis `COPY . .` : sans cette exclusion, les
+# node_modules de l'hôte (binaires natifs Windows d'esbuild/rollup) écrasent
+# ceux installés dans l'image Linux et le build casse.
+node_modules/
+dist/
+.env
+*.env
+*.log

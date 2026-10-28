@@ -30,6 +30,19 @@ pub async fn wal_receiver_active(pool: &PgPool) -> Result<bool> {
     Ok(row.0 > 0)
 }
 
+/// Position WAL reçue par ce standby, en octets.
+///
+/// Sert à départager deux standbys candidats à la promotion : le plus avancé
+/// gagne (moins de données perdues). Retourne `None` si la valeur est nulle ou
+/// illisible — sur un primaire, `pg_last_wal_receive_lsn()` renvoie NULL.
+pub async fn wal_receive_lsn(pool: &PgPool) -> Result<Option<u64>> {
+    let row: (Option<String>,) =
+        sqlx::query_as("SELECT pg_last_wal_receive_lsn()::text")
+            .fetch_one(pool)
+            .await?;
+    Ok(row.0.as_deref().and_then(crate::parse_lsn))
+}
+
 /// Check if the cluster can perform automatic failover (≥ 3 nodes required).
 /// Uses the count of replication slots or connected standbys visible from the primary.
 pub async fn connected_standby_count(pool: &PgPool) -> Result<i64> {
