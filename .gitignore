@@ -72,6 +72,9 @@ docs/*
 docs/bench/*
 !docs/bench/baseline.json
 *.pdf
+# Journal de refonte V3 : source, générateur et PDF partagés avec l'équipe
+!docs/refonte-v3/
+!docs/refonte-v3/*.pdf
 
 # Agents IA / configuration opencode
 .opencode/

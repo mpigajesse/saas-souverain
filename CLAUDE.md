@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **AMANE — Framework SaaS Souverain.** Monorepo polyglotte (Django + React, Go, Rust, Protobuf).
 Les données métier restent sur les machines du client (cluster PME) et ne sortent que chiffrées ; l'éditeur gère comptes et licences sans jamais lire les données métier.
+**Refonte V3 en cours (branche `main3`)** : AMANE devient une enveloppe d'exécution pour SaaS externes. Le journal `docs/refonte-v3/AMANE-Refonte-V3.md` (tri du dépôt, ADR, plan par étapes) fait foi : le mettre à jour à chaque étape et régénérer le PDF avec `python docs/refonte-v3/generer_pdf.py`.
 Documentation détaillée : `README.md` (V2, branche `main2`), `ACCES-INTERFACES.md` (toutes les URL des interfaces éditeur et PME), `AGENTS_IA_EXPLOITATION.md` (agents IA d'exploitation), `Architecture_SaaS_Souverain_Trois_Acteurs.md`.
 
 La langue du dépôt est le **français** : commentaires, messages de log, documentation, commits. S'y conformer.
