@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.4
-date: 2026-10-28
+version: 1.6
+date: 2026-10-29
 branche: main3
-statut: Étape 2 en cours — 2a terminée (laboratoire HA), 2b à venir
+statut: Étape 2 en cours — 2b commitée (validation sur le banc à faire), 2c non lancée
 ---
 
 # Fiche du document
@@ -23,6 +23,8 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.2 | 2026-10-28 | main3 | Compléments à l'étape 1 : compilation Rust confirmée, test de réplication corrigé, test V1 `mock_server.rs` retiré ; réplication synchrone ajoutée à ADR-001 et à l'étape 2 |
 | 1.3 | 2026-10-28 | main3 | ADR-004 (modalités de la HA PME, 7 décisions) ; `quorum.rs` réorienté plutôt que supprimé ; étape 2 découpée en 2a à 2d |
 | 1.4 | 2026-10-28 | main3 | Sous-étape 2a : image de l'orchestrateur, laboratoire HA trois machines, 10 scénarios de chaos réussis, 3 défauts de l'orchestrateur corrigés |
+| 1.5 | 2026-10-28 | main3 | ADR-005 (installation de la pile HA chez la PME, 5 décisions) ; défaut zero-knowledge des mots de passe dérivés du jeton |
+| 1.6 | 2026-10-29 | main3 / 08fa0a3 | Sous-étape 2b : pile PME générée (serveur, témoin), amorçage etcd, secrets locaux, HAProxy, images épinglées ; essai sur trois machines réussi ; procédure du banc |
 
 # 1. Objet de la refonte
 
@@ -83,6 +85,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-002 | Formats d'exécutables acceptés : Docker d'abord, binaires et .exe ensuite | Acceptée | 2026-10-28 |
 | ADR-003 | Zero-knowledge strict : aucun clair hors du cluster PME, clés confinées | Acceptée | 2026-10-28 |
 | ADR-004 | Modalités de la HA PME : témoin etcd, synchrone strict dès 3 nœuds, garde de quorum en lecture | Acceptée | 2026-10-28 |
+| ADR-005 | Installation de la pile HA chez la PME : amorçage etcd, témoin, images, secrets, HAProxy | Acceptée | 2026-10-28 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -150,6 +153,27 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Preuves attendues.** Chaque promesse est vérifiée par un scénario de chaos automatisé sur un laboratoire simulant trois machines (sous-étape 2a) : arrêt brutal du primaire, primaire isolé (doit cesser d'écrire), partition minoritaire (aucune promotion), cluster 2 + témoin, perte d'un standby en mode strict et non strict.
 
+## ADR-005 — Installation de la pile HA chez la PME
+
+**Contexte.** La sous-étape 2b remplace la pile PME V2 (PostgreSQL nu, bascule décidée par le nœud Rust) par la pile validée en laboratoire (ADR-004). Il faut décider comment elle s'installe sur des machines réelles. En préparant ce travail, un défaut de zero-knowledge a été relevé : les mots de passe PostgreSQL et pgAdmin d'une PME sont dérivés de son jeton d'enregistrement (`_derive_credentials`), que le portail de l'éditeur connaît ; l'éditeur peut donc les recalculer, et l'espace PME du portail les affiche. C'est contraire à ADR-003.
+
+**Décisions (2026-10-28).**
+
+| # | Sujet | Décision |
+|---|---|---|
+| 1 | Formation du cluster etcd | Un **conteneur d'initialisation** exécuté une fois au démarrage, écrit en Go dans l'image de l'orchestrateur : il demande au portail les IP des machines déjà installées, se fait ajouter au cluster etcd **directement sur le réseau local** (`member add`) et écrit la configuration d'etcd. Logique testable, identique sous Windows et Linux ; installeurs allégés |
+| 2 | Installation d'un témoin | Un **installeur « témoin » distinct**, téléchargeable depuis l'espace PME ; le portail le propose quand le cluster compte 2 serveurs |
+| 3 | Provenance des images | Toutes servies par le **registre de l'éditeur** et **épinglées par digest** (`sha256:…`) : la PME exécute exactement ce qui a été validé |
+| 4 | Mots de passe de la base | **Générés aléatoirement sur la première machine** et transmis aux suivantes par etcd, donc uniquement sur le réseau de la PME. L'éditeur ne peut plus les connaître ; le portail cesse d'afficher les identifiants pgAdmin, visibles uniquement en local |
+| 5 | Configuration de HAProxy | **Régénérée et rechargée par l'orchestrateur** à partir des membres Patroni enregistrés dans etcd |
+
+**Conséquences.**
+
+- Le portail ne fournit que des métadonnées (IP des machines) ; l'amorçage etcd, les secrets et le routage vers le primaire se font sur le réseau de la PME.
+- Sécurité de l'amorçage : une machine qui connaît des pairs mais ne parvient à en joindre aucun **refuse de créer un cluster séparé** (sinon deux clusters indépendants, donc deux primaires). Créer un nouveau cluster malgré des pairs connus exige une action explicite.
+- Tant que le nœud Rust n'est pas recentré (2c), sa bascule automatique est neutralisée par configuration (`CLUSTER_PEERS` vide) : deux décideurs simultanés provoqueraient un double primaire.
+- Les secrets transitent en clair entre machines de la PME jusqu'au mesh WireGuard (étape 4, ADR-004 décision 6) ; ils ne sortent jamais du réseau de la PME.
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -200,7 +224,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 0 | Branche `main3`, instantané V2, présent document | Terminée |
 | 1 | Nettoyage : suppressions du § 4.3, un commit par catégorie | Terminée |
 | 2a | Image Docker de l'orchestrateur ; laboratoire simulant trois machines ; scénarios de chaos prouvant chaque promesse (ADR-001, ADR-004) | Terminée |
-| 2b | Gabarit compose PME (etcd, Patroni, orchestrateur, HAProxy), installeurs, génération par le portail, tests Django | À faire |
+| 2b | Gabarit compose PME (etcd, Patroni, orchestrateur, HAProxy), installeurs, génération par le portail, tests Django (ADR-005) | Réalisée ; validation sur le banc AMANE Test à faire (annexe) |
 | 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | À faire |
 | 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | À faire |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
@@ -384,6 +408,76 @@ Les crashs de processus basculent en 3,3 à 3,7 s et la panne d'une machine en 4
 - Chaos : 10 scénarios sur 10 réussis sur la campagne finale.
 - Aucun changement Django, React ni Rust dans cette sous-étape.
 
+## Étape 2b — Pile PME réelle (2026-10-29)
+
+**Objectif.** Faire de la pile validée en laboratoire (2a) ce que le portail génère et ce que les installeurs déploient réellement chez une PME, selon les cinq décisions d'ADR-005.
+
+### Comment une PME s'installe désormais
+
+1. **Premier serveur.** L'installeur écrit un `.env` (IP LAN, nom de la machine), télécharge la pile et la démarre. L'amorçage (`orchestrator init`) demande au portail les machines déjà installées : il n'y en a pas, il crée un cluster etcd à un membre. L'orchestrateur génère les mots de passe, les enregistre dans etcd, crée le rôle `amane` sur le primaire et écrit la configuration HAProxy.
+2. **Serveur suivant.** Le portail lui donne l'IP du premier. L'amorçage s'ajoute au cluster etcd **directement sur le réseau local** (`member add`), l'orchestrateur lit les mêmes mots de passe dans etcd, Patroni clone la base et en fait un standby synchrone.
+3. **Témoin.** Même amorçage, puis etcd seul ; il s'annonce au portail (type `temoin`) et ne consomme pas de poste.
+
+Plus aucune question n'est posée à l'installation (fini « IP du nœud primaire ? ») et aucun mot de passe n'est calculé par l'installeur ni connu du portail.
+
+### Ce qui a été livré
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Orchestrateur Go | `bootstrap/`, `cmd/orchestrator/pme.go` | Sous-commande `init` : amorçage etcd (création, ajout, refus de créer un cluster séparé si des machines connues sont injoignables), droits des volumes, secrets générés et partagés par etcd |
+| | `dcs/`, `haproxy/` | Lecture des membres et du leader Patroni ; configuration HAProxy régénérée et rechargée à chaud |
+| | `provision/` | Rôle `amane` et base `amane` créés sur le primaire (idempotent) |
+| | `portail/`, sous-commande `temoin` | Liste des machines, signalement du témoin (métadonnées seules) |
+| | `supervisor/`, `consensus/client.go` | Découverte des membres dans etcd ; client etcd qui apprend tous les membres à partir de l'etcd local |
+| Pile générée | `templates/tenants/docker-compose.yml.tmpl`, `docker-compose-temoin.yml.tmpl` | Serveur : amorçage, etcd, Spilo/Patroni 17, orchestrateur, HAProxy, nœud, pgAdmin ; témoin : amorçage, etcd, signalement |
+| Installeurs | `install-linux.sh.tmpl`, `install-windows.bat.tmpl` | 8 étapes identiques ; type de machine ; arrêt de l'ancienne pile V2 sans perte de ses volumes ; nouveau dossier d'installation |
+| Portail | `tenants/pile.py`, `tenants/services.py`, `api_espace.py`, `api_pme.py` | Images épinglées par digest (503 sans manifeste) ; paramètre `?type=` (serveur ou témoin) ; suppression des mots de passe dérivés ; témoin conseillé |
+| | `devices/` (migration 0006) | `node_kind` ; un témoin ne consomme pas de poste |
+| Console | `MonEspacePage.tsx`, types, client | Plus de mot de passe affiché ; encart et installeurs du témoin |
+| Publication | `scripts/publier-pile.sh` | Pousse les six images dans le registre de l'éditeur et écrit leurs digests |
+| Essais | `ha-lab/pme/` | Laboratoire d'installation machine par machine |
+| Divers | `docker-compose.yml` (dev), `CONTRAT-API.md`, CI | Variables Spilo corrigées, option inexistante retirée ; contrat d'API à jour ; nouveaux paquets au plancher de couverture |
+
+### Choix faits pendant la sous-étape
+
+- **Rôle de connexion `amane` créé par l'orchestrateur.** Spilo ne fournit qu'un rôle `admin` sans droit de connexion (son `post_init` force `NOLOGIN`, et Patroni 4 a retiré `bootstrap.users`). L'orchestrateur, qui détient le mot de passe superutilisateur sans qu'il quitte la PME, crée le rôle et la base de façon idempotente. C'est aussi la brique dont l'étape 3 aura besoin pour la base de l'application hébergée.
+- **Connexions non chiffrées admises sur le réseau PME** (`ALLOW_NOSSL`). Spilo refuse par défaut toute connexion distante sans TLS ; le nœud (sqlx sans TLS) et bien des applications ne savent pas chiffrer. Le chiffrement entre machines viendra du mesh WireGuard (étape 4, ADR-004 décision 6).
+- **Le nœud reste connecté à son PostgreSQL local** (et non à HAProxy) jusqu'à son recentrage (2c) : il continue ainsi de lire le vrai rôle de sa machine. Sa bascule est neutralisée (`CLUSTER_PEERS` vide).
+- **`NODE_MODE` change de sens** : il ne désigne plus le rôle PostgreSQL mais le premier serveur, qui génère la DEK. Détecté par l'installeur via `cluster-status` (les témoins ne comptent pas).
+- **Watchtower retiré.** Avec des images épinglées par digest, une mise à jour passe par une nouvelle publication et une nouvelle pile, jamais par un remplacement automatique.
+- **Repli sur l'archive de l'image retiré.** Une image chargée depuis une archive n'a pas le digest du registre : elle contredirait l'épinglage.
+- **Réinstallation des bancs** (ADR-004 décision 4) : nouveau dossier (`/opt/amane-pme`, `%PROGRAMDATA%\Amane\PME`) ; l'ancienne pile est arrêtée mais ses volumes sont conservés.
+
+### Défauts trouvés et corrigés en cours de route
+
+| Défaut | Comment il a été trouvé | Correction |
+|---|---|---|
+| Spilo ignore `PGPASSWORD_REPLICATION` et les `PATRONI_*_PASSWORD` : le mot de passe de réplication restait `standby` | Lecture du code de Spilo | Variables lues par Spilo (`PGPASSWORD_STANDBY`…) ; compose de développement corrigé |
+| Rôle `admin` de Spilo sans connexion | Laboratoire d'installation | Rôle `amane` créé par l'orchestrateur |
+| Client figé derrière HAProxy après la panne d'une machine (connexion vers une machine morte jamais coupée après un rechargement) | Laboratoire d'installation | `hard-stop-after 30s`, `retries`, `option redispatch` |
+| Digest d'une image multi-architecture absent du registre (« manifest unknown » chez la PME) | Essai sur trois machines | Le script de publication lit le digest auprès du registre |
+| Membres Patroni nommés d'après l'identifiant du conteneur : l'orchestrateur ne reconnaissait pas son nœud | Essai sur trois machines | `hostname` du conteneur PostgreSQL = nom de la machine ; test Django dédié |
+| Identifiant du témoin non inscriptible (volume root, orchestrateur non privilégié) | Relecture | Dossier préparé par l'amorçage |
+| Vulnérabilité de `pgx` v5.7.5 (GO-2026-5004) et de `x/text` v0.37 rendue atteignable | `govulncheck` | `pgx` v5.9.2, `x/text` v0.41.0 |
+
+### Vérifications
+
+- **Go** : build, vet, tests unitaires et d'intégration sur etcd réel, tous réussis. Couverture par paquet : `dcs` 93 %, `portail` 85 %, `bootstrap` 74 %, `haproxy` 67 %, `provision` 42 % (son test d'intégration exige un PostgreSQL, absent en CI ; paquet hors plancher).
+- **Django** : 71 tests réussis, dont une suite V3 de la pile (`tenants/tests.py`) : images épinglées et refus sans manifeste, absence de secret, bascule du nœud neutralisée, nom du membre Patroni, témoin, parité des installeurs, `.bat` en ASCII pur.
+- **Frontend** : build et lint sans erreur.
+- **Laboratoire d'installation** (`ha-lab/pme`) : 4 vérifications sur 4 (premier serveur, ajout du second avec les mêmes secrets, témoin, bascule vue par HAProxy en 6,5 s sans perte).
+- **Essai Docker-dans-Docker** : trois « machines » à IP, moteur Docker et ports publiés propres, faisant tourner **le compose généré par le portail** et les images publiées par le script : premier serveur leader, second en standby synchrone, mêmes secrets, témoin à 3 membres etcd, puis coupure brutale de la machine du primaire → écritures reprises par le HAProxy de l'autre machine en 7 s, zéro perte.
+- **À faire** : validation sur le banc AMANE Test (procédure en annexe) — pare-feu Windows, Docker Desktop, vraies IP LAN.
+
+**Commits.**
+
+| Commit | Contenu |
+|---|---|
+| `2722c6a` | Orchestrateur : amorçage etcd, secrets partagés, rôle `amane`, HAProxy, témoin, découverte des membres ; laboratoire `ha-lab/pme` ; CI |
+| `08fa0a3` | Portail : gabarits serveur et témoin, images épinglées, suppression des secrets côté portail, installeurs, `node_kind`, console, script de publication, tests V3, compose de développement, contrat d'API |
+
+**Suite.** La sous-étape 2c (recentrage du nœud Rust) n'est pas lancée : elle attend la validation de 2b sur le banc AMANE Test et l'accord explicite pour démarrer.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -394,10 +488,12 @@ Les crashs de processus basculent en 3,3 à 3,7 s et la panne d'une machine en 4
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
 | Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? | ADR-002 |
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
-| Formation du cluster etcd | Comment une machine qui rejoint un cluster existant devient-elle membre etcd (liste générée par le portail, ajout de membre) sans intervention manuelle ? | ADR-004, étape 2b |
 | Délais de bascule | Isolement réseau à 6–7 s, panne de machine autour de 5 s : régler `loop_wait` et la durée du heartbeat sur le banc réel, sans augmenter les fausses détections | ADR-004, étape 2d |
-| Adresses annoncées par Patroni | Dans la pile PME, `PG_CONNECT_ADDRESS` et `RESTAPI_CONNECT_ADDRESS` doivent valoir l'IP LAN de la machine (ports publiés), etcd doit accepter le keepalive d'une seconde | Étape 2b |
-| Compose de développement | Retirer `synchronous_mode_stop_on_limit` (inexistante) et remplacer les `PATRONI_*_CONNECT_ADDRESS` ignorées par Spilo | Étape 2b |
+| Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
+| Rôle remonté au portail | Le nœud lit encore son rôle dans PostgreSQL local ; à remplacer par la garde de quorum en lecture | Étape 2c |
+| Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |
+| Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
+| Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
 | Filtres de chemins de `chaos-tests.yml` | Le workflow surveille `consensus/**`, `supervisor/**`… à la racine, alors que ces dossiers sont sous `orchestrator-go/` : il ne se déclenche jamais sur une PR | CI |
 
 # Annexe — Mettre à jour ce document
@@ -406,3 +502,29 @@ Les crashs de processus basculent en 3,3 à 3,7 s et la panne d'une machine en 4
 2. Incrémenter la version dans l'en-tête et ajouter une ligne à l'historique des versions.
 3. Régénérer le PDF : `python docs/refonte-v3/generer_pdf.py` (dépendance : `reportlab`).
 4. Commiter la source et le PDF ensemble, par exemple `docs(refonte): étape 1 — nettoyage`.
+
+# Annexe — Validation sur le banc AMANE Test (étape 2b)
+
+Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin avec la pile générée, puis vérifier la bascule réelle.
+
+**Côté éditeur (portail).**
+
+1. Démarrer la pile de développement (`docker compose up -d`) : portail, registre local (port 5000).
+2. Construire l'image du nœud (`spike\build-node.ps1`), puis publier la pile : `bash scripts/publier-pile.sh localhost:5000`. Vérifier que `media/node-images/pile.json` liste six images `@sha256:`.
+3. Dans la console, **désactiver les anciennes machines** du tenant AMANE Test. Sinon l'amorçage verrait des machines connues mais injoignables et refuserait, à juste titre, de créer un cluster.
+
+**Côté PME (les trois postes).**
+
+4. Depuis l'espace PME du tenant, télécharger l'installeur **serveur** et le lancer en administrateur sur le poste 1. Noter le mot de passe pgAdmin affiché à la fin.
+5. Lancer l'installeur **serveur** sur le poste 2 ; il doit annoncer « 1 serveur(s) déjà installé(s) ».
+6. L'espace PME doit alors proposer un témoin : télécharger l'installeur **témoin** et le lancer sur le poste 3.
+
+**Vérifications.**
+
+7. Sur un serveur : `docker exec amane-postgresql patronictl list` → un `Leader` et un `Sync Standby` en `streaming`, nommés d'après les postes.
+8. `docker exec amane-etcd etcdctl member list` → 3 membres `started`.
+9. Console éditeur : 2 serveurs et 1 témoin actifs ; la licence ne compte que les 2 serveurs.
+10. Bascule : éteindre brutalement le poste du primaire (alimentation) ; sur l'autre serveur, `patronictl list` doit le montrer `Leader` en quelques secondes ; pgAdmin (port 5050) doit pouvoir écrire.
+11. Rallumer le poste : il doit revenir en `Replica` puis `Sync Standby`.
+
+Consigner les résultats et les durées dans le § 6 (étape 2d pour les mesures fines).
