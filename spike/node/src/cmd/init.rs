@@ -112,7 +112,7 @@ pub async fn run(first_node: bool, config_path: &Path) -> Result<()> {
             Some(hex::encode(&recovery_blob)),
         )
     } else {
-        println!("  Aucune DEK — utilisez 'ss-node enroll' pour recevoir la DEK du cluster");
+        println!("  Aucune DEK — utilisez 'ss-node enroler' pour recevoir la DEK du cluster");
         (None, None, None)
     };
 

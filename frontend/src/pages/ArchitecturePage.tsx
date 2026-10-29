@@ -287,10 +287,9 @@ export default function ArchitecturePage() {
           <div style={{ fontFamily: 'monospace', fontSize: '.76rem', lineHeight: 2, color: 'var(--text-secondary)' }}>
             <div><strong style={{ color: '#4F46E5' }}>DEK</strong> — symétrique, unique par cluster</div>
             <div style={{ paddingLeft: '14px' }}>├▶ chiffre le journal du nœud et les sauvegardes</div>
-            <div style={{ paddingLeft: '14px' }}>├▶ <strong style={{ color: '#059669' }}>sealed box X25519</strong></div>
+            <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>sealed box X25519</strong></div>
             <div style={{ paddingLeft: '28px' }}>└▶ une par serveur enrôlé</div>
-            <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>KEK — Shamir K=2/N=3</strong></div>
-            <div style={{ paddingLeft: '28px' }}>└▶ récupération d'urgence, sans tiers de confiance</div>
+            <div style={{ paddingLeft: '14px', color: 'var(--text-muted)' }}>récupération après perte totale (code PME, Shamir) : à venir</div>
           </div>
           <div style={{ marginTop: '14px', fontFamily: 'monospace', fontSize: '.76rem', lineHeight: 2, color: 'var(--text-secondary)' }}>
             <div><strong style={{ color: '#4F46E5' }}>Enrôlement d'un nouveau serveur</strong> (opération humaine)</div>
@@ -311,7 +310,7 @@ export default function ArchitecturePage() {
             { color: '#F59E0B', title: '2 serveurs — synchrone non strict, alerte', sub: 'Un serveur seul continue d\'écrire ; la PME est prévenue que ses données ne sont plus protégées' },
             { color: '#EF4444', title: '2 serveurs sans témoin — pas de quorum', sub: 'La panne de l\'un bloque les écritures : le portail demande d\'installer un témoin' },
             { color: '#F59E0B', title: 'Fencing — timeline PostgreSQL', sub: 'Un ancien primaire revenu ne peut plus écrire · split-brain impossible' },
-            { color: '#EF4444', title: 'Sinistre — restauration depuis le relais', sub: 'Sauvegarde chiffrée récupérée et déchiffrée par un serveur enrôlé' },
+            { color: '#EF4444', title: 'Perte de données — restauration depuis le relais', sub: 'Sauvegarde chiffrée récupérée et déchiffrée par un serveur enrôlé' },
           ].map((item, idx, arr) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
               <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: item.color, flexShrink: 0, marginTop: '5px' }} />

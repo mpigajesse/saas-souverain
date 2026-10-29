@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.2
+version: 2.3
 date: 2026-10-29
 branche: main3
-statut: Étape 6 terminée — étape 7 à suivre
+statut: Étapes 1 à 7 terminées — validation sur le banc à faire
 ---
 
 # Fiche du document
@@ -31,6 +31,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.0 | 2026-10-29 | main3 | Étape 4 : réseau de l'application sans sortie, enrôlement des serveurs par code à usage unique, sauvegardes chiffrées sur le relais, chiffrement du disque vérifié ; ADR-008 ; routes de blobs du relais corrigées |
 | 2.1 | 2026-10-29 | main3 | Étape 5 : catalogue des applications hébergées (modèle, validation contre le registre, rattachement à la licence) ; ADR-009 ; contrat d'API à jour des champs V3 |
 | 2.2 | 2026-10-29 | main3 | Étape 6 : console React — page Applications, application rattachée aux licences, états V3 des machines, page Architecture réécrite pour la V3 |
+| 2.3 | 2026-10-29 | main3 | Étape 7 : documentation V3 (README, CLAUDE.md, accès, architecture, agents IA), `pme-deploy/` retiré ; absence de récupération de la DEK en cas de perte totale identifiée comme premier point ouvert ; procédure du banc complétée |
 
 # 1. Objet de la refonte
 
@@ -298,7 +299,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 4 | Confinement et chiffrement : réseau interne sans sortie, enrôlement des serveurs, sauvegardes chiffrées via le relais, chiffrement du disque vérifié (ADR-003, ADR-008) | Terminée |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
 | 6 | Console React : page Applications, mise à jour Architecture | Terminée |
-| 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | À faire |
+| 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | Terminée |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
 
 # 6. Journal des étapes
@@ -671,10 +672,33 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 
 **Vérifications.** `tsc -b` sans erreur, `eslint` sans avertissement, `vite build` réussi. Les pages n'ont pas été parcourues dans un navigateur contre un portail réel (à faire lors de la validation sur le banc).
 
+## Étape 7 — Documentation (2026-10-29)
+
+**Ce qui a été fait.**
+
+| Document | Changement |
+|---|---|
+| `README.md` | Réécrit : il décrivait la V2 (missions A, B, C) et renvoyait à un fichier absent. Il présente l'enveloppe d'exécution, les acteurs, la pile d'une machine PME, les garanties, la carte du dépôt, la publication, l'installation et les tests |
+| `CLAUDE.md` | Carte du dépôt (applications, pile générée, laboratoire), application hébergée, clés et enrôlement, HA avec témoin, commandes (laboratoire, publication), pièges (`pme-deploy` et pages HTML retirés, syntaxe des routes axum 0.7) |
+| `ACCES-INTERFACES.md` | Réécrit : ports de la pile PME, page Applications, routes publiques des machines, console du nœud sous `/amane/`, commandes d'enrôlement, de sauvegarde et de restauration, nouvelles pannes courantes. Les pages HTML Django et l'interface de stock, retirées, n'y figurent plus |
+| `Architecture_SaaS_Souverain_Trois_Acteurs.md` | Réécrit pour la V3 : quatre acteurs (l'éditeur du SaaS hébergé en plus), hébergement de l'application, HA avec témoin, clés, parcours d'installation avec enrôlement, récupération ; les règles V1 remplacées sont signalées comme telles |
+| `AGENTS_IA_EXPLOITATION.md` | Assistant d'installation : topologie avec témoin ; l'enrôlement n'est plus généré par l'agent (QR) mais expliqué, l'administrateur gardant seul le code et la DEK |
+| `CONTRAT-API.md` | Déjà mis à jour à l'étape 5 |
+| `pme-deploy/` | **Retiré.** C'était la pile V2 posée à la main (primaire et standby sans DCS, comptes de l'ancienne interface de stock), remplacée par la pile générée depuis l'étape 2b. L'historique Git et la branche `main2` la conservent |
+
+**Défaut trouvé en vérifiant la documentation.** L'ancienne documentation et la page Architecture de l'étape 6 annonçaient une récupération d'urgence de la DEK (code Argon2id, parts Shamir). Le socle la fournit, mais **la pile Docker ne l'utilise pas** : seule l'initialisation interactive, hors pile, crée un blob de récupération, et il reste sur la machine. Conséquence : si tous les serveurs enrôlés sont perdus, les sauvegardes du relais sont irrécupérables. La documentation et la page ont été corrigées pour dire ce qui existe, et le point est inscrit en tête du § 7. Corrigé au passage : le nœud conseillait `ss-node enroll`, la commande s'appelle `enroler`.
+
+**Vérifications.** Console : `tsc -b`, `eslint`, `vite build` réussis après la correction de la page Architecture ; nœud : tests Rust réussis après la correction du message ; aucune référence restante à `pme-deploy/` dans les fichiers suivis, hors historique de ce journal.
+
+## Bilan des étapes 1 à 7
+
+AMANE V3 sait, de bout en bout dans le code : admettre l'application d'un éditeur tiers (catalogue, validation contre le registre), l'attribuer à une PME (licence), générer sa pile et ses installeurs, l'installer en haute disponibilité (etcd + Patroni + HAProxy, témoin), exécuter l'application inchangée sur un réseau sans sortie avec sa base dédiée, transmettre la DEK aux serveurs par une opération humaine, sauvegarder chiffré sur le relais et signaler à la PME ce qui menace ses données (quorum, réplication, témoin, disque). Ce qui reste avant une mise en service est au § 7, en tête : la récupération de la DEK après perte totale, la validation sur le banc réel et l'essai de bout en bout de l'étape 3.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
+| **Récupération de la DEK après perte totale** (prioritaire) | Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : s'ils sont tous perdus, les sauvegardes du relais sont irrécupérables. À faire : à la création du cluster, emballer la DEK sous un secret que seule la PME détient (code de récupération Argon2id affiché une fois, ou parts Shamir), déposer ce blob sur le relais, et une commande de reconstitution sur une installation neuve. Primitives déjà dans `ss-crypto` ; opération humaine | ADR-003, ADR-008 |
 | Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
 | Mises à jour de l'application | Une nouvelle version est validée par l'éditeur AMANE (ADR-009) ; reste : signature des images (cosign) en plus du digest, et propagation aux machines installées (régénération de la pile aujourd'hui) | ADR-002, ADR-009 |
@@ -683,14 +707,14 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
-| Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire) | Étape 3 |
+| Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire), en y ajoutant l'enrôlement et une sauvegarde | Étapes 3, 4 |
+| Console React non parcourue | Les pages des étapes 5 et 6 ont été vérifiées par compilation, lint et build, pas dans un navigateur contre un portail réel | Étape 6, banc |
 | WebSockets | Le relais du nœud ne relaie pas encore les connexions WebSocket | ADR-007 |
 | Enrôlement sur un réseau hostile | L'échange d'enrôlement passe en HTTP sur le réseau local : la DEK y est scellée, mais un attaquant placé au milieu pourrait capter le code et substituer sa clé publique, ou remettre une fausse DEK. Piste : afficher l'empreinte de la clé du nouveau serveur dans la console pour confirmation humaine, ou TLS du mesh | ADR-008 |
 | Mesh WireGuard | Reporté au-delà de l'étape 7 ; à valider sur le banc (`NET_ADMIN`, Docker Desktop) | ADR-008 |
 | Taille des sauvegardes | L'export est chiffré en mémoire en un seul bloc (limite pratique : quelques centaines de Mo). Au-delà : chiffrement par morceaux en flux | ADR-008 |
 | Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes. Le jeton doit être propre au tenant, sinon un tenant pourrait écraser les blobs d'un autre | ADR-008, étape 5 |
 | Sauvegarde sur un serveur non enrôlé | Un primaire sans DEK ne sauvegarde pas (il le signale dans ses journaux). Alerter le portail ? | ADR-008 |
-| Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
 | Filtres de chemins de `chaos-tests.yml` | Le workflow surveille `consensus/**`, `supervisor/**`… à la racine, alors que ces dossiers sont sous `orchestrator-go/` : il ne se déclenche jamais sur une PR | CI |
@@ -702,7 +726,7 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 3. Régénérer le PDF : `python docs/refonte-v3/generer_pdf.py` (dépendance : `reportlab`).
 4. Commiter la source et le PDF ensemble, par exemple `docs(refonte): étape 1 — nettoyage`.
 
-# Annexe — Validation sur le banc AMANE Test (étape 2b)
+# Annexe — Validation sur le banc AMANE Test (étapes 2b à 4)
 
 Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin avec la pile générée, puis vérifier la bascule réelle.
 
@@ -715,7 +739,7 @@ Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin
 **Côté PME (les trois postes).**
 
 4. Depuis l'espace PME du tenant, télécharger l'installeur **serveur** et le lancer en administrateur sur le poste 1. Noter le mot de passe pgAdmin affiché à la fin.
-5. Lancer l'installeur **serveur** sur le poste 2 ; il doit annoncer « 1 serveur(s) déjà installé(s) ».
+5. Lancer l'installeur **serveur** sur le poste 2 ; il doit annoncer « 1 serveur(s) déjà installé(s) ». Puis l'**enrôler** (étape 4) : dans la console du poste 1 (`http://<poste 1>:9001/amane/admin/enrolement`), générer un code, et sur le poste 2 lancer `docker exec ss-node ss-node enroler --depuis http://<poste 1>:9001 --code <code>` puis `docker restart ss-node`.
 6. L'espace PME doit alors proposer un témoin : télécharger l'installeur **témoin** et le lancer sur le poste 3.
 
 **Vérifications.**
@@ -725,5 +749,7 @@ Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin
 9. Console éditeur : 2 serveurs et 1 témoin actifs ; la licence ne compte que les 2 serveurs.
 10. Bascule : éteindre brutalement le poste du primaire (alimentation) ; sur l'autre serveur, `patronictl list` doit le montrer `Leader` en quelques secondes ; pgAdmin (port 5050) doit pouvoir écrire.
 11. Rallumer le poste : il doit revenir en `Replica` puis `Sync Standby`.
+12. Sauvegarde : `docker exec ss-node ss-node sauvegarder` sur le primaire ; le blob doit apparaître sur le relais (page Relais de la console) et ne contenir aucune donnée lisible.
+13. Console éditeur : la page Appareils doit montrer l'état du disque de chaque poste (chiffré ou non) et le témoin.
 
 Consigner les résultats et les durées dans le § 6 (étape 2d pour les mesures fines).
