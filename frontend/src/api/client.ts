@@ -329,7 +329,9 @@ export function downloadComposeUrl(): string {
   return `${getApiOrigin()}/api/tenants/me/download/compose/`
 }
 
-/** URL absolue de téléchargement du script d'installation (linux|windows). */
-export function downloadInstallerUrl(os: 'linux' | 'windows'): string {
-  return `${getApiOrigin()}/api/tenants/me/download/installer/${os}/`
+/** URL absolue de téléchargement du script d'installation (linux|windows),
+ *  pour un serveur (défaut) ou un témoin etcd. */
+export function downloadInstallerUrl(os: 'linux' | 'windows', type: 'serveur' | 'temoin' = 'serveur'): string {
+  const suffixe = type === 'temoin' ? '?type=temoin' : ''
+  return `${getApiOrigin()}/api/tenants/me/download/installer/${os}/${suffixe}`
 }

@@ -1,38 +1,36 @@
 {% autoescape off %}#!/bin/bash
-# EL BARAA CONSULT — Installateur PME (Linux)
+# EL BARAA CONSULT — Installateur PME (Linux) — machine {{ type_machine|upper }}
 # Généré le : {{ generated_at }}
 # Tenant    : {{ tenant.name }}
 #
 # Cet installeur et son homologue Windows (.bat) déroulent EXACTEMENT les mêmes
-# étapes, dans le même ordre, et déploient la même pile : le docker-compose.yml
-# n'est plus généré ici, il est téléchargé depuis le portail éditeur
+# étapes et déploient la même pile, téléchargée depuis le portail éditeur
 # (`/api/tenants/pme/compose/`), unique définition de la pile.
+#
+# Refonte V3 (ADR-005) : plus aucune question sur le primaire ni aucun mot de
+# passe calculé ici. Les machines se coordonnent seules sur le réseau local
+# (etcd + Patroni) et les mots de passe sont générés par la première machine,
+# sans jamais passer par le portail.
 set -e
 
 # ── Variables injectées par le portail éditeur ────────────────────────────────
+TYPE_MACHINE="{{ type_machine }}"
 REGISTRATION_TOKEN="{{ tenant.registration_token }}"
 RELAY_URL="{{ relay_url }}"
 SAAS_URL="http://{{ saas_host }}:{{ saas_port }}"
-NODE_IMAGE="{{ node_image }}"
-INSTALL_DIR="/opt/elbaraa-pme"
-
 REGISTRY_HOST="{{ registry_host }}"
+INSTALL_DIR="/opt/amane-pme"
+ANCIEN_DIR="/opt/elbaraa-pme"
 
-# Port unique de l'interface web métier — même valeur sur Windows et Linux,
+# Port unique de l'interface web du nœud — même valeur sur Windows et Linux,
 # c'est aussi le port annoncé au portail dans NODE_ADDR.
 WEB_PORT=9001
-
-# Filet : si l'éditeur a servi un nom d'image sans registre (ex. « ss-node:v2 »),
-# le préfixer par le registre de l'éditeur — sinon Docker irait le chercher sur
-# le Docker Hub, où l'image n'existe pas.
-if [ -z "$NODE_IMAGE" ] || [[ "$NODE_IMAGE" != *"/"* ]]; then
-    NODE_IMAGE="${REGISTRY_HOST}/ss-node:v2"
-fi
 
 echo ""
 echo "===================================================="
 echo "  EL BARAA CONSULT — Installation logiciel PME"
 echo "  Tenant : {{ tenant.name }}"
+echo "  Machine : ${TYPE_MACHINE}"
 echo "===================================================="
 echo ""
 
@@ -44,24 +42,26 @@ fi
 
 mkdir -p "${INSTALL_DIR}"
 
-# ── 1. Détecter l'IP de cette machine ────────────────────────────────────────
-echo "[1/10] Détection de l'adresse réseau..."
+# ── 1. Adresse réseau et nom de la machine ───────────────────────────────────
+echo "[1/8] Détection de l'adresse réseau..."
 MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read -r ip; do
     prefix=$(echo "$ip" | cut -d. -f1-3)
     saas_prefix=$(echo "{{ saas_host }}" | cut -d. -f1-3)
     if [ "$prefix" = "$saas_prefix" ]; then echo "$ip"; break; fi
 done)
 [ -z "$MY_IP" ] && MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | head -1)
-[ -z "$MY_IP" ] && MY_IP="127.0.0.1"
-SUBNET_PREFIX=$(echo "$MY_IP" | cut -d. -f1-3)
-# Nom réel de la machine : sans lui, les deux nœuds du parc s'annoncent
-# tous les deux sous « node1 » et sont indiscernables dans la console.
-MY_HOSTNAME=$(hostname 2>/dev/null || echo "node-linux")
-PG_REPLICATION_SUBNET="${SUBNET_PREFIX}.0/24"
-echo "       IP détectée : $MY_IP  (sous-réseau ${PG_REPLICATION_SUBNET})"
+if [ -z "$MY_IP" ]; then
+    echo "ERREUR : aucune adresse réseau exploitable. Les autres machines doivent"
+    echo "pouvoir joindre celle-ci sur le réseau local."
+    exit 1
+fi
+# Nom de la machine = nom du membre etcd et Patroni : lettres, chiffres, . _ -
+MY_HOSTNAME=$(hostname 2>/dev/null | tr -c 'A-Za-z0-9_.\n-' '-' | sed 's/^[^A-Za-z0-9]*//' | cut -c1-63)
+[ -z "$MY_HOSTNAME" ] && MY_HOSTNAME="pme-$(echo "$MY_IP" | tr . -)"
+echo "       IP : $MY_IP   Nom : $MY_HOSTNAME"
 
 # ── 2. Docker ────────────────────────────────────────────────────────────────
-echo "[2/10] Vérification de Docker..."
+echo "[2/8] Vérification de Docker..."
 if ! command -v docker &>/dev/null; then
     echo "       Docker absent — installation automatique..."
     curl -fsSL https://get.docker.com | sh
@@ -75,7 +75,7 @@ fi
 # Sans cela, « docker pull {{ registry_host }}/... » échoue avec « server gave
 # HTTP response to HTTPS client » : Docker exige du TLS sur tout registre qui
 # n'est pas explicitement déclaré comme non sécurisé.
-echo "[3/10] Autorisation du registre éditeur ${REGISTRY_HOST}..."
+echo "[3/8] Autorisation du registre éditeur ${REGISTRY_HOST}..."
 DAEMON_JSON="/etc/docker/daemon.json"
 if [ -f "$DAEMON_JSON" ]; then
     # Fusion idempotente : relancer l'installeur ne doit pas empiler la même
@@ -93,187 +93,132 @@ else
 fi
 systemctl restart docker 2>/dev/null || true
 
-# ── 4. Récupération de l'image du nœud ───────────────────────────────────────
-# Deux voies, comme sur Windows : le registre de l'éditeur, et à défaut
-# l'archive servie par la console (utile si le registre est fermé ou
-# injoignable).
-echo "[4/10] Récupération de l'image ${NODE_IMAGE}..."
-if docker pull "$NODE_IMAGE"; then
-    echo "       Image tirée du registre."
+# ── 4. Ancienne pile V2 ──────────────────────────────────────────────────────
+# Arrêtée pour libérer ports et noms de conteneurs ; ses volumes sont CONSERVÉS
+# (données V2 récupérables à la main), la nouvelle pile a les siens.
+echo "[4/8] Recherche d'une ancienne installation..."
+if [ -f "${ANCIEN_DIR}/docker-compose.yml" ]; then
+    echo "       Ancienne pile trouvée dans ${ANCIEN_DIR} : arrêt (volumes conservés)."
+    (cd "${ANCIEN_DIR}" && docker compose down) || true
+    systemctl disable elbaraa-pme.service 2>/dev/null || true
 else
-    echo "       Pull impossible, repli sur l'archive de la console..."
-    IMG_ARCHIVE="/tmp/ss-node.tar.gz"
-    if ! curl -fsSL -o "$IMG_ARCHIVE" \
-        "${SAAS_URL}/api/node-image/telecharger/?token=${REGISTRATION_TOKEN}"; then
-        echo "ERREUR : image indisponible par le registre ET par l'archive."
-        echo "Vérifiez que le serveur éditeur ${SAAS_URL} est joignable."
-        exit 1
-    fi
-    echo "       Chargement de l'archive dans Docker..."
-    if ! docker load -i "$IMG_ARCHIVE"; then
-        echo "ERREUR : docker load a échoué."
-        exit 1
-    fi
-    rm -f "$IMG_ARCHIVE"
-    # L'archive porte le tag « ss-node:v2 » ; le compose référence le tag du
-    # registre. On fait pointer les deux sur la même image.
-    docker tag ss-node:v2 "$NODE_IMAGE" 2>/dev/null || true
+    echo "       Aucune."
 fi
-echo "       Image prête."
 
-# ── 5. Rôle du nœud : primaire ou standby ? ──────────────────────────────────
-echo "[5/10] Détection du rôle de ce nœud..."
-CLUSTER_JSON=$(curl -sf "${SAAS_URL}/api/devices/cluster-status/?token=${REGISTRATION_TOKEN}" 2>/dev/null \
-    || echo '{"node_count":0,"active_nodes":[]}')
-NODE_COUNT=$(python3 -c "import json,sys; print(json.loads('$CLUSTER_JSON').get('node_count',0))" 2>/dev/null || echo "0")
-
-NODE_ROLE="primary"
-NODE_MODE="active"
-PRIMARY_IP=""
-
-if [ "$NODE_COUNT" -gt 0 ]; then
-    NODE_ROLE="standby"
-    NODE_MODE="passive"
-
-    # Afficher les nœuds existants
-    echo ""
-    echo "       Nœuds déjà enregistrés pour {{ tenant.name }} :"
-    python3 -c "
-import json
-data = json.loads('$CLUSTER_JSON')
-for n in data.get('active_nodes', []):
-    role = n.get('node_role') or 'inconnu'
-    print('        - ' + n.get('hostname','?') + '  ' + n.get('node_addr','?') + '  [' + role + ']')
-" 2>/dev/null || echo "        (impossible de lister)"
-
-    # Trouver l'IP du primaire parmi les nœuds existants
-    SUGGESTED_IP=$(python3 -c "
-import json
-data = json.loads('$CLUSTER_JSON')
-nodes = data.get('active_nodes', [])
-primary = [n for n in nodes if n.get('node_role') == 'primary']
-src = primary[0] if primary else (nodes[0] if nodes else None)
-if src:
-    print(src.get('node_addr','').split(':')[0])
-" 2>/dev/null || echo "")
-
-    echo ""
-    if [ -n "$SUGGESTED_IP" ]; then
-        read -rp "       IP du nœud primaire [${SUGGESTED_IP}] : " INPUT_IP
-        PRIMARY_IP="${INPUT_IP:-${SUGGESTED_IP}}"
+# ── 5. Premier serveur du cluster ? ──────────────────────────────────────────
+# NODE_MODE ne décide plus du rôle PostgreSQL (Patroni le fait) : le premier
+# serveur génère la DEK au premier démarrage du nœud. Les témoins ne comptent pas.
+NODE_MODE="passive"
+if [ "$TYPE_MACHINE" = "serveur" ]; then
+    echo "[5/8] Recherche des serveurs déjà installés..."
+    NB_SERVEURS=$(curl -sf "${SAAS_URL}/api/devices/cluster-status/?token=${REGISTRATION_TOKEN}" 2>/dev/null \
+        | python3 -c "import json,sys; print(sum(1 for n in json.load(sys.stdin).get('active_nodes',[]) if n.get('node_kind','serveur')=='serveur'))" 2>/dev/null \
+        || echo "0")
+    if [ "$NB_SERVEURS" = "0" ]; then
+        NODE_MODE="active"
+        echo "       Premier serveur du cluster."
     else
-        read -rp "       IP du nœud primaire : " PRIMARY_IP
+        echo "       ${NB_SERVEURS} serveur(s) déjà installé(s) : cette machine rejoindra le cluster."
     fi
-    echo "       Rôle : STANDBY (réplication depuis ${PRIMARY_IP})"
 else
-    echo "       Aucun nœud enregistré — ce PC devient le PRIMAIRE."
+    echo "[5/8] Témoin : aucun nœud AMANE sur cette machine."
 fi
 
-# ── 6. Mots de passe dérivés du token ────────────────────────────────────────
-# Identiques sur TOUS les nœuds du cluster, quel que soit leur système : la
-# réplication PostgreSQL entre une machine Windows et une machine Linux exige
-# que REPLICATION_PASSWORD coïncide des deux côtés. L'installeur Windows
-# reproduit ce calcul en PowerShell (SHA-256 de la même chaîne ASCII, hex
-# minuscule, tronqué à 24 caractères).
-echo "[6/10] Dérivation des mots de passe..."
-PG_PASSWORD=$(printf '%s-pg'       "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
-REPLICATION_PASSWORD=$(printf '%s-repl'   "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
-PGADMIN_PASSWORD=$(printf '%s-pgadmin' "$REGISTRATION_TOKEN" | sha256sum | cut -c1-24)
-
-# ── 7. Fichier .env — SEUL paramétrage de la pile ────────────────────────────
-echo "[7/10] Écriture du fichier .env..."
+# ── 6. Fichier .env et pile ──────────────────────────────────────────────────
+echo "[6/8] Écriture du .env et téléchargement de la pile..."
 cat > "${INSTALL_DIR}/.env" << ENV_EOF
-NODE_ROLE=${NODE_ROLE}
-NODE_MODE=${NODE_MODE}
-PG_USER=metier
-PG_PASSWORD=${PG_PASSWORD}
-PG_DB=metier
-REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
-PG_REPLICATION_SUBNET=${PG_REPLICATION_SUBNET}
-PRIMARY_IP=${PRIMARY_IP}
-WEB_PORT=${WEB_PORT}
-NODE_ADDR=${MY_IP}:${WEB_PORT}
+NODE_IP=${MY_IP}
 NODE_HOSTNAME=${MY_HOSTNAME}
-RELAY_URL=${RELAY_URL}
+NODE_MODE=${NODE_MODE}
+WEB_PORT=${WEB_PORT}
 SAAS_URL=${SAAS_URL}
+RELAY_URL=${RELAY_URL}
 REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
 TENANT_ID={{ tenant.id }}
 PGADMIN_EMAIL=admin@pme{{ tenant.name|slugify }}.com
-PGADMIN_PASSWORD=${PGADMIN_PASSWORD}
 ENV_EOF
-
-# ── 8. Téléchargement du docker-compose.yml depuis le portail ────────────────
-# Source unique de vérité : le même fichier est servi aux deux systèmes, donc
-# la pile Windows et la pile Linux sont rigoureusement identiques.
-echo "[8/10] Téléchargement du docker-compose.yml depuis le portail..."
 if ! curl -fsSL -o "${INSTALL_DIR}/docker-compose.yml" \
-    "${SAAS_URL}/api/tenants/pme/compose/?token=${REGISTRATION_TOKEN}"; then
-    echo "ERREUR : impossible de télécharger le docker-compose.yml."
-    echo "Vérifiez que le serveur éditeur ${SAAS_URL} est joignable."
+    "${SAAS_URL}/api/tenants/pme/compose/?token=${REGISTRATION_TOKEN}&type=${TYPE_MACHINE}"; then
+    echo "ERREUR : impossible de télécharger la pile depuis ${SAAS_URL}."
+    echo "Vérifiez que le portail est joignable et que l'éditeur a publié les images."
     exit 1
 fi
-echo "       docker-compose.yml récupéré."
 
-# ── 9. Pare-feu : PostgreSQL 5432, pgAdmin 5050, nœud/web 9001 ───────────────
-echo "[9/10] Ouverture du pare-feu (5432, 5050, ${WEB_PORT})..."
-if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "active"; then
-    ufw allow 5432/tcp comment "PME-PostgreSQL" 2>/dev/null || true
-    ufw allow 5050/tcp comment "PME-pgAdmin"    2>/dev/null || true
-    ufw allow ${WEB_PORT}/tcp comment "PME-Node" 2>/dev/null || true
-elif command -v firewall-cmd &>/dev/null; then
-    firewall-cmd --permanent --add-port=5432/tcp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=5050/tcp 2>/dev/null || true
-    firewall-cmd --permanent --add-port=${WEB_PORT}/tcp 2>/dev/null || true
-    firewall-cmd --reload 2>/dev/null || true
+# ── 7. Pare-feu ──────────────────────────────────────────────────────────────
+# etcd 2379/2380 sur toutes les machines ; sur un serveur, PostgreSQL 5432,
+# API Patroni 8008, nœud et pgAdmin en plus.
+if [ "$TYPE_MACHINE" = "serveur" ]; then
+    PORTS="2379 2380 5432 8008 ${WEB_PORT} 5050"
+else
+    PORTS="2379 2380"
 fi
+echo "[7/8] Ouverture du pare-feu (${PORTS})..."
+for port in $PORTS; do
+    if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "active"; then
+        ufw allow "${port}/tcp" comment "AMANE-PME" >/dev/null 2>&1 || true
+    elif command -v firewall-cmd &>/dev/null; then
+        firewall-cmd --permanent --add-port="${port}/tcp" >/dev/null 2>&1 || true
+    fi
+done
+command -v firewall-cmd &>/dev/null && firewall-cmd --reload >/dev/null 2>&1 || true
 
-# ── 10. Démarrage du stack + démarrage automatique au boot ───────────────────
-echo "[10/10] Démarrage du stack PME (${NODE_ROLE})..."
+# ── 8. Démarrage + démarrage automatique au boot ─────────────────────────────
+echo "[8/8] Téléchargement des images et démarrage..."
 cd "${INSTALL_DIR}"
+if ! docker compose pull; then
+    echo "ERREUR : images indisponibles dans le registre ${REGISTRY_HOST}."
+    exit 1
+fi
 docker compose up -d
 
-# Initialisation du nœud primaire
-if [ "$NODE_ROLE" = "primary" ]; then
-    echo "       Attente de ss-node..."
-    sleep 10
-    docker exec ss-node ss-node init --first 2>/dev/null || true
-fi
-
-cat > /etc/systemd/system/elbaraa-pme.service << 'SERVICE_EOF'
+cat > /etc/systemd/system/amane-pme.service << 'SERVICE_EOF'
 [Unit]
-Description=EL BARAA CONSULT PME Node
+Description=AMANE PME
 Requires=docker.service
 After=docker.service network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/elbaraa-pme
+WorkingDirectory=/opt/amane-pme
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
-TimeoutStartSec=300
+TimeoutStartSec=600
 
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
 systemctl daemon-reload
-systemctl enable elbaraa-pme.service
+systemctl enable amane-pme.service
 
 echo ""
 echo "===================================================="
-echo "  Installation terminée ! ({{ tenant.name }} — ${NODE_ROLE})"
+echo "  Installation terminée ! ({{ tenant.name }} — ${TYPE_MACHINE} ${MY_HOSTNAME})"
 echo ""
-echo "  PostgreSQL  : ${MY_IP}:5432   (utilisateur metier)"
-echo "  Interface   : http://${MY_IP}:${WEB_PORT}"
-echo "  pgAdmin     : http://${MY_IP}:5050"
-echo "    Login pgAdmin : admin@pme{{ tenant.name|slugify }}.com"
-echo "    Mot de passe  : ${PGADMIN_PASSWORD}"
-if [ "$NODE_ROLE" = "primary" ]; then
-    echo ""
-    echo "  >> Sur la 2eme machine (Windows ou Linux), lancez son installeur :"
-    echo "     il detectera ce noeud comme primaire (${MY_IP}) automatiquement."
+if [ "$TYPE_MACHINE" = "serveur" ]; then
+    # Les mots de passe sont générés sur le réseau de la PME : on attend que
+    # l'orchestrateur local les ait obtenus pour afficher celui de pgAdmin.
+    PGADMIN_PASSWORD=""
+    for i in $(seq 1 60); do
+        PGADMIN_PASSWORD=$(docker exec amane-orchestrateur sh -c '. /amane/secrets/postgresql.env 2>/dev/null && printf %s "$PGADMIN_DEFAULT_PASSWORD"' 2>/dev/null || true)
+        [ -n "$PGADMIN_PASSWORD" ] && break
+        sleep 5
+    done
+    echo "  Interface   : http://${MY_IP}:${WEB_PORT}"
+    echo "  pgAdmin     : http://${MY_IP}:5050"
+    echo "    Login pgAdmin : admin@pme{{ tenant.name|slugify }}.com"
+    if [ -n "$PGADMIN_PASSWORD" ]; then
+        echo "    Mot de passe  : ${PGADMIN_PASSWORD}"
+    else
+        echo "    Mot de passe  : pas encore disponible (cluster en cours de formation)."
+    fi
+    echo "    (il n'est connu que des machines de la PME ; pour le relire :"
+    echo "     sudo docker exec amane-orchestrateur sh -c '. /amane/secrets/postgresql.env; echo \$PGADMIN_DEFAULT_PASSWORD')"
+else
+    echo "  Témoin etcd actif : il donne au cluster sa majorité quand l'un"
+    echo "  des deux serveurs est indisponible. Laissez cette machine allumée."
 fi
 echo ""
-echo "  Portail éditeur : ${SAAS_URL}/tenants/bienvenue/"
+echo "  Espace PME : ${SAAS_URL}/mon-espace"
 echo "===================================================="
 {% endautoescape %}

@@ -5,7 +5,6 @@ V3, la console est désormais en React) et l'API : création de compte,
 contextes d'accueil et d'espace PME, génération du docker-compose et des
 installeurs.
 """
-import hashlib
 from datetime import date, datetime, timedelta
 import unicodedata
 
@@ -17,6 +16,10 @@ from django.utils.text import slugify
 
 from licenses.models import License
 from .models import Tenant
+from .pile import images_pile
+
+# Types de machine d'un cluster PME (ADR-005).
+TYPES_MACHINE = ('serveur', 'temoin')
 
 
 def _create_tenant_account(cleaned_data: dict) -> tuple[User, Tenant]:
@@ -78,31 +81,17 @@ def build_bienvenue_context(tenant: Tenant) -> dict:
     }
 
 
-def _derive_credentials(registration_token: str, tenant_name: str) -> dict:
-    def _sha24(suffix: str) -> str:
-        return hashlib.sha256(
-            f"{registration_token}-{suffix}".encode()
-        ).hexdigest()[:24]
-
-    slug = slugify(tenant_name)
-    return {
-        'pgadmin_email': f"admin@pme{slug}.com",
-        'pgadmin_password': _sha24('pgadmin'),
-        'db_password': _sha24('pg'),
-    }
-
-
 def _pgadmin_url(tenant) -> str:
     """URL LAN de pgAdmin (port 5050, exposé par docker-compose.yml.tmpl).
 
     Dérivée de l'IP du nœud primaire connu (ou, à défaut, du dernier nœud actif
     annoncé) — sans nœud annoncé, aucune IP n'est connue et l'URL est vide.
-    N'affecte pas `_derive_credentials`, qui reste la seule source des
-    identifiants pgAdmin.
+    Les identifiants pgAdmin ne sont PAS connus du portail : ils sont générés
+    sur le réseau de la PME (ADR-005, décision 4).
     """
     device = (
-        tenant.devices.filter(is_active=True, node_role='primary').order_by('-last_seen').first()
-        or tenant.devices.filter(is_active=True).order_by('-last_seen').first()
+        tenant.devices.filter(is_active=True, node_kind='serveur', node_role='primary').order_by('-last_seen').first()
+        or tenant.devices.filter(is_active=True, node_kind='serveur').order_by('-last_seen').first()
     )
     if device and device.node_addr:
         host = device.node_addr.split(':')[0]
@@ -110,19 +99,28 @@ def _pgadmin_url(tenant) -> str:
     return ""
 
 
+def besoin_temoin(tenant) -> bool:
+    """Vrai si le cluster compte exactement deux serveurs actifs et aucun
+    témoin : sans témoin, etcd n'a pas de majorité tolérant la perte d'une
+    machine, et la panne de l'un des serveurs bloque toute écriture
+    (ADR-004, décision 1)."""
+    actifs = tenant.devices.filter(is_active=True)
+    return (
+        actifs.filter(node_kind='serveur').count() == 2
+        and not actifs.filter(node_kind='temoin').exists()
+    )
+
+
 def build_mon_espace_context(tenant) -> dict:
     """Contexte de l'espace PME (`GET /api/tenants/me/`)."""
     active_license = tenant.licenses.filter(is_active=True).order_by('-created_at').first()
     devices = tenant.devices.filter(is_active=True).order_by('-last_seen')
-    pgadmin = _derive_credentials(
-        str(tenant.registration_token), tenant.name
-    )
 
     return {
         'tenant': tenant,
         'active_license': active_license,
         'devices': devices,
-        'pgadmin': pgadmin,
+        'besoin_temoin': besoin_temoin(tenant),
     }
 
 
@@ -153,45 +151,22 @@ def _registry_host(request) -> str:
     return f'{saas_host}:{getattr(settings, "REGISTRY_PORT", "5000")}'
 
 
-def _node_image(request) -> str:
-    """Référence complète de l'image du nœud, marqueur `{registry}` résolu."""
-    modele = getattr(settings, 'SS_NODE_IMAGE', '{registry}/ss-node:v2')
-    return modele.replace('{registry}', _registry_host(request))
-
-
-def _mode_noeud_par_defaut(tenant: Tenant) -> str:
-    """« active » si ce tenant n'a pas encore de primaire, « passive » sinon.
-
-    Même raisonnement que l'installeur Linux, qui interroge
-    `/api/devices/cluster-status/` avant de choisir : le premier nœud d'un
-    cluster est le primaire, les suivants sont des standbys. Le décider ici
-    évite d'avoir à faire éditer un champ de plus à la PME — et deux nœuds
-    partis en « active » sur le même cluster, c'est un split-brain.
-    """
-    a_deja_un_primaire = tenant.devices.filter(
-        is_active=True, node_role='primary',
-    ).exists()
-    return 'passive' if a_deja_un_primaire else 'active'
-
-
-def build_compose_response(request, tenant: Tenant) -> HttpResponse:
-    """Génère la réponse docker-compose.yml pré-configurée pour ce tenant.
+def build_compose_response(request, tenant: Tenant, type_machine: str = 'serveur') -> HttpResponse:
+    """Génère le docker-compose.yml d'une machine serveur ou témoin.
 
     Appelé par `GET /api/tenants/me/download/compose/` et par la voie PME
-    `GET /api/tenants/pme/compose/`.
+    `GET /api/tenants/pme/compose/`. Lève `pile.PileNonPubliee` si les images
+    épinglées ne sont pas publiées : l'appelant répond 503.
     """
-    relay_url = getattr(settings, 'RELAY_URL', 'http://localhost:8080')
-    node_image = _node_image(request)
-    node_mode = _mode_noeud_par_defaut(tenant)
-    saas_host, saas_port = _saas_host_port(request)
-
-    content = render(request, 'tenants/docker-compose.yml.tmpl', {
+    gabarit = {
+        'serveur': 'tenants/docker-compose.yml.tmpl',
+        'temoin': 'tenants/docker-compose-temoin.yml.tmpl',
+    }[type_machine]
+    content = render(request, gabarit, {
         'tenant': tenant,
-        'relay_url': relay_url,
-        'node_image': node_image,
-        'node_mode': node_mode,
-        'saas_host': saas_host,
-        'saas_port': saas_port,
+        'images': images_pile(_registry_host(request)),
+        'relay_url': getattr(settings, 'RELAY_URL', 'http://localhost:8080'),
+        'generated_at': datetime.now().strftime('%d/%m/%Y à %H:%M'),
     }).content.decode('utf-8')
 
     response = HttpResponse(content, content_type='application/x-yaml; charset=utf-8')
@@ -199,17 +174,18 @@ def build_compose_response(request, tenant: Tenant) -> HttpResponse:
     return response
 
 
-def build_installeur_response(request, tenant: Tenant, os_type: str) -> HttpResponse:
+def build_installeur_response(request, tenant: Tenant, os_type: str, type_machine: str = 'serveur') -> HttpResponse:
     """
-    Génère la réponse installateur PME pour Windows (.bat) ou Linux (.sh).
-    L'installateur inclut l'installation automatique de Docker et la configuration
-    du nœud pré-remplie. Les mises à jour sont gérées automatiquement par Watchtower.
+    Génère l'installateur PME pour Windows (.bat) ou Linux (.sh), d'une machine
+    serveur ou témoin. L'installateur installe Docker si besoin, déclare le
+    registre de l'éditeur, télécharge la pile (images épinglées par digest) et
+    la démarre ; les machines se coordonnent ensuite seules sur le réseau local.
 
     Appelé par `GET /api/tenants/me/download/installer/<os>/`. `os_type` doit
-    valoir `'windows'` ou `'linux'` — à valider par l'appelant.
+    valoir `'windows'` ou `'linux'`, `type_machine` `'serveur'` ou `'temoin'`
+    — à valider par l'appelant.
     """
     relay_url = getattr(settings, 'RELAY_URL', 'http://localhost:8080')
-    node_image = _node_image(request)
     registry_host = _registry_host(request)
     saas_host, saas_port = _saas_host_port(request)
 
@@ -234,9 +210,8 @@ def build_installeur_response(request, tenant: Tenant, os_type: str) -> HttpResp
     ctx = {
         'tenant': tenant,
         'tenant_nom_ascii': nom_ascii,
-        'node_mode': _mode_noeud_par_defaut(tenant),
+        'type_machine': type_machine,
         'relay_url': relay_url,
-        'node_image': node_image,
         # Hôte du registre seul (sans le chemin d'image) : l'installeur doit le
         # déclarer en `insecure-registries` avant de pouvoir tirer l'image.
         'registry_host': registry_host,
@@ -248,13 +223,14 @@ def build_installeur_response(request, tenant: Tenant, os_type: str) -> HttpResp
         'generated_at_ascii': datetime.now().strftime('%d/%m/%Y %H:%M'),
     }
 
+    suffixe = '-temoin' if type_machine == 'temoin' else ''
     if os_type == 'windows':
         content = render(request, 'tenants/install-windows.bat.tmpl', ctx).content.decode('utf-8')
         response = HttpResponse(content, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}.bat"'
+        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}{suffixe}.bat"'
     else:
         content = render(request, 'tenants/install-linux.sh.tmpl', ctx).content.decode('utf-8')
         response = HttpResponse(content, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}.sh"'
+        response['Content-Disposition'] = f'attachment; filename="install-{slugify(tenant.name)}{suffixe}.sh"'
 
     return response

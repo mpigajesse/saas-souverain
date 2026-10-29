@@ -46,6 +46,8 @@ export interface Device {
   hostname: string
   os: string
   node_role: NodeRole
+  /** Serveur (PostgreSQL + nœud) ou témoin etcd seul (ADR-005). */
+  node_kind: 'serveur' | 'temoin'
   /** IP:port annoncée par le nœud (ex : 192.168.200.130:9001). */
   node_addr: string
   /** IP:port de l'interface web PME (ex : 192.168.200.130:3000). */
@@ -224,10 +226,11 @@ export interface DeviceToggleResult {
 // Espace PME — /api/tenants/me/
 // ---------------------------------------------------------------------------
 
-export interface PgAdminCredentials {
+/** Accès pgAdmin. Le mot de passe n'est PAS connu du portail : il est généré
+ *  sur le réseau de la PME et affiché en fin d'installation (ADR-005). */
+export interface PgAdminAcces {
   url: string
   email: string
-  password: string
 }
 
 export interface EspacePme {
@@ -235,7 +238,9 @@ export interface EspacePme {
   active_license: License | null
   devices: Device[]
   active_devices: number
-  pgadmin: PgAdminCredentials
+  pgadmin: PgAdminAcces
+  /** Deux serveurs et aucun témoin : la panne de l'un bloquerait les écritures. */
+  besoin_temoin: boolean
   relay_url: string
 }
 
@@ -243,6 +248,8 @@ export interface OnboardingDownloads {
   compose: string
   installer_linux: string
   installer_windows: string
+  installer_temoin_linux: string
+  installer_temoin_windows: string
 }
 
 export interface Onboarding {

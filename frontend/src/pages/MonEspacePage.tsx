@@ -1,8 +1,8 @@
 // Espace client PME — remplace templates/tenants/mon-espace.html.
 // Données réelles uniquement : GET /api/tenants/me/ (voir CONTRAT-API.md §3).
-// Aucun champ non servi par l'API n'est affiché (pas de compteur de bascules,
-// pas d'identifiants base de données séparés du couple pgAdmin fourni par
-// l'API — voir le rapport de livraison pour le détail de ce qui a été retiré).
+// Aucun champ non servi par l'API n'est affiché. Le mot de passe pgAdmin n'est
+// PAS connu du portail : il est généré sur le réseau de la PME et affiché en
+// fin d'installation (refonte V3, ADR-005).
 
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -27,7 +27,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react'
-import { getEspacePme, normalizeApiError } from '../api/client'
+import { downloadInstallerUrl, getEspacePme, normalizeApiError } from '../api/client'
 import { NODE_ROLE_LABELS, PLAN_LABELS, isDeviceOnline } from '../types/index'
 import type { Device, EspacePme } from '../types/index'
 import StatusBadge from '../components/StatusBadge'
@@ -269,7 +269,7 @@ export default function MonEspacePage() {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />
   if (!data) return null
 
-  const { tenant, active_license, devices, pgadmin, relay_url } = data
+  const { tenant, active_license, devices, pgadmin, besoin_temoin, relay_url } = data
   const seatsUsedPercent =
     active_license && active_license.seats > 0
       ? Math.min(100, Math.round((devices.length / active_license.seats) * 100))
@@ -447,20 +447,9 @@ export default function MonEspacePage() {
             </tr>
             <tr>
               <td style={{ padding: '4px 0', color: '#166534', fontWeight: 600, verticalAlign: 'top' }}>Mot de passe</td>
-              <td style={{ padding: '4px 0' }}>
-                <span
-                  style={{
-                    fontFamily: 'monospace',
-                    background: '#DCFCE7',
-                    border: '1px solid #86EFAC',
-                    borderRadius: '4px',
-                    padding: '2px 8px',
-                    letterSpacing: '0.03em',
-                    userSelect: 'all',
-                  }}
-                >
-                  {pgadmin.password}
-                </span>
+              <td style={{ padding: '4px 0', color: '#166534' }}>
+                Affiché en fin d'installation sur votre premier serveur. Il est généré
+                chez vous et n'est jamais transmis au portail.
               </td>
             </tr>
           </tbody>
@@ -469,6 +458,52 @@ export default function MonEspacePage() {
           Conservez ces identifiants en lieu sûr. Cliquez sur une valeur pour la sélectionner.
         </p>
       </div>
+
+      {/* Témoin etcd conseillé (ADR-004, décision 1) */}
+      {besoin_temoin && (
+        <div
+          style={{
+            background: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: '10px',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            fontSize: '0.875rem',
+            color: '#92400E',
+          }}
+        >
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} /> Installez un témoin sur une troisième machine
+          </h3>
+          <p style={{ margin: '0 0 12px 0' }}>
+            Vos deux serveurs ont besoin d'un troisième avis pour décider seuls d'une bascule :
+            sans témoin, la panne de l'un d'eux bloque toutes les écritures. Le témoin ne stocke
+            aucune donnée, ne consomme pas de poste de licence, et n'importe quel PC suffit.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <a
+              href={downloadInstallerUrl('windows', 'temoin')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px',
+                border: '1px solid #D97706', borderRadius: '8px', background: '#fff',
+                color: '#92400E', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none',
+              }}
+            >
+              <Monitor size={14} /> Installeur témoin Windows
+            </a>
+            <a
+              href={downloadInstallerUrl('linux', 'temoin')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px',
+                border: '1px solid #D97706', borderRadius: '8px', background: '#fff',
+                color: '#92400E', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none',
+              }}
+            >
+              <Terminal size={14} /> Installeur témoin Linux
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Machines */}
       <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-primary)' }}>

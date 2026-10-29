@@ -106,6 +106,7 @@ def device_register(request):
       - hostname (str, optionnel)    : nom de la machine
       - os (str, optionnel)          : ex. "Windows 11"
       - mac_address (str, optionnel) : indicatif seulement
+      - node_kind (str, optionnel)   : « serveur » (défaut) ou « temoin » (ADR-005)
     """
     tenant_token_raw = request.data.get('tenant_token')
     installation_id_raw = request.data.get('installation_id')
@@ -151,6 +152,12 @@ def device_register(request):
     node_addr = _resoudre_adresse(request.data.get('node_addr', ''), ip_client, '9001')
     web_addr = _resoudre_adresse(request.data.get('web_addr', ''), ip_client, '3000')
     node_role = request.data.get('node_role', '')
+    node_kind = request.data.get('node_kind') or 'serveur'
+    if node_kind not in ('serveur', 'temoin'):
+        return Response(
+            {'status': 'error', 'message': 'node_kind invalide (attendu : serveur ou temoin).'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -161,6 +168,7 @@ def device_register(request):
             'node_addr': node_addr,
             'web_addr': web_addr,
             'node_role': node_role,
+            'node_kind': node_kind,
             'is_active': True,
         },
     )
@@ -169,6 +177,7 @@ def device_register(request):
     if not created:
         device.hostname = request.data.get('hostname', device.hostname)
         device.os = request.data.get('os', device.os)
+        device.node_kind = node_kind
         if node_addr:
             device.node_addr = node_addr
         if web_addr:
@@ -199,9 +208,10 @@ def device_register(request):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-    # Vérifier les sièges disponibles (après get_or_create pour inclure la machine actuelle)
-    active_device_count = tenant.devices.filter(is_active=True).count()
-    if active_device_count > active_license.seats:
+    # Vérifier les sièges disponibles (après get_or_create pour inclure la machine actuelle).
+    # Un témoin etcd ne consomme pas de poste (ADR-005).
+    active_device_count = tenant.devices.filter(is_active=True).exclude(node_kind='temoin').count()
+    if node_kind != 'temoin' and active_device_count > active_license.seats:
         # Nouvelle machine qui dépasse le quota → désactiver et refuser
         if created:
             device.is_active = False

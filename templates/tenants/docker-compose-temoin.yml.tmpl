@@ -1,0 +1,81 @@
+{% autoescape off %}# -----------------------------------------------------------------------------
+# AMANE — Pile PME, machine TÉMOIN — {{ tenant.name }}
+# Générée le : {{ generated_at }}
+#
+# Un témoin ne porte QUE un membre etcd : ni PostgreSQL, ni nœud AMANE, ni
+# donnée. Il donne au cluster etcd sa majorité quand la PME n'a que deux
+# serveurs : la perte de l'un d'eux n'arrête alors plus etcd, et la bascule
+# automatique reste possible (ADR-004, décision 1 ; ADR-005, décision 2).
+# Il ne consomme pas de poste de la licence. N'importe quel PC suffit.
+#
+#   amane-init    amorçage : rejoint le cluster etcd sur le réseau local
+#   amane-etcd    membre etcd
+#   amane-temoin  signale la présence du témoin au portail (métadonnées seules)
+#
+# Seul paramétrage : le fichier « .env » déposé à côté par l'installeur
+# (NODE_IP, NODE_HOSTNAME, SAAS_URL, REGISTRATION_TOKEN).
+# -----------------------------------------------------------------------------
+
+networks:
+  amane:
+    driver: bridge
+
+services:
+  amane-init:
+    image: {{ images.orchestrateur }}
+    container_name: amane-init
+    user: "0"
+    restart: "no"
+    networks: [amane]
+    command:
+      - init
+      - -nom=${NODE_HOSTNAME}
+      - -ip=${NODE_IP}
+      - -portail=${SAAS_URL}
+      - -jeton=${REGISTRATION_TOKEN}
+      - -dossier-temoin=/amane/temoin
+    volumes:
+      - etcd-data:/etcd-data
+      - etcd-conf:/amane/etcd
+      - temoin:/amane/temoin
+
+  amane-etcd:
+    image: {{ images.etcd }}
+    container_name: amane-etcd
+    restart: unless-stopped
+    networks: [amane]
+    command: ["sh", "-c", ". /amane/etcd/etcd.env && exec etcd"]
+    ports: ["2379:2379", "2380:2380"]
+    volumes:
+      - etcd-data:/etcd-data
+      - etcd-conf:/amane/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    depends_on:
+      amane-init: { condition: service_completed_successfully }
+
+  amane-temoin:
+    image: {{ images.orchestrateur }}
+    container_name: amane-temoin
+    restart: unless-stopped
+    networks: [amane]
+    command:
+      - temoin
+      - -portail=${SAAS_URL}
+      - -jeton=${REGISTRATION_TOKEN}
+      - -ip=${NODE_IP}
+      - -nom=${NODE_HOSTNAME}
+      - -identifiant=/amane/temoin/installation-id
+    volumes:
+      - temoin:/amane/temoin
+    depends_on:
+      amane-etcd: { condition: service_healthy }
+
+volumes:
+  etcd-data:
+  etcd-conf:
+  temoin:
+{% endautoescape %}

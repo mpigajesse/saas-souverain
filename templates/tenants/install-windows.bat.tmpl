@@ -4,14 +4,17 @@ setlocal EnableExtensions EnableDelayedExpansion
 title EL BARAA CONSULT - Installation PME
 
 :: ===========================================================================
-:: EL BARAA CONSULT - Installateur PME (Windows)
+:: EL BARAA CONSULT - Installateur PME (Windows) - machine {{ type_machine }}
 :: Genere le : {{ generated_at_ascii }}
 ::
 :: Cet installeur et son homologue Linux (.sh) deroulent EXACTEMENT les memes
-:: etapes, dans le meme ordre, et deploient la meme pile : postgres 16 avec
-:: replication, ss-node avec PG_URL, pgAdmin et watchtower. Le
-:: docker-compose.yml n'est plus genere ici : il est telecharge depuis le
-:: portail editeur (/api/tenants/pme/compose/), unique definition de la pile.
+:: etapes et deploient la meme pile, telechargee depuis le portail editeur
+:: (/api/tenants/pme/compose/), unique definition de la pile.
+::
+:: Refonte V3 (ADR-005) : plus aucune question sur le primaire ni aucun mot
+:: de passe calcule ici. Les machines se coordonnent seules sur le reseau
+:: local (etcd + Patroni) et les mots de passe sont generes par la premiere
+:: machine, sans jamais passer par le portail.
 ::
 :: CONTRAINTES DE CE FICHIER - non negociables :
 ::  1. ASCII PUR. cmd lit un .bat par decalage d'octets ; un seul caractere
@@ -24,8 +27,7 @@ title EL BARAA CONSULT - Installation PME
 ::     " | " NU, jamais " ^| " : cmd n'applique pas l'echappement par caret a
 ::     l'interieur des guillemets, le caret arrivait donc tel quel a PowerShell
 ::     qui refusait d'analyser la commande - en silence, la variable restait
-::     vide. C'est ce qui faisait retomber la detection d'IP sur 127.0.0.1 et
-::     empechait la declaration du registre non securise.
+::     vide.
 ::  4. Attention aux % dans les commandes PowerShell embarquees (pas d'alias %
 ::     pour ForEach-Object), et a !VAR! (EnableDelayedExpansion est actif).
 :: ===========================================================================
@@ -33,7 +35,8 @@ title EL BARAA CONSULT - Installation PME
 echo.
 echo ====================================================
 echo  EL BARAA CONSULT - Installation du logiciel PME
-echo  Tenant : {{ tenant_nom_ascii }}
+echo  Tenant  : {{ tenant_nom_ascii }}
+echo  Machine : {{ type_machine }}
 echo ====================================================
 echo.
 
@@ -50,33 +53,44 @@ exit /b 1
 
 :IS_ADMIN
 
-set "INSTALL_DIR=%PROGRAMDATA%\ElBaraaConsult\PME"
+set "TYPE_MACHINE={{ type_machine }}"
+set "INSTALL_DIR=%PROGRAMDATA%\Amane\PME"
+set "ANCIEN_DIR=%PROGRAMDATA%\ElBaraaConsult\PME"
 set "SAAS_URL=http://{{ saas_host }}:{{ saas_port }}"
 set "RELAY_URL={{ relay_url }}"
 set "REGISTRATION_TOKEN={{ tenant.registration_token }}"
-set "NODE_IMAGE={{ node_image }}"
 set "REGISTRY_HOST={{ registry_host }}"
-:: Port unique de l'interface web metier - meme valeur que sur Linux, et meme
-:: port que celui annonce au portail dans NODE_ADDR.
+:: Port unique de l'interface web du noeud - meme valeur que sur Linux, et
+:: meme port que celui annonce au portail dans NODE_ADDR.
 set "WEB_PORT=9001"
 mkdir "%INSTALL_DIR%" >nul 2>&1
 
 :: ---------------------------------------------------------------------------
-:: [1/10] Detection de l'adresse reseau de cette machine
+:: [1/8] Adresse reseau et nom de la machine
 :: ---------------------------------------------------------------------------
-echo [1/10] Detection de l'adresse reseau...
+echo [1/8] Detection de l'adresse reseau...
 set "NODE_IP="
 for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*' } | Sort-Object PrefixLength | Select-Object -Last 1).IPAddress"`) do set "NODE_IP=%%A"
-if "!NODE_IP!"=="" set "NODE_IP=127.0.0.1"
-set "PG_REPLICATION_SUBNET="
-for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=('!NODE_IP!' -split '\.'); $p[0]+'.'+$p[1]+'.'+$p[2]+'.0/24'"`) do set "PG_REPLICATION_SUBNET=%%A"
-if "!PG_REPLICATION_SUBNET!"=="" set "PG_REPLICATION_SUBNET=0.0.0.0/0"
-echo        IP detectee : !NODE_IP!  (sous-reseau !PG_REPLICATION_SUBNET!)
+if "!NODE_IP!"=="" goto IP_ERROR
+:: Nom de la machine = nom du membre etcd et Patroni : lettres, chiffres, . _ -
+set "NODE_HOSTNAME="
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$n=($env:COMPUTERNAME -replace '[^A-Za-z0-9_.-]','-').TrimStart('-_.'); if ($n.Length -gt 63) { $n=$n.Substring(0,63) }; $n"`) do set "NODE_HOSTNAME=%%A"
+if "!NODE_HOSTNAME!"=="" set "NODE_HOSTNAME=pme-windows"
+echo        IP : !NODE_IP!   Nom : !NODE_HOSTNAME!
+goto IP_READY
+
+:IP_ERROR
+echo ERREUR : aucune adresse reseau exploitable. Les autres machines doivent
+echo pouvoir joindre celle-ci sur le reseau local.
+pause
+exit /b 1
+
+:IP_READY
 
 :: ---------------------------------------------------------------------------
-:: [2/10] Docker
+:: [2/8] Docker
 :: ---------------------------------------------------------------------------
-echo [2/10] Verification de Docker...
+echo [2/8] Verification de Docker...
 docker info >nul 2>&1
 if %ERRORLEVEL% EQU 0 goto DOCKER_READY
 
@@ -108,18 +122,15 @@ exit /b 1
 echo        Docker operationnel.
 
 :: ---------------------------------------------------------------------------
-:: [3/10] Autoriser le registre de l'editeur (LAN, sans TLS)
+:: [3/8] Autoriser le registre de l'editeur (LAN, sans TLS)
 :: Sans cela, " docker pull {{ registry_host }}/... " echoue avec
 :: " server gave HTTP response to HTTPS client " : Docker exige du TLS sur tout
 :: registre qui n'est pas explicitement declare comme non securise.
 :: ---------------------------------------------------------------------------
-echo [3/10] Autorisation du registre editeur {{ registry_host }}...
+echo [3/8] Autorisation du registre editeur {{ registry_host }}...
 set "REG_STATE="
 for /f "usebackq delims=" %%S in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $path=Join-Path $env:ProgramData 'Docker\config\daemon.json'; $reg='{{ registry_host }}'; $obj=$null; if (Test-Path $path) { try { $obj = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $obj=$null } }; $liste=@(); if ($obj -and ($obj.PSObject.Properties.Name -contains 'insecure-registries')) { $liste=@($obj.'insecure-registries') }; if ($liste -contains $reg) { 'DEJA' } else { $liste+=$reg; if (-not $obj) { $obj=New-Object PSObject }; $obj | Add-Member -NotePropertyName 'insecure-registries' -NotePropertyValue $liste -Force; New-Item -ItemType Directory -Force -Path (Split-Path $path) | Out-Null; $obj | ConvertTo-Json -Depth 10 | Set-Content -Path $path -Encoding utf8; 'MODIFIE' }"`) do set "REG_STATE=%%S"
 
-:: Rappel regle 2 : un label ne peut PAS etre defini dans un bloc entre
-:: parentheses - cmd refuse d analyser le fichier et la fenetre se ferme
-:: aussitot, sans message. D ou cet enchainement par goto.
 if /I "!REG_STATE!"=="MODIFIE" goto REGISTRY_RESTART
 echo        Registre deja autorise.
 goto REGISTRY_READY
@@ -144,163 +155,104 @@ exit /b 1
 :REGISTRY_READY
 
 :: ---------------------------------------------------------------------------
-:: [4/10] Recuperation de l'image du noeud
-:: Deux voies, comme sur Linux : le registre de l'editeur, et a defaut
-:: l'archive telechargee depuis la console (utile si le registre est ferme ou
-:: injoignable).
+:: [4/8] Ancienne pile V2 : arretee pour liberer ports et noms de conteneurs.
+:: Ses volumes sont CONSERVES (donnees V2 recuperables a la main) ; la
+:: nouvelle pile a les siens.
 :: ---------------------------------------------------------------------------
-echo [4/10] Recuperation de l'image {{ node_image }}...
-docker pull {{ node_image }}
-if !ERRORLEVEL! EQU 0 goto IMAGE_READY
+echo [4/8] Recherche d'une ancienne installation...
+if not exist "%ANCIEN_DIR%\docker-compose.yml" goto ANCIEN_ABSENT
+echo        Ancienne pile trouvee : arret (volumes conserves).
+docker compose -f "%ANCIEN_DIR%\docker-compose.yml" --project-directory "%ANCIEN_DIR%" down >nul 2>&1
+schtasks /delete /tn "ElBaraaConsultPME" /f >nul 2>&1
+goto ANCIEN_READY
 
-echo        Pull impossible, repli sur l archive de la console...
-set "IMG_ARCHIVE=%TEMP%\ss-node.tar.gz"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri '!SAAS_URL!/api/node-image/telecharger/?token={{ tenant.registration_token }}' -OutFile '%IMG_ARCHIVE%' -UseBasicParsing"
-if !ERRORLEVEL! NEQ 0 goto IMAGE_ERROR
+:ANCIEN_ABSENT
+echo        Aucune.
 
-echo        Chargement de l archive dans Docker...
-docker load -i "%IMG_ARCHIVE%"
-if !ERRORLEVEL! NEQ 0 goto LOAD_ERROR
-del "%IMG_ARCHIVE%" >nul 2>&1
-:: L archive porte le tag " ss-node:v2 " ; le compose reference le tag du
-:: registre. On fait pointer les deux sur la meme image.
-docker tag ss-node:v2 {{ node_image }} >nul 2>&1
-goto IMAGE_READY
-
-:IMAGE_ERROR
-echo ERREUR : image indisponible par le registre ET par l archive.
-echo Verifiez que le serveur editeur !SAAS_URL! est joignable.
-pause
-exit /b 1
-
-:LOAD_ERROR
-echo ERREUR : docker load a echoue.
-pause
-exit /b 1
-
-:IMAGE_READY
-echo        Image prete.
+:ANCIEN_READY
 
 :: ---------------------------------------------------------------------------
-:: [5/10] Role de ce noeud : primaire ou standby ?
-:: Interrogation de /api/devices/cluster-status/ - exactement comme l'installeur
-:: Linux. La valeur figee au telechargement ne suffit pas : deux machines
-:: peuvent telecharger l'installeur avant de l'executer, et partiraient toutes
-:: les deux en primaire (split-brain).
+:: [5/8] Premier serveur du cluster ?
+:: NODE_MODE ne decide plus du role PostgreSQL (Patroni le fait) : le premier
+:: serveur genere la DEK au premier demarrage du noeud. Les temoins ne
+:: comptent pas.
 :: ---------------------------------------------------------------------------
-echo [5/10] Detection du role de ce noeud...
-set "NODE_COUNT=0"
-set "SUGGESTED_IP="
-:: Le champ IP vaut " - " quand il est vide : une ligne " 0# " ne fournirait
-:: pas de deuxieme jeton a for /f, et le jeton manquant se comporte mal.
-for /f "usebackq tokens=1,2 delims=#" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $r=$null; try { $r = Invoke-RestMethod -Uri '!SAAS_URL!/api/devices/cluster-status/?token={{ tenant.registration_token }}' -UseBasicParsing -TimeoutSec 10 } catch { $r=$null }; $n=@(); if ($r) { $n=@($r.active_nodes) }; $p=$n | Where-Object { $_.node_role -eq 'primary' } | Select-Object -First 1; if (-not $p) { $p=$n | Select-Object -First 1 }; $ip=''; if ($p) { $ip=(([string]$p.node_addr) -split ':')[0] }; if (-not $ip) { $ip='-' }; ([string]$n.Count) + '#' + $ip"`) do (
-    set "NODE_COUNT=%%A"
-    set "SUGGESTED_IP=%%B"
-)
-if "!NODE_COUNT!"=="" set "NODE_COUNT=0"
-if "!SUGGESTED_IP!"=="-" set "SUGGESTED_IP="
-
-set "NODE_ROLE=primary"
-set "NODE_MODE=active"
-set "PRIMARY_IP="
-if !NODE_COUNT! GTR 0 goto ROLE_STANDBY
-echo        Aucun noeud enregistre - ce PC devient le PRIMAIRE.
-goto ROLE_READY
-
-:ROLE_STANDBY
-set "NODE_ROLE=standby"
 set "NODE_MODE=passive"
-echo.
-echo        Noeuds deja enregistres pour {{ tenant_nom_ascii }} :
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $r=$null; try { $r = Invoke-RestMethod -Uri '!SAAS_URL!/api/devices/cluster-status/?token={{ tenant.registration_token }}' -UseBasicParsing -TimeoutSec 10 } catch { $r=$null }; if ($r) { foreach ($x in @($r.active_nodes)) { $role=$x.node_role; if (-not $role) { $role='inconnu' }; '         - ' + $x.hostname + '  ' + $x.node_addr + '  [' + $role + ']' } }"
-echo.
-set "PRIMARY_IP="
-set /p "PRIMARY_IP=       IP du noeud primaire [!SUGGESTED_IP!] : "
-if "!PRIMARY_IP!"=="" set "PRIMARY_IP=!SUGGESTED_IP!"
-echo        Role : STANDBY (replication depuis !PRIMARY_IP!)
+if /I not "!TYPE_MACHINE!"=="serveur" goto MODE_TEMOIN
+echo [5/8] Recherche des serveurs deja installes...
+set "NB_SERVEURS=0"
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $r=$null; try { $r = Invoke-RestMethod -Uri '!SAAS_URL!/api/devices/cluster-status/?token=!REGISTRATION_TOKEN!' -UseBasicParsing -TimeoutSec 10 } catch { $r=$null }; $n=0; if ($r) { foreach ($x in @($r.active_nodes)) { if ((-not $x.node_kind) -or ($x.node_kind -eq 'serveur')) { $n=$n+1 } } }; $n"`) do set "NB_SERVEURS=%%A"
+if "!NB_SERVEURS!"=="" set "NB_SERVEURS=0"
+if not "!NB_SERVEURS!"=="0" goto MODE_SUIVANT
+set "NODE_MODE=active"
+echo        Premier serveur du cluster.
+goto MODE_READY
 
-:ROLE_READY
+:MODE_SUIVANT
+echo        !NB_SERVEURS! serveur(s) deja installe(s) : cette machine rejoindra le cluster.
+goto MODE_READY
 
-:: ---------------------------------------------------------------------------
-:: [6/10] Mots de passe derives du token
-:: Identiques sur TOUS les noeuds du cluster, quel que soit leur systeme : la
-:: replication PostgreSQL entre la machine Windows et la machine Linux exige
-:: que REPLICATION_PASSWORD coincide des deux cotes.
-:: Equivalent exact de la ligne bash de l'installeur Linux :
-::   printf '%s-pg' "$TOKEN" | sha256sum | cut -c1-24
-:: soit : SHA-256 de la meme chaine ASCII, hexadecimal MINUSCULE (format x2),
-:: tronque aux 24 premiers caracteres.
-:: ---------------------------------------------------------------------------
-echo [6/10] Derivation des mots de passe...
-set "PG_PASSWORD="
-for /f "usebackq delims=" %%H in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$b=[Text.Encoding]::ASCII.GetBytes('{{ tenant.registration_token }}-pg'); $h=[System.Security.Cryptography.SHA256]::Create().ComputeHash($b); [System.BitConverter]::ToString($h).Replace('-','').ToLower().Substring(0,24)"`) do set "PG_PASSWORD=%%H"
-set "REPLICATION_PASSWORD="
-for /f "usebackq delims=" %%H in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$b=[Text.Encoding]::ASCII.GetBytes('{{ tenant.registration_token }}-repl'); $h=[System.Security.Cryptography.SHA256]::Create().ComputeHash($b); [System.BitConverter]::ToString($h).Replace('-','').ToLower().Substring(0,24)"`) do set "REPLICATION_PASSWORD=%%H"
-set "PGADMIN_PASSWORD="
-for /f "usebackq delims=" %%H in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$b=[Text.Encoding]::ASCII.GetBytes('{{ tenant.registration_token }}-pgadmin'); $h=[System.Security.Cryptography.SHA256]::Create().ComputeHash($b); [System.BitConverter]::ToString($h).Replace('-','').ToLower().Substring(0,24)"`) do set "PGADMIN_PASSWORD=%%H"
+:MODE_TEMOIN
+echo [5/8] Temoin : aucun noeud AMANE sur cette machine.
+
+:MODE_READY
 
 :: ---------------------------------------------------------------------------
-:: [7/10] Fichier .env - SEUL parametrage de la pile
+:: [6/8] Fichier .env et pile
 :: ---------------------------------------------------------------------------
-echo [7/10] Ecriture du fichier .env...
+echo [6/8] Ecriture du .env et telechargement de la pile...
 (
-echo NODE_ROLE=!NODE_ROLE!
+echo NODE_IP=!NODE_IP!
+echo NODE_HOSTNAME=!NODE_HOSTNAME!
 echo NODE_MODE=!NODE_MODE!
-echo PG_USER=metier
-echo PG_PASSWORD=!PG_PASSWORD!
-echo PG_DB=metier
-echo REPLICATION_PASSWORD=!REPLICATION_PASSWORD!
-echo PG_REPLICATION_SUBNET=!PG_REPLICATION_SUBNET!
-echo PRIMARY_IP=!PRIMARY_IP!
 echo WEB_PORT=!WEB_PORT!
-echo NODE_ADDR=!NODE_IP!:!WEB_PORT!
-echo NODE_HOSTNAME=!COMPUTERNAME!
-echo RELAY_URL=!RELAY_URL!
 echo SAAS_URL=!SAAS_URL!
+echo RELAY_URL=!RELAY_URL!
 echo REGISTRATION_TOKEN=!REGISTRATION_TOKEN!
 echo TENANT_ID={{ tenant.id }}
 echo PGADMIN_EMAIL=admin@pme{{ tenant.name|slugify }}.com
-echo PGADMIN_PASSWORD=!PGADMIN_PASSWORD!
 ) > "%INSTALL_DIR%\.env"
-echo        .env ecrit.
-
-:: ---------------------------------------------------------------------------
-:: [8/10] Telechargement du docker-compose.yml depuis le portail
-:: Source unique de verite : le meme fichier est servi aux deux systemes, donc
-:: la pile Windows et la pile Linux sont rigoureusement identiques.
-:: ---------------------------------------------------------------------------
-echo [8/10] Telechargement du docker-compose.yml depuis le portail...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri '!SAAS_URL!/api/tenants/pme/compose/?token={{ tenant.registration_token }}' -OutFile '%INSTALL_DIR%\docker-compose.yml' -UseBasicParsing"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri '!SAAS_URL!/api/tenants/pme/compose/?token=!REGISTRATION_TOKEN!&type=!TYPE_MACHINE!' -OutFile '%INSTALL_DIR%\docker-compose.yml' -UseBasicParsing"
 if !ERRORLEVEL! NEQ 0 goto COMPOSE_ERROR
-echo        docker-compose.yml recupere.
+echo        Pile recuperee.
 goto COMPOSE_READY
 
 :COMPOSE_ERROR
-echo ERREUR : impossible de telecharger le docker-compose.yml.
-echo Verifiez que le serveur editeur !SAAS_URL! est joignable.
+echo ERREUR : impossible de telecharger la pile depuis !SAAS_URL!.
+echo Verifiez que le portail est joignable et que l'editeur a publie les images.
 pause
 exit /b 1
 
 :COMPOSE_READY
 
 :: ---------------------------------------------------------------------------
-:: [9/10] Pare-feu : PostgreSQL 5432, pgAdmin 5050, noeud/web 9001
-:: Sans le 5432, la Fedora ne pourrait pas repliquer depuis cette machine.
+:: [7/8] Pare-feu : etcd 2379/2380 sur toutes les machines ; sur un serveur,
+:: PostgreSQL 5432, API Patroni 8008, noeud et pgAdmin en plus.
 :: ---------------------------------------------------------------------------
-echo [9/10] Ouverture du pare-feu (5432, 5050, !WEB_PORT!)...
-netsh advfirewall firewall add rule name="ElBaraaConsult-PME-PostgreSQL" protocol=TCP dir=in localport=5432 action=allow >nul 2>&1
-netsh advfirewall firewall add rule name="ElBaraaConsult-PME-pgAdmin" protocol=TCP dir=in localport=5050 action=allow >nul 2>&1
-netsh advfirewall firewall add rule name="ElBaraaConsult-PME-Node" protocol=TCP dir=in localport=!WEB_PORT! action=allow >nul 2>&1
+echo [7/8] Ouverture du pare-feu...
+netsh advfirewall firewall add rule name="Amane-PME-etcd" protocol=TCP dir=in localport=2379,2380 action=allow >nul 2>&1
+if /I not "!TYPE_MACHINE!"=="serveur" goto PAREFEU_READY
+netsh advfirewall firewall add rule name="Amane-PME-PostgreSQL" protocol=TCP dir=in localport=5432,8008 action=allow >nul 2>&1
+netsh advfirewall firewall add rule name="Amane-PME-Noeud" protocol=TCP dir=in localport=!WEB_PORT!,5050 action=allow >nul 2>&1
+
+:PAREFEU_READY
 
 :: ---------------------------------------------------------------------------
-:: [10/10] Demarrage du stack + demarrage automatique au boot
+:: [8/8] Demarrage + demarrage automatique au boot
 :: ---------------------------------------------------------------------------
-echo [10/10] Demarrage du stack PME (!NODE_ROLE!)...
+echo [8/8] Telechargement des images et demarrage...
 cd /d "%INSTALL_DIR%"
+docker compose pull
+if !ERRORLEVEL! NEQ 0 goto PULL_ERROR
 docker compose up -d
-if %ERRORLEVEL% NEQ 0 goto START_ERROR
+if !ERRORLEVEL! NEQ 0 goto START_ERROR
 echo        Logiciel demarre.
 goto START_OK
+
+:PULL_ERROR
+echo ERREUR : images indisponibles dans le registre !REGISTRY_HOST!.
+pause
+exit /b 1
 
 :START_ERROR
 echo ERREUR : Demarrage echoue. Docker Desktop doit etre lance.
@@ -308,29 +260,46 @@ pause
 exit /b 1
 
 :START_OK
-
-:: Initialisation du noeud primaire (generation de la cle au premier demarrage)
-if /I not "!NODE_ROLE!"=="primary" goto NO_INIT
-timeout /t 10 /nobreak >nul
-docker exec ss-node ss-node init --first >nul 2>&1
-
-:NO_INIT
-
 echo        Demarrage automatique au boot...
-schtasks /create /tn "ElBaraaConsultPME" /tr "docker compose -f \"%INSTALL_DIR%\docker-compose.yml\" --project-directory \"%INSTALL_DIR%\" up -d" /sc onstart /ru SYSTEM /f >nul 2>&1
+schtasks /create /tn "AmanePME" /tr "docker compose -f \"%INSTALL_DIR%\docker-compose.yml\" --project-directory \"%INSTALL_DIR%\" up -d" /sc onstart /ru SYSTEM /f >nul 2>&1
 echo        Configure.
 
 echo.
 echo ====================================================
-echo  Installation terminee ! ({{ tenant_nom_ascii }} - !NODE_ROLE!)
+echo  Installation terminee ! ({{ tenant_nom_ascii }} - !TYPE_MACHINE! !NODE_HOSTNAME!)
 echo.
-echo  PostgreSQL  : !NODE_IP!:5432   (utilisateur metier)
+if /I not "!TYPE_MACHINE!"=="serveur" goto FIN_TEMOIN
+
+:: Les mots de passe sont generes sur le reseau de la PME : on attend que
+:: l'orchestrateur local les ait obtenus pour afficher celui de pgAdmin.
+set "PGADMIN_PASSWORD="
+set /a ATTENTE=0
+
+:WAIT_SECRETS
+for /f "usebackq delims=" %%P in (`docker exec amane-orchestrateur sh -c ". /amane/secrets/postgresql.env 2>/dev/null && printf %%s $PGADMIN_DEFAULT_PASSWORD" 2^>nul`) do set "PGADMIN_PASSWORD=%%P"
+if not "!PGADMIN_PASSWORD!"=="" goto SECRETS_READY
+set /a ATTENTE+=5
+if !ATTENTE! GEQ 300 goto SECRETS_READY
+timeout /t 5 /nobreak >nul
+goto WAIT_SECRETS
+
+:SECRETS_READY
 echo  Interface   : http://!NODE_IP!:!WEB_PORT!
 echo  pgAdmin     : http://!NODE_IP!:5050
 echo    Login pgAdmin : admin@pme{{ tenant.name|slugify }}.com
-echo    Mot de passe  : !PGADMIN_PASSWORD!
+if "!PGADMIN_PASSWORD!"=="" echo    Mot de passe  : pas encore disponible, cluster en cours de formation.
+if not "!PGADMIN_PASSWORD!"=="" echo    Mot de passe  : !PGADMIN_PASSWORD!
+echo    (connu des seules machines de la PME ; pour le relire :
+echo     docker exec amane-orchestrateur sh -c ". /amane/secrets/postgresql.env; echo $PGADMIN_DEFAULT_PASSWORD")
+goto FIN
+
+:FIN_TEMOIN
+echo  Temoin etcd actif : il donne au cluster sa majorite quand l'un
+echo  des deux serveurs est indisponible. Laissez cette machine allumee.
+
+:FIN
 echo.
-echo  Portail editeur : !SAAS_URL!/tenants/bienvenue/
+echo  Espace PME : !SAAS_URL!/mon-espace
 echo ====================================================
 echo.
 pause

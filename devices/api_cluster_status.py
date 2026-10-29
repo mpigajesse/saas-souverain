@@ -12,7 +12,9 @@ from tenants.models import Tenant
 def cluster_status(request):
     """
     Renvoie l'état du cluster pour un tenant via son token de licence.
-    Utilisé par l'installateur PME pour détecter si ce nœud est primaire ou standby.
+    Utilisé par l'amorçage des machines PME (`orchestrator init`) : les IP des
+    machines déjà installées, serveurs et témoins, servent à rejoindre le
+    cluster etcd sur le réseau local (ADR-005).
 
     GET /api/devices/cluster-status/?token=<REGISTRATION_TOKEN>
 
@@ -21,7 +23,8 @@ def cluster_status(request):
         "tenant_name": "MPJ",
         "node_count": 1,
         "active_nodes": [
-          {"hostname": "kali", "node_addr": "192.168.200.130:9001", "node_role": "primary", "os": "linux"}
+          {"hostname": "kali", "node_addr": "192.168.200.130:9001", "node_role": "primary",
+           "node_kind": "serveur", "os": "linux"}
         ]
       }
     """
@@ -42,7 +45,7 @@ def cluster_status(request):
     devices = list(
         tenant.devices
         .filter(is_active=True)
-        .values('node_addr', 'node_role', 'hostname', 'os')
+        .values('node_addr', 'node_role', 'node_kind', 'hostname', 'os')
         .order_by('node_role')  # primary avant standby
     )
 

@@ -17,6 +17,14 @@ class Device(models.Model):
         choices=[('primary', 'Primaire'), ('standby', 'Standby')],
         help_text='Rôle PostgreSQL de ce nœud dans le cluster PME',
     )
+    # ADR-005 : un témoin ne porte qu'un membre etcd (ni PostgreSQL ni nœud
+    # AMANE) ; il assure la majorité etcd d'un cluster à deux serveurs et ne
+    # consomme pas de poste de la licence.
+    node_kind = models.CharField(
+        max_length=10, default='serveur',
+        choices=[('serveur', 'Serveur'), ('temoin', 'Témoin etcd')],
+        help_text='Type de machine du cluster PME',
+    )
     last_failover_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Dernier failover automatique détecté sur ce nœud',
@@ -45,6 +53,7 @@ class Device(models.Model):
         active_device_count = (
             self.tenant.devices
             .filter(is_active=True)
+            .exclude(node_kind='temoin')
             .count()
         )
         return active_device_count <= active_license.seats

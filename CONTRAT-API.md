@@ -256,10 +256,12 @@ Invariant validé côté serializer : **`seats` ne peut pas dépasser `employee_
 | :--- | :--- | :--- |
 | `GET` | `/api/tenants/me/` | `<EspacePme>` |
 | `GET` | `/api/tenants/me/onboarding/` | `<Onboarding>` |
-| `GET` | `/api/tenants/me/download/compose/` | fichier `docker-compose.yml` personnalisé |
-| `GET` | `/api/tenants/me/download/installer/<os_type>/` | script d'installation (`linux` \| `windows`) |
+| `GET` | `/api/tenants/me/download/compose/[?type=temoin]` | fichier `docker-compose.yml` d'un serveur (défaut) ou d'un témoin |
+| `GET` | `/api/tenants/me/download/installer/<os_type>/[?type=temoin]` | script d'installation (`linux` \| `windows`) d'un serveur ou d'un témoin |
 
-`os_type` hors de `{linux, windows}` → `400 {"detail": "os doit être 'linux' ou 'windows'."}`.
+`os_type` hors de `{linux, windows}` → `400 {"detail": "os doit être 'linux' ou 'windows'."}` ; `type` hors de `{serveur, temoin}` → `400`.
+
+Les compose ne référencent les images que par digest, lus dans `media/node-images/pile.json` (publié par `scripts/publier-pile.sh`). Manifeste absent, illisible ou incomplet → `503 {"detail": "Images de la pile non publiées…"}` : le portail refuse de servir une pile non épinglée (refonte V3, ADR-005).
 
 ### `<EspacePme>`
 
@@ -269,10 +271,13 @@ Invariant validé côté serializer : **`seats` ne peut pas dépasser `employee_
   "active_license": { /* <License> */ },   // null si aucune licence active
   "devices": [ /* <Device>[] */ ],
   "active_devices": 2,
-  "pgadmin": {"url": "…", "email": "…", "password": "…"},
+  "pgadmin": {"url": "…", "email": "…"},
+  "besoin_temoin": false,             // true : 2 serveurs actifs et aucun témoin
   "relay_url": "http://host.docker.internal:8080"
 }
 ```
+
+Le mot de passe pgAdmin n'est **pas** servi : il est généré sur le réseau de la PME par la première machine et n'est jamais connu du portail (refonte V3, ADR-005).
 
 ### `<Onboarding>`
 
@@ -285,7 +290,9 @@ Invariant validé côté serializer : **`seats` ne peut pas dépasser `employee_
   "downloads": {
     "compose": "/api/tenants/me/download/compose/",
     "installer_linux": "/api/tenants/me/download/installer/linux/",
-    "installer_windows": "/api/tenants/me/download/installer/windows/"
+    "installer_windows": "/api/tenants/me/download/installer/windows/",
+    "installer_temoin_linux": "/api/tenants/me/download/installer/linux/?type=temoin",
+    "installer_temoin_windows": "/api/tenants/me/download/installer/windows/?type=temoin"
   }
 }
 ```
@@ -330,6 +337,7 @@ Lecture seule : `id`, `tenant_name`, `created_at`.
   "installation_id": "uuid",          // identité d'installation authentifiée
   "mac_address": "", "hostname": "poste-caisse", "os": "Windows 11",
   "node_role": "primary",             // primary | standby | ""
+  "node_kind": "serveur",             // serveur | temoin (témoin etcd seul, ne consomme pas de poste)
   "node_addr": "192.168.200.130:9001",
   "web_addr": "192.168.200.130:3000",
   "registered_at": "…", "last_seen": "…",
@@ -355,9 +363,12 @@ Appelés par le binaire `ss-node`, pas par la console : **pas de session**, donc
   "tenant_token": "uuid",             // obligatoire
   "installation_id": "uuid",          // obligatoire — généré une fois par installation
   "hostname": "…", "os": "…", "mac_address": "…",
-  "node_addr": "…", "web_addr": "…", "node_role": "primary"
+  "node_addr": "…", "web_addr": "…", "node_role": "primary",
+  "node_kind": "serveur"              // optionnel : serveur (défaut) | temoin
 }
 ```
+
+Un témoin (`node_kind: temoin`, annoncé par `orchestrator temoin`) ne consomme pas de poste : il n'est ni compté ni refusé pour dépassement de licence. `node_kind` invalide → `400`.
 
 | Statut | Corps | Cas |
 | :--- | :--- | :--- |
@@ -378,14 +389,14 @@ Deux effets de bord importants côté serveur :
 
 ### `GET /api/devices/cluster-status/?token=<registration_token>`
 
-`devices/api_cluster_status.py`. Permet à l'installateur PME de savoir si le nœud qu'il déploie sera primaire ou standby.
+`devices/api_cluster_status.py`. Fournit les IP des machines déjà installées : l'amorçage (`orchestrator init`) s'en sert pour rejoindre le cluster etcd sur le réseau local, et les installeurs pour savoir si la machine est le premier serveur (refonte V3, ADR-005).
 
 ```jsonc
 {
   "tenant_name": "Boulangerie Martin",
   "node_count": 1,
   "active_nodes": [
-    {"hostname": "kali", "node_addr": "192.168.200.130:9001", "node_role": "primary", "os": "linux"}
+    {"hostname": "kali", "node_addr": "192.168.200.130:9001", "node_role": "primary", "node_kind": "serveur", "os": "linux"}
   ]
 }
 ```

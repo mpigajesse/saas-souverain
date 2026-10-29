@@ -14,6 +14,9 @@ services:
       ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-amane:2380
       ETCD_INITIAL_CLUSTER: etcd-amane=http://etcd-amane:2380
       ETCD_INITIAL_CLUSTER_STATE: new
+      # Accepte le keepalive gRPC d'une seconde de l'orchestrateur (défaut
+      # etcd : 5 s) ; voir orchestrator-go/consensus/client.go.
+      ETCD_GRPC_KEEPALIVE_MIN_TIME: 1s
     ports:
       - "2379:2379"
       - "2380:2380"
@@ -35,15 +38,15 @@ services:
       PATRONI_SCOPE: amane
       PATRONI_NAME: postgres-primary
       PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-      PATRONI_RESTAPI_CONNECT_ADDRESS: postgres-primary:8008
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgres-primary:5432
+      # Spilo lit RESTAPI_CONNECT_ADDRESS / PG_CONNECT_ADDRESS (et non les
+      # PATRONI_*), sinon il annonce l'IP du conteneur.
+      RESTAPI_CONNECT_ADDRESS: postgres-primary:8008
+      PG_CONNECT_ADDRESS: postgres-primary:5432
       PGPASSWORD_SUPERUSER: postgres
-      PGPASSWORD_REPLICATION: repl_pass
-      PATRONI_SUPERUSER_USERNAME: postgres
-      PATRONI_SUPERUSER_PASSWORD: postgres
-      PATRONI_REPLICATION_USERNAME: repl
-      PATRONI_REPLICATION_PASSWORD: repl_pass
+      # Rôle de réplication de Spilo : « standby » (PGPASSWORD_REPLICATION et
+      # les PATRONI_*_PASSWORD sont ignorés par Spilo).
+      PGPASSWORD_STANDBY: repl_pass
       SPILO_CONFIGURATION: |
         postgresql:
           parameters:
@@ -52,7 +55,6 @@ services:
         bootstrap:
           dcs:
             synchronous_mode: true
-            synchronous_mode_stop_on_limit: true
     volumes:
       - pgdata-primary:/home/postgres/pgdata
     ports:
@@ -76,15 +78,15 @@ services:
       PATRONI_SCOPE: amane
       PATRONI_NAME: postgres-replica
       PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-      PATRONI_RESTAPI_CONNECT_ADDRESS: postgres-replica:8008
       PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgres-replica:5432
+      # Spilo lit RESTAPI_CONNECT_ADDRESS / PG_CONNECT_ADDRESS (et non les
+      # PATRONI_*), sinon il annonce l'IP du conteneur.
+      RESTAPI_CONNECT_ADDRESS: postgres-replica:8008
+      PG_CONNECT_ADDRESS: postgres-replica:5432
       PGPASSWORD_SUPERUSER: postgres
-      PGPASSWORD_REPLICATION: repl_pass
-      PATRONI_SUPERUSER_USERNAME: postgres
-      PATRONI_SUPERUSER_PASSWORD: postgres
-      PATRONI_REPLICATION_USERNAME: repl
-      PATRONI_REPLICATION_PASSWORD: repl_pass
+      # Rôle de réplication de Spilo : « standby » (PGPASSWORD_REPLICATION et
+      # les PATRONI_*_PASSWORD sont ignorés par Spilo).
+      PGPASSWORD_STANDBY: repl_pass
       SPILO_CONFIGURATION: |
         postgresql:
           parameters:
@@ -93,7 +95,6 @@ services:
         bootstrap:
           dcs:
             synchronous_mode: true
-            synchronous_mode_stop_on_limit: true
     volumes:
       - pgdata-replica:/home/postgres/pgdata
     ports:

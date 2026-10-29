@@ -31,7 +31,8 @@ class Tenant(models.Model):
     def licence_status(self):
         """Retourne un dict avec l'état de conformité licence."""
         active_license = self.licenses.filter(is_active=True).order_by('-created_at').first()
-        active_devices = self.devices.filter(is_active=True).count()
+        # Un témoin etcd ne consomme pas de poste (ADR-005).
+        active_devices = self.devices.filter(is_active=True).exclude(node_kind='temoin').count()
         if active_license is None:
             return {'ok': False, 'reason': 'no_license', 'used': active_devices, 'total': 0}
         return {

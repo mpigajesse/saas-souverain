@@ -9,14 +9,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .api_espace import reponse_pile_non_publiee, type_machine_demande
 from .models import Tenant
+from .pile import PileNonPubliee
 from .services import build_compose_response
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def compose_telecharger_pme(request):
-    """`GET /api/tenants/pme/compose/?token=<registration_token>`.
+    """`GET /api/tenants/pme/compose/?token=<registration_token>[&type=temoin]`.
 
     Voie de repli des installeurs PME, calquée sur
     `dashboard.api_images.node_image_telecharger_pme` : la machine qui déploie
@@ -44,4 +46,10 @@ def compose_telecharger_pme(request):
     except Tenant.DoesNotExist:
         return Response({'detail': 'Token invalide ou tenant inactif.'}, status=403)
 
-    return build_compose_response(request, tenant)
+    type_machine = type_machine_demande(request)
+    if type_machine is None:
+        return Response({'detail': "type doit être 'serveur' ou 'temoin'."}, status=400)
+    try:
+        return build_compose_response(request, tenant, type_machine)
+    except PileNonPubliee as exc:
+        return reponse_pile_non_publiee(exc)
