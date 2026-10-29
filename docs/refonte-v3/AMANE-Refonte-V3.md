@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.3
+version: 2.4
 date: 2026-10-29
 branche: main3
-statut: Étapes 1 à 7 terminées — validation sur le banc à faire
+statut: Étapes 1 à 7 terminées et poussées — étapes 8 à 11 avant la validation sur le banc
 ---
 
 # Fiche du document
@@ -32,6 +32,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.1 | 2026-10-29 | main3 | Étape 5 : catalogue des applications hébergées (modèle, validation contre le registre, rattachement à la licence) ; ADR-009 ; contrat d'API à jour des champs V3 |
 | 2.2 | 2026-10-29 | main3 | Étape 6 : console React — page Applications, application rattachée aux licences, états V3 des machines, page Architecture réécrite pour la V3 |
 | 2.3 | 2026-10-29 | main3 | Étape 7 : documentation V3 (README, CLAUDE.md, accès, architecture, agents IA), `pme-deploy/` retiré ; absence de récupération de la DEK en cas de perte totale identifiée comme premier point ouvert ; procédure du banc complétée |
+| 2.4 | 2026-10-29 | main3 | Étapes 1 à 7 poussées sur `origin/main3` ; parcours de bout en bout V3 ; analyse de la récupération de la DEK (briques du socle, manques, Shamir maison) et proposition ; jeton du relais et blobs non liés à leur nom ; étapes 8 à 11 avant le banc ; images V3 reconstruites et publiées |
 
 # 1. Objet de la refonte
 
@@ -300,6 +301,11 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
 | 6 | Console React : page Applications, mise à jour Architecture | Terminée |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | Terminée |
+| 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir), blob sur le relais, commande `ss-node recuperer` ; ADR-010 à rédiger après les trois décisions du § 6 | À faire — décisions attendues |
+| 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) | À faire |
+| 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits | Réalisée le 2026-10-29 (à refaire après les étapes 8 et 9) |
+| 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | À faire |
+| Banc | Validation sur machines réelles (annexe) : installation, bascule, application hébergée, enrôlement, sauvegarde, récupération après perte totale | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
 
 # 6. Journal des étapes
@@ -694,11 +700,86 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 
 AMANE V3 sait, de bout en bout dans le code : admettre l'application d'un éditeur tiers (catalogue, validation contre le registre), l'attribuer à une PME (licence), générer sa pile et ses installeurs, l'installer en haute disponibilité (etcd + Patroni + HAProxy, témoin), exécuter l'application inchangée sur un réseau sans sortie avec sa base dédiée, transmettre la DEK aux serveurs par une opération humaine, sauvegarder chiffré sur le relais et signaler à la PME ce qui menace ses données (quorum, réplication, témoin, disque). Ce qui reste avant une mise en service est au § 7, en tête : la récupération de la DEK après perte totale, la validation sur le banc réel et l'essai de bout en bout de l'étape 3.
 
+## Séance du 2026-10-29 (après-midi) — publication et analyse de ce qui reste
+
+**Publication.** Les commits des étapes 2c à 7 (`ef10bd9` à `5bfa1db`) ont été poussés sur `origin/main3` à la demande explicite de l'utilisateur ; le dépôt distant pointait jusque-là sur `cee04fd` (étape 2b).
+
+### Le parcours V3 de bout en bout
+
+Rappel destiné aux collaborateurs, établi à partir du code de `main3`.
+
+| Moment | Ce qui se passe |
+|---|---|
+| Démarrer le portail | `docker compose up -d --build backend frontend` (le conteneur ne monte pas le code : toute évolution exige une reconstruction ; les migrations s'appliquent au démarrage), `docker start ss-relay`, puis `spike\build-node.ps1` et `scripts/publier-pile.sh` pour que les PME puissent télécharger la pile (sinon 503) |
+| Admettre une application | AMANE ne construit rien : l'éditeur tiers fournit une **image déjà construite**, poussée dans le registre de l'éditeur AMANE (`:5000`), et un **manifeste JSON** (image par digest, commande d'origine, port, chemin de santé, variables, modèle de `DATABASE_URL`, volumes). Page **Applications** : brouillon, validation contre le registre (409 si l'image est absente), manifeste figé ; rattachement à la licence depuis la page **Licences** |
+| Arrivée d'une PME | Inscription (`/register` : compte, tenant, licence d'essai) ou création par l'éditeur ; installeurs serveur et témoin téléchargés depuis `/bienvenue` ; chaque machine s'annonce avec le jeton du tenant et son `installation_id` ; seuls les serveurs consomment des postes |
+| Enrôlement | Le premier serveur génère la DEK ; chaque serveur suivant la reçoit scellée pour sa clé X25519, par un code à usage unique émis dans `/amane/admin/enrolement` et saisi avec `ss-node enroler` |
+| Authentifications | Éditeur : compte Django *staff*, session et CSRF, console `:5173` (comptes partagés avec `/admin/`). Responsable PME sur le portail : compte Django rattaché au tenant (`/mon-espace`). Administrateurs PME sur leurs machines : comptes locaux du nœud (Argon2, rôles `admin` et `employee`, mot de passe `admin` affiché une seule fois au premier démarrage). Utilisateurs métier : le login propre à l'application hébergée, qu'AMANE relaie sans s'en mêler |
+| Licences du banc | Conservées : la V3 n'a ajouté qu'un champ facultatif `application`. Les machines, elles, se réinstallent (ADR-004, décision 4) après désactivation des anciennes dans la console |
+
+### Récupération de la DEK : l'existant
+
+Le socle `ss-crypto` contient les briques prévues pour la récupération d'urgence (Mission A) :
+
+| Brique | Fichier | Rôle |
+|---|---|---|
+| Argon2id | `recovery.rs` | Dérive 32 octets d'une passphrase et d'un sel (64 Mio, 3 passes, 4 voies) ; paramètres signalés comme « non durcis pour la production » |
+| KEK | `shamir.rs` | Clé d'enveloppe qui emballe et déballe la DEK (`wrap_dek`, `unwrap_dek`) |
+| Shamir | `shamir.rs` | Découpe de la KEK en 3 parts dont 2 suffisent (`split_kek`, `reconstruct_kek`) ; schéma figé à 2 sur 3 |
+| X25519 | `device_key.rs` | Scellement de la DEK pour la clé publique d'une machine (utilisé par l'enrôlement) |
+
+**Ce que la pile en fait.** Rien. L'initialisation interactive (`ss-node init --first` hors Docker) dérive bien une clé Argon2id d'un code saisi et emballe la DEK, mais le blob reste dans le `config.toml` de la machine et disparaît avec elle. Dans la pile Docker, la branche automatique d'`init.rs` génère la DEK sans aucune saisie : ni passphrase, ni blob de récupération. `split_kek` et `reconstruct_kek` ne sont appelés que par leurs tests. Il n'existe ni format papier, ni commande de reconstitution, ni combinaison passphrase + parts.
+
+**Conformité.** `shamir.rs` implémente à la main l'arithmétique sur GF(256), ce que la règle n° 1 du dépôt interdit (aucune primitive cryptographique maison). Son commentaire annonce un temps d'exécution constant, ce qui est inexact : `gf_mul` comporte des branchements qui dépendent des octets secrets. Le risque pratique est faible (calcul ponctuel, sur une machine de la PME), mais le code doit être remplacé par une bibliothèque reconnue ou faire l'objet d'une dérogation écrite.
+
+### Récupération de la DEK : la proposition (étape 8)
+
+Deux facteurs, conformément à l'intention d'origine : **ce que le gérant sait** (sa passphrase) et **ce qu'il détient** (des parts sur papier).
+
+- À la création du cluster, une page d'administration du premier serveur (`/amane/admin/recuperation`) fait saisir la passphrase du gérant : `K_p = Argon2id(passphrase, sel)`.
+- Une clé aléatoire `K_s` est découpée en parts Shamir (2 sur 3), imprimées chacune sur une feuille avec une somme de contrôle de saisie.
+- La KEK est dérivée de `K_p` et `K_s` ; elle emballe la DEK. Le blob (sel compris) est déposé sur le relais, qui n'y voit que du chiffré, et imprimé avec les parts.
+- Après une perte totale, `ss-node recuperer` sur une installation neuve demande la passphrase et deux parts, reconstitue la DEK et rend les sauvegardes du relais lisibles.
+- Variante X25519 : dériver de la passphrase une paire de clés de récupération et sceller la DEK pour sa clé publique, ce qui permet de recréer le blob sans la passphrase lors d'un changement de DEK. Utile seulement si la rotation de la DEK est prévue.
+
+**Décisions attendues avant de coder** (elles feront l'ADR-010) :
+
+| # | Sujet | Recommandation |
+|---|---|---|
+| 1 | Mode de récupération | Passphrase **et** parts papier (plutôt que l'un ou l'autre seul) |
+| 2 | Garde-fou | Alerte bloquante au portail tant que la récupération n'est pas configurée ; à trancher : refuser aussi l'état « prêt » ou le démarrage des sauvegardes |
+| 3 | Implémentation de Shamir | Remplacer le code maison par une bibliothèque reconnue, ou consigner une dérogation |
+
+### Jeton du relais et intégrité des sauvegardes (étape 9)
+
+Le relais accepte un jeton facultatif (`RELAY_AUTH_TOKEN`, en-tête `x-relay-token`) et le nœud sait l'envoyer, mais la pile générée ne le lui transmet pas. Deux cas, tous deux insatisfaisants : un relais qui exige le jeton refuse toutes les sauvegardes ; un relais qui ne l'exige pas (le banc actuel) laisse quiconque connaît l'identifiant d'un tenant lire, écraser ou supprimer ses blobs. La lecture ne livre que du chiffré (le zero-knowledge tient), mais la suppression détruit les sauvegardes. Un jeton unique pour tout le relais ne suffit pas : un tenant pourrait écraser les blobs d'un autre.
+
+**Défaut trouvé pendant l'analyse.** Le chiffrement d'une sauvegarde (`sauvegarde.rs`, `Dek::encrypt`) ne lie pas le blob à son nom. Un blob déplacé, l'export du lundi à la place de celui du jeudi ou la base `amane` à la place de `application`, se déchiffre sans erreur : la restauration rendrait silencieusement d'anciennes données.
+
+**Correctif proposé.** Un jeton propre à chaque tenant, créé par le portail et injecté dans le `.env` de la pile ; le relais le vérifie sans base de données (HMAC de l'identifiant du tenant sous un secret partagé entre portail et relais, implémentation RustCrypto). Les données authentifiées du chiffrement portent le tenant, la base et le jour, et la restauration refuse un blob déplacé.
+
+### Ce que la validation sur le banc doit établir
+
+Le laboratoire simule trois machines par des conteneurs sur un seul poste ; rien de la V3 n'a tourné sur les postes du banc. Seuls ceux-ci peuvent montrer : le comportement du pare-feu Windows et du réseau de Docker Desktop, les IP réelles attribuées par DHCP, les délais de bascule sous Docker Desktop face aux cibles d'ADR-006, une coupure d'alimentation réelle suivie du retour en `Replica` puis `Sync Standby`, la détection de BitLocker et de LUKS sur de vrais disques, et la console React parcourue dans un navigateur.
+
+L'essai de l'étape 3, interrompu faute de mémoire, n'avait validé que la première machine : application `FROM scratch` démarrée, `DATABASE_URL` injectée, rôle et base créés, base jointe par HAProxy, sonde passée à « disponible ». Restent : la page servie par le proxy des deux serveurs, un compteur écrit par un serveur et relu par l'autre (même primaire), la continuité de l'application après bascule, l'enrôlement et une sauvegarde dans le même essai, et le parcours réel du catalogue (image poussée, validée, rattachée, pile téléchargée), dont la vérification du registre n'a été testée côté Django qu'avec des réponses simulées. Cet essai se fera sur le banc plutôt que sur le poste de développement.
+
+### Étapes avant les tests
+
+1. Trancher les trois décisions de la récupération de la DEK et rédiger l'ADR-010.
+2. Étape 8 : récupération de la DEK (page de configuration, feuille à imprimer, blob sur le relais, `ss-node recuperer`, tests dont une perte totale simulée en laboratoire).
+3. Étape 9 : jeton du relais par tenant et liaison des blobs à leur nom.
+4. Étape 10 : reconstruire et republier les images (nœud, orchestrateur, pile) et le portail ; à refaire après les étapes 8 et 9.
+5. Étape 11 : préparer la séance (IP du jour dans `RELAY_URL`, relais démarré, anciennes machines d'AMANE Test désactivées, application d'exemple poussée, validée et rattachée).
+6. Dérouler l'annexe sur le banc, étapes 1 à 16.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
-| **Récupération de la DEK après perte totale** (prioritaire) | Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : s'ils sont tous perdus, les sauvegardes du relais sont irrécupérables. À faire : à la création du cluster, emballer la DEK sous un secret que seule la PME détient (code de récupération Argon2id affiché une fois, ou parts Shamir), déposer ce blob sur le relais, et une commande de reconstitution sur une installation neuve. Primitives déjà dans `ss-crypto` ; opération humaine | ADR-003, ADR-008 |
+| **Récupération de la DEK après perte totale** (prioritaire) | Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : s'ils sont tous perdus, les sauvegardes du relais sont irrécupérables. Proposition et trois décisions attendues au § 6 (séance du 2026-10-29 après-midi) ; étape 8 | ADR-003, ADR-008, futur ADR-010 |
+| **Shamir implémenté à la main** | `shamir.rs` contrevient à la règle n° 1 (aucune primitive maison) et n'est pas à temps constant contrairement à son commentaire. Remplacer par une bibliothèque reconnue ou consigner une dérogation, avant de brancher la récupération | Règle n° 1, étape 8 |
+| Paramètres Argon2id | 64 Mio, 3 passes : réglages du spike, à revoir pour une passphrase qui protège toute la DEK d'un client | Étape 8 |
 | Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
 | Mises à jour de l'application | Une nouvelle version est validée par l'éditeur AMANE (ADR-009) ; reste : signature des images (cosign) en plus du digest, et propagation aux machines installées (régénération de la pile aujourd'hui) | ADR-002, ADR-009 |
@@ -713,7 +794,8 @@ AMANE V3 sait, de bout en bout dans le code : admettre l'application d'un édite
 | Enrôlement sur un réseau hostile | L'échange d'enrôlement passe en HTTP sur le réseau local : la DEK y est scellée, mais un attaquant placé au milieu pourrait capter le code et substituer sa clé publique, ou remettre une fausse DEK. Piste : afficher l'empreinte de la clé du nouveau serveur dans la console pour confirmation humaine, ou TLS du mesh | ADR-008 |
 | Mesh WireGuard | Reporté au-delà de l'étape 7 ; à valider sur le banc (`NET_ADMIN`, Docker Desktop) | ADR-008 |
 | Taille des sauvegardes | L'export est chiffré en mémoire en un seul bloc (limite pratique : quelques centaines de Mo). Au-delà : chiffrement par morceaux en flux | ADR-008 |
-| Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes. Le jeton doit être propre au tenant, sinon un tenant pourrait écraser les blobs d'un autre | ADR-008, étape 5 |
+| Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes, un relais qui ne l'exige pas laisse supprimer les blobs. Jeton propre au tenant (HMAC) : étape 9 | ADR-008, étape 9 |
+| Blobs non liés à leur nom | Une sauvegarde déplacée (autre jour, autre base) se déchiffre sans erreur : restauration silencieuse d'anciennes données. Lier tenant, base et jour au chiffrement : étape 9 | ADR-008, étape 9 |
 | Sauvegarde sur un serveur non enrôlé | Un primaire sans DEK ne sauvegarde pas (il le signale dans ses journaux). Alerter le portail ? | ADR-008 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
@@ -751,5 +833,11 @@ Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin
 11. Rallumer le poste : il doit revenir en `Replica` puis `Sync Standby`.
 12. Sauvegarde : `docker exec ss-node ss-node sauvegarder` sur le primaire ; le blob doit apparaître sur le relais (page Relais de la console) et ne contenir aucune donnée lisible.
 13. Console éditeur : la page Appareils doit montrer l'état du disque de chaque poste (chiffré ou non) et le témoin.
+
+**Application hébergée, récupération (après les étapes 8 et 9).**
+
+14. Application d'exemple : la page répond par `http://<poste 1>:9001/` et par `http://<poste 2>:9001/` ; un compteur incrémenté par l'un est relu identique par l'autre ; après l'extinction du primaire, l'application répond toujours par le serveur restant et le compteur est intact.
+15. Récupération configurée sur le poste 1 (passphrase du gérant, parts imprimées) ; le blob de récupération apparaît sur le relais.
+16. Perte totale simulée : les deux serveurs sont réinstallés à neuf ; `ss-node recuperer` avec la passphrase et deux parts ; `ss-node restaurer` rend les données d'avant la perte.
 
 Consigner les résultats et les durées dans le § 6 (étape 2d pour les mesures fines).
