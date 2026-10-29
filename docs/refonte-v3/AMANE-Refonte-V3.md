@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.9
+version: 2.0
 date: 2026-10-29
 branche: main3
-statut: Étape 3 terminée — étape 4 à suivre
+statut: Étape 4 terminée — étape 5 à suivre
 ---
 
 # Fiche du document
@@ -28,6 +28,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.7 | 2026-10-29 | main3 | Sous-étape 2c : nœud Rust recentré (garde de quorum en lecture, époque = timeline, fencing continu) ; méthode de travail : étapes enchaînées, commit par étape sans push |
 | 1.8 | 2026-10-29 | main3 | Sous-étape 2d : mode synchrone selon la taille du cluster, alerte « sous le seuil », mesures ; ADR-006 ; essai sur trois machines 13/13 |
 | 1.9 | 2026-10-29 | main3 | Étape 3 : le nœud héberge une application externe (manifeste, lanceur, base dédiée, reverse proxy) ; ADR-007 |
+| 2.0 | 2026-10-29 | main3 | Étape 4 : réseau de l'application sans sortie, enrôlement des serveurs par code à usage unique, sauvegardes chiffrées sur le relais, chiffrement du disque vérifié ; ADR-008 ; routes de blobs du relais corrigées |
 
 # 1. Objet de la refonte
 
@@ -91,6 +92,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-005 | Installation de la pile HA chez la PME : amorçage etcd, témoin, images, secrets, HAProxy | Acceptée | 2026-10-28 |
 | ADR-006 | Réglages de bascule : taille du cluster retenue, `loop_wait`, cibles de délai | Acceptée (décidée seule, méthode du 29/10) | 2026-10-29 |
 | ADR-007 | Hébergement de l'application externe : lancement, interface, base, injection des identifiants | Acceptée (décidée seule) | 2026-10-29 |
+| ADR-008 | Confinement et chiffrement : réseau sans sortie, enrôlement, sauvegardes, chiffrement au repos, mesh reporté | Acceptée (décidée seule) | 2026-10-29 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -145,7 +147,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 3 | Version PostgreSQL | **17** (image Spilo), une seule version à maintenir |
 | 4 | Clusters déjà installés | **Réinstallation des bancs** (Pilote AMANE, AMANE Test) ; pas de migration de données |
 | 5 | Accès au primaire | **HAProxy local** sur chaque machine, qui interroge Patroni (`GET /primary`) : adresse fixe pour le nœud et pour l'application externe |
-| 6 | Chiffrement du trafic entre machines | **Reporté à l'étape 4** (mesh WireGuard, `orchestrator-go/mesh`) ; ce trafic reste dans le périmètre PME |
+| 6 | Chiffrement du trafic entre machines | **Reporté à l'étape 4** (mesh WireGuard, `orchestrator-go/mesh`) ; ce trafic reste dans le périmètre PME. *Reporté de nouveau au-delà de l'étape 7 : voir ADR-008, décision 5* |
 | 7 | Source de l'époque | **Timeline PostgreSQL** : incrémentée à chaque promotion, persistée, identique sur tous les nœuds, ne recule jamais |
 
 **Le quorum reste une garantie du socle.** Ce qui sort du nœud Rust, c'est la **décision** de promouvoir (désormais prise par Raft via etcd, et appliquée par Patroni). Ce qui reste dans le socle et dans l'image du nœud, c'est la **vérification** et l'**application** :
@@ -207,6 +209,21 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Conséquences.** L'application doit savoir lire sa base depuis une variable d'environnement (cas usuel des SaaS). Les WebSockets ne sont pas encore relayés. La sécurité du relais (contrôle d'appareil appairé devant l'interface) reste ouverte (ADR-003).
 
+## ADR-008 — Confinement et chiffrement
+
+**Contexte.** L'étape 4 met en œuvre ADR-003 : le code de l'éditeur tourne dans le cluster et manipule du clair. Il ne doit rien pouvoir envoyer dehors, la DEK doit atteindre chaque serveur sans circuler en clair, et tout ce qui sort (sauvegardes) doit être chiffré côté PME. Décisions prises seules (méthode du 29/10).
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Confinement réseau | L'application est seule sur un réseau Docker **interne** (`internal: true`, aucune route vers l'extérieur). Seuls le nœud (qui relaie son interface) et HAProxy (qui mène à sa base) y sont attachés ; etcd, PostgreSQL, l'orchestrateur et pgAdmin n'y sont pas | Pare-feu `iptables` ou proxy sortant filtrant (exige `NET_ADMIN`, inopérant sous Docker Desktop) ; réseau `none` (l'application ne joindrait plus sa base) |
+| 2 | Enrôlement des serveurs suivants | **Opération humaine des deux côtés.** Un administrateur génère, dans la console d'un serveur qui détient la DEK (`/amane/admin/enrolement`), un code à usage unique (16 caractères, 15 minutes, tous les codes annulés après 5 échecs). Sur le nouveau serveur, il lance `ss-node enroler --depuis … --code …`. La DEK lui est renvoyée **scellée pour sa clé publique** (`DevicePublicKey::seal_dek`, `ss-crypto`) ; il vérifie qu'elle s'ouvre avant de l'enregistrer | DEK partagée par etcd (en clair sur le réseau PME, lisible par le témoin) ; parts Shamir à chaque ajout (lourd pour une PME) ; transmission automatique à tout nouveau membre (contraire à la règle « les opérations sur les clés restent humaines ») |
+| 3 | Sauvegardes | Le **primaire autorisé à écrire** exporte chaque base (`pg_dump`, format custom), chiffre l'export avec la DEK et le dépose sur le relais en blob opaque. Première sauvegarde 5 minutes après la prise de rôle, puis toutes les 24 h ; rotation sur 7 jours par la clé du blob (`sauvegarde-<base>-<jour>`) ; chaque dépôt est consigné dans le journal du nœud. `ss-node sauvegarder` force une sauvegarde ; `ss-node restaurer --base … --jour …` restaure (opération humaine) | pgBackRest ou WAL-G vers un stockage objet (chiffrement par mot de passe hors de la hiérarchie AMANE, dépendance à un cloud) ; sauvegarde orchestrée par le portail (il verrait du clair) |
+| 4 | Chiffrement au repos | **Délégué au chiffrement du disque** de chaque machine (BitLocker sous Windows, LUKS sous Linux). L'installeur le vérifie, avertit s'il est absent et l'état remonte au portail (`Device.chiffrement_disque`), qui pourra le signaler à la PME. Non bloquant | Volume chiffré (gocryptfs, LUKS en fichier) sous clé dérivée de la DEK : FUSE ou privilèges impossibles sous Docker Desktop, et le déverrouillage à chaque redémarrage exigerait une opération humaine sur la clé ; TDE : absent de PostgreSQL |
+| 5 | Chiffrement entre machines (mesh WireGuard) | **Reporté au-delà de l'étape 7** (modifie ADR-004, décision 6). Ce trafic reste sur le réseau local de la PME ; la DEK n'y circule jamais en clair (décision 2) et les sauvegardes sortent chiffrées (décision 3) | Mesh dès maintenant : exige `NET_ADMIN` et le module noyau WireGuard dans les conteneurs, non garanti sous Docker Desktop (WSL2) ; à valider sur le banc d'abord |
+| 6 | Taille des blobs du relais | Limite portée à 1 Gio par blob (2 Mo par défaut dans axum) | Découpage en morceaux : prématuré pour la taille des bases d'une PME |
+
+**Conséquences.** Une application qui appellerait une API externe (licence, télémétrie, paiement) ne fonctionnera pas : c'est voulu, et la question de la licence de l'application reste ouverte (§ 7). Un serveur ajouté sans enrôlement fonctionne (réplication, bascule), mais ne peut ni chiffrer son journal ni sauvegarder ; s'il devient primaire, il le signale dans ses journaux. La promesse « chiffré au repos » dépend de la PME : AMANE la vérifie et la signale, sans pouvoir l'imposer.
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -261,7 +278,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | Terminée |
 | 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | Terminée (mesures en laboratoire ; banc à faire) |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002, ADR-007) | Terminée |
-| 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
+| 4 | Confinement et chiffrement : réseau interne sans sortie, enrôlement des serveurs, sauvegardes chiffrées via le relais, chiffrement du disque vérifié (ADR-003, ADR-008) | Terminée |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
 | 6 | Console React : page Applications, mise à jour Architecture | À faire |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | À faire |
@@ -581,11 +598,37 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 - Rust : 20 tests du nœud, dont un relais de bout en bout vers une vraie application HTTP (méthode, chemin, requête, corps, cookies, en-têtes de connexion filtrés) et l'application absente (502).
 - **Essai sur trois machines — interrompu.** Claude Code a arrêté l'essai faute de mémoire sur le poste ; il n'a pas été relancé, conformément à la consigne. Ce qu'il avait validé sur la première machine : l'application d'exemple **démarre dans son image `scratch`** (le lanceur injecte `DATABASE_URL`, l'orchestrateur a créé le rôle et la base, l'application les joint par HAProxy), et la sonde du nœud la voit passer d'« indisponible » à « disponible ». Restent à jouer, quand la mémoire le permettra : page servie par le proxy des deux machines, compteur partagé, continuité après bascule (script d'essai conservé hors dépôt, à réintégrer à `ha-lab`).
 
+## Étape 4 — Confinement et chiffrement (2026-10-29)
+
+**Ce qui a été fait (ADR-008).**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Confinement | `docker-compose.yml.tmpl` | Réseau `amane-application` interne, créé seulement si le tenant héberge une application ; l'application n'est que sur lui ; nœud et HAProxy y sont attachés |
+| Enrôlement | `spike/node/src/enrolement.rs`, `cmd/enroler.rs`, `auth/routes.rs`, `web.rs` | Codes à usage unique (alphabet sans caractères ambigus, saisie tolérante), page d'administration « Enrôlement », route `POST /amane/api/enrolement` authentifiée par le seul code, commande `ss-node enroler` |
+| Sauvegardes | `spike/node/src/sauvegarde.rs`, `cmd/sauvegarder.rs`, `cmd/run.rs`, `node/Dockerfile` | Export, chiffrement par la DEK, dépôt et restauration ; planification dans la boucle de supervision (seulement quand l'écriture est autorisée) ; client PostgreSQL 17 dans l'image du nœud (dépôt officiel PGDG, même version que Spilo) |
+| Relais | `spike/relay/src/main.rs` | Routes de blobs corrigées et limite de taille (voir plus bas) ; premiers tests du relais |
+| Chiffrement du disque | installeurs Linux et Windows, `devices` (migration 0009), `api_register.py` | Détection LUKS (`lsblk`) et BitLocker (`Get-BitLockerVolume`), avertissement en fin d'installation, `Device.chiffrement_disque` (`oui`, `non` ou `inconnu`) |
+
+**Défauts trouvés et corrigés.**
+
+- **Les routes de blobs du relais n'ont jamais fonctionné.** Elles étaient écrites `/api/blobs/{tenant_id}/{key}`, syntaxe d'axum 0.8, alors que le relais utilise axum 0.7, où les paramètres s'écrivent `:nom` : la route était prise au pied de la lettre et tout dépôt répondait 404. Corrigé et couvert par un test de bout en bout (dépôt de 3 Mo, relecture, suppression).
+- `ss-node adduser` ignorait `PG_URL` et ne pouvait pas joindre la base dans la pile (il ne lisait que le fichier de configuration).
+
+**Vérifications.**
+
+- Django : 100 tests réussis (+18), dont le réseau interne (application isolée, seuls nœud et HAProxy attachés, aucun réseau applicatif sans application), la détection du chiffrement dans les deux installeurs et son enregistrement par le portail (valeur invalide refusée).
+- Rust : workspace `spike` complet réussi ; nœud 28 tests (+8 : codes à usage unique, annulation après échecs, DEK scellée ouverte par le seul destinataire, clés de rotation, lecture des secrets, blob illisible sans la DEK), relais 2 tests (dépôt de bout en bout, refus des évasions de chemin).
+- **Essais légers sur Docker réel** (deux ou trois conteneurs, scripts hors dépôt) :
+  - sauvegarde, 6/6 : export chiffré déposé ; aucune donnée en clair dans le blob du relais (ni les données, ni l'en-tête `PGDMP`) ; table supprimée puis restaurée depuis le relais ; une autre DEK ne peut pas restaurer ;
+  - enrôlement, 7/7 : code émis par la console du serveur A ; B démarre sans DEK ; un faux code est refusé ; B enrôlé avec le vrai code ; pas de second enrôlement ; la DEK de B est scellée pour sa propre clé ;
+  - confinement : depuis un réseau interne, aucune sortie vers Internet, le voisin du réseau reste joignable.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
-| Chiffrement au repos de PostgreSQL | Quel mécanisme : volume chiffré (LUKS, gocryptfs) avec clé dérivée de la DEK, ou chiffrement applicatif ? PostgreSQL n'offre pas de TDE natif | ADR-003 |
+| Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
 | Mises à jour de l'application | Signature des images (cosign) en plus du digest ? Qui valide une nouvelle version ? | ADR-002 |
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
@@ -595,7 +638,11 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
 | Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire) | Étape 3 |
 | WebSockets | Le relais du nœud ne relaie pas encore les connexions WebSocket | ADR-007 |
-| Enrôlement des serveurs suivants | Seul le premier serveur détient la DEK ; les suivants doivent la recevoir (sceau par appareil) par une opération humaine | Étape 4 |
+| Enrôlement sur un réseau hostile | L'échange d'enrôlement passe en HTTP sur le réseau local : la DEK y est scellée, mais un attaquant placé au milieu pourrait capter le code et substituer sa clé publique, ou remettre une fausse DEK. Piste : afficher l'empreinte de la clé du nouveau serveur dans la console pour confirmation humaine, ou TLS du mesh | ADR-008 |
+| Mesh WireGuard | Reporté au-delà de l'étape 7 ; à valider sur le banc (`NET_ADMIN`, Docker Desktop) | ADR-008 |
+| Taille des sauvegardes | L'export est chiffré en mémoire en un seul bloc (limite pratique : quelques centaines de Mo). Au-delà : chiffrement par morceaux en flux | ADR-008 |
+| Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes. Le jeton doit être propre au tenant, sinon un tenant pourrait écraser les blobs d'un autre | ADR-008, étape 5 |
+| Sauvegarde sur un serveur non enrôlé | Un primaire sans DEK ne sauvegarde pas (il le signale dans ses journaux). Alerter le portail ? | ADR-008 |
 | Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |

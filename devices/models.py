@@ -38,6 +38,12 @@ class Device(models.Model):
         choices=[('ok', 'Disponible'), ('ko', 'Indisponible')],
         help_text="État de l'application hébergée vu par ce nœud",
     )
+    # Étape 4 (ADR-008) : chiffrement du disque constaté par l'installeur.
+    chiffrement_disque = models.CharField(
+        max_length=8, blank=True,
+        choices=[('oui', 'Chiffré'), ('non', 'Non chiffré'), ('inconnu', 'Inconnu')],
+        help_text='Chiffrement du disque de la machine (BitLocker / LUKS)',
+    )
     last_failover_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Dernier failover automatique détecté sur ce nœud',

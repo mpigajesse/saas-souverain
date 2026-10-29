@@ -32,7 +32,13 @@
 networks:
   amane:
     driver: bridge
-
+{% if application %}  # Réseau de l'application hébergée : INTERNE, sans aucune sortie vers
+  # Internet (ADR-003, étape 4). Seuls le nœud (interface) et HAProxy (base)
+  # y sont joignables : l'application ne peut rien envoyer à son éditeur.
+  amane-application:
+    driver: bridge
+    internal: true
+{% endif %}
 services:
   amane-init:
     image: {{ images.orchestrateur }}
@@ -153,7 +159,7 @@ services:
     image: {{ images.haproxy }}
     container_name: amane-haproxy
     restart: unless-stopped
-    networks: [amane]
+    networks: [amane{% if application %}, amane-application{% endif %}]
     # Configuration écrite et rechargée par l'orchestrateur ; port 5000 joint
     # par les conteneurs de la machine uniquement (non publié).
     command:
@@ -168,7 +174,7 @@ services:
     image: {{ images.noeud }}
     container_name: ss-node
     restart: unless-stopped
-    networks: [amane]
+    networks: [amane{% if application %}, amane-application{% endif %}]
     ports:
       - "${WEB_PORT:-9001}:${WEB_PORT:-9001}"
     # Données par HAProxy : le nœud écrit toujours sur le primaire du moment,
@@ -195,6 +201,9 @@ services:
       AMANE_APP_URL: http://amane-application:{{ application.port }}
       AMANE_APP_SANTE: "{{ application.sante }}"
 {% endif %}      HOSTNAME: "${NODE_HOSTNAME}"
+      # Chiffrement du disque de la machine, constaté par l'installeur
+      # (oui / non / inconnu) et signalé au portail (ADR-008).
+      CHIFFREMENT_DISQUE: "${CHIFFREMENT_DISQUE:-inconnu}"
       RUST_LOG: info
     volumes:
       - node-data:/data
@@ -208,7 +217,7 @@ services:
     image: {{ application.image }}
     container_name: amane-application
     restart: unless-stopped
-    networks: [amane]
+    networks: [amane-application]
 {% if application.base %}    # Point d'entrée : le lanceur AMANE compose les variables de la base
     # (manifeste) puis exécute la commande d'origine de l'image.
     entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets/application.env", "--"]

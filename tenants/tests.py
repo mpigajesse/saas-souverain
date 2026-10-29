@@ -474,3 +474,56 @@ class PileAvecApplicationTests(BasePile):
         self.assertNotIn('entrypoint', app)
         self.assertNotIn('amane-bin', doc['volumes'])
         self.assertNotIn('-application-secrets=/amane/secrets/application.env', doc['services']['amane-orchestrateur']['command'])
+
+
+# ── Étape 4 : confinement et chiffrement ────────────────────────────────────
+
+class ConfinementTests(PileAvecApplicationTests):
+    """L'application hébergée ne peut rien envoyer hors du cluster (ADR-003)."""
+
+    def test_reseau_de_l_application_interne_sans_sortie(self):
+        reseau = self.doc['networks']['amane-application']
+        self.assertTrue(reseau['internal'])
+        self.assertEqual(self.doc['services']['amane-application']['networks'], ['amane-application'])
+        # Seuls le nœud (interface) et HAProxy (base) la rejoignent.
+        for service in ('ss-node', 'amane-haproxy'):
+            self.assertIn('amane-application', self.doc['services'][service]['networks'])
+        for service in ('amane-etcd', 'amane-postgresql', 'amane-orchestrateur', 'pgadmin'):
+            self.assertNotIn('amane-application', self.doc['services'][service]['networks'])
+
+    def test_chiffrement_du_disque_transmis_au_noeud(self):
+        env = self.doc['services']['ss-node']['environment']
+        self.assertEqual(env['CHIFFREMENT_DISQUE'], '${CHIFFREMENT_DISQUE:-inconnu}')
+
+
+class SansApplicationPasDeReseauInterneTests(BasePile):
+
+    def test_pas_de_reseau_applicatif(self):
+        doc = yaml.safe_load(corps(self.compose()))
+        self.assertNotIn('amane-application', doc['networks'])
+        self.assertEqual(doc['services']['ss-node']['networks'], ['amane'])
+
+
+class ChiffrementDisqueTests(InstalleursTests):
+
+    def test_les_installeurs_verifient_le_chiffrement_du_disque(self):
+        textes = self.textes()
+        self.assertIn('lsblk -s -no TYPE', textes['linux'][0])
+        self.assertIn('Get-BitLockerVolume', textes['windows'][0])
+        for os_type, (texte, _) in textes.items():
+            self.assertRegex(texte, r'(?m)^(echo )?CHIFFREMENT_DISQUE=', os_type)
+
+    def test_le_portail_enregistre_le_chiffrement(self):
+        r = self.client.post('/api/devices/register/', {
+            'tenant_token': str(self.tenant.registration_token),
+            'installation_id': 'dddddddd-0000-4000-8000-000000000001',
+            'chiffrement_disque': 'non',
+        }, content_type='application/json', HTTP_HOST=HOTE)
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(Device.objects.get(installation_id='dddddddd-0000-4000-8000-000000000001').chiffrement_disque, 'non')
+        r = self.client.post('/api/devices/register/', {
+            'tenant_token': str(self.tenant.registration_token),
+            'installation_id': 'dddddddd-0000-4000-8000-000000000002',
+            'chiffrement_disque': 'peut-etre',
+        }, content_type='application/json', HTTP_HOST=HOTE)
+        self.assertEqual(r.status_code, 400)

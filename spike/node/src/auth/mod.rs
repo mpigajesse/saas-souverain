@@ -15,6 +15,10 @@ pub struct AppState {
     pub node_id: Uuid,
     pub tenant_name: String,
     pub web_port: u16,
+    /// DEK du cluster, si cette machine la détient (enrôlement, étape 4).
+    pub dek: Option<std::sync::Arc<ss_crypto::Dek>>,
+    /// Codes d'enrôlement émis par ce nœud.
+    pub invitations: std::sync::Arc<crate::enrolement::Invitations>,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────

@@ -77,6 +77,12 @@ set "NODE_HOSTNAME="
 for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$n=($env:COMPUTERNAME -replace '[^A-Za-z0-9_.-]','-').TrimStart('-_.'); if ($n.Length -gt 63) { $n=$n.Substring(0,63) }; $n"`) do set "NODE_HOSTNAME=%%A"
 if "!NODE_HOSTNAME!"=="" set "NODE_HOSTNAME=pme-windows"
 echo        IP : !NODE_IP!   Nom : !NODE_HOSTNAME!
+:: Chiffrement du disque (ADR-008) : les donnees de la PME sont au repos sur le
+:: disque systeme (Docker Desktop) ; AMANE delegue leur chiffrement a BitLocker
+:: et le verifie ici.
+set "CHIFFREMENT_DISQUE=inconnu"
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$v=Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction SilentlyContinue; if ($v) { if ([string]$v.ProtectionStatus -eq 'On') { 'oui' } else { 'non' } } else { 'inconnu' }"`) do set "CHIFFREMENT_DISQUE=%%A"
+echo        Disque chiffre : !CHIFFREMENT_DISQUE!
 goto IP_READY
 
 :IP_ERROR
@@ -211,6 +217,7 @@ echo RELAY_URL=!RELAY_URL!
 echo REGISTRATION_TOKEN=!REGISTRATION_TOKEN!
 echo TENANT_ID={{ tenant.id }}
 echo PGADMIN_EMAIL=admin@pme{{ tenant.name|slugify }}.com
+echo CHIFFREMENT_DISQUE=!CHIFFREMENT_DISQUE!
 ) > "%INSTALL_DIR%\.env"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri '!SAAS_URL!/api/tenants/pme/compose/?token=!REGISTRATION_TOKEN!&type=!TYPE_MACHINE!' -OutFile '%INSTALL_DIR%\docker-compose.yml' -UseBasicParsing"
 if !ERRORLEVEL! NEQ 0 goto COMPOSE_ERROR
@@ -298,6 +305,13 @@ echo  Temoin etcd actif : il donne au cluster sa majorite quand l'un
 echo  des deux serveurs est indisponible. Laissez cette machine allumee.
 
 :FIN
+if /I "!CHIFFREMENT_DISQUE!"=="oui" goto FIN_CHIFFRE
+echo.
+echo  ATTENTION : le disque de cette machine n'est pas chiffre, ou n'a pas pu
+echo  etre verifie. Les donnees de la PME y sont stockees en clair au repos :
+echo  activez BitLocker pour tenir la promesse AMANE.
+
+:FIN_CHIFFRE
 echo.
 echo  Espace PME : !SAAS_URL!/mon-espace
 echo ====================================================

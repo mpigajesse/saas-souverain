@@ -69,12 +69,22 @@ pub async fn serve(
     pool: PgPool,
     tenant_name: String,
     application: Option<Arc<Application>>,
+    dek: Option<Arc<ss_crypto::Dek>>,
 ) {
-    let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port });
+    let state = Arc::new(AppState {
+        pool,
+        node_id,
+        tenant_name,
+        web_port: port,
+        dek,
+        invitations: Arc::new(crate::enrolement::Invitations::default()),
+    });
 
     // Public routes — no auth required
     let public_routes = Router::new()
-        .route("/login", get(auth_routes::login_page).post(auth_routes::login_post));
+        .route("/login", get(auth_routes::login_page).post(auth_routes::login_post))
+        // Authentifié par le code d'enrôlement à usage unique (étape 4).
+        .route("/api/enrolement", post(auth_routes::api_enrolement));
 
     // Authenticated routes — any logged-in user (employee or admin)
     // Logout is here so that a valid session is required (expired → already logged out)
@@ -86,6 +96,10 @@ pub async fn serve(
     // Admin-only routes
     let admin_routes = Router::new()
         .route("/admin", get(auth_routes::admin_dashboard))
+        .route(
+            "/admin/enrolement",
+            get(auth_routes::enrolement_page).post(auth_routes::enrolement_emettre),
+        )
         .route("/admin/utilisateurs", get(auth_routes::users_list))
         .route(
             "/admin/utilisateurs/nouveau",

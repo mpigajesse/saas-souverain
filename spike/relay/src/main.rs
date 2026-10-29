@@ -1,6 +1,6 @@
 use axum::{
     body::Bytes,
-    extract::{Path, Query, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -285,6 +285,28 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
 // Main
 // ---------------------------------------------------------------------------
 
+/// Taille maximale d'un blob : les sauvegardes chiffrées des PME (étape 4)
+/// dépassent largement la limite de 2 Mo appliquée par défaut par axum.
+const BLOB_MAX: usize = 1024 * 1024 * 1024;
+
+fn routeur(state: AppState) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .route("/api/nodes/announce", post(announce))
+        .route("/api/nodes", get(get_nodes))
+        // Syntaxe des paramètres d'axum 0.7 (`:nom`). La forme `{nom}` est
+        // celle d'axum 0.8 : en 0.7 elle était prise au pied de la lettre et
+        // les routes de blobs ne répondaient jamais (refonte V3, étape 4).
+        .route(
+            "/api/blobs/:tenant_id/:key",
+            get(blob_get)
+                .put(blob_put)
+                .delete(blob_delete)
+                .layer(DefaultBodyLimit::max(BLOB_MAX)),
+        )
+        .with_state(state)
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
@@ -298,19 +320,58 @@ async fn main() {
         started_at: Instant::now(),
     };
 
-    let app = Router::new()
-        .route("/health", get(health))
-        .route("/api/nodes/announce", post(announce))
-        .route("/api/nodes", get(get_nodes))
-        .route(
-            "/api/blobs/{tenant_id}/{key}",
-            get(blob_get).put(blob_put).delete(blob_delete),
-        )
-        .with_state(state);
+    let app = routeur(state);
 
     let addr = format!("0.0.0.0:{}", port);
     info!("ss-relay sur {}", addr);
 
     let listener = TcpListener::bind(&addr).await.expect("Impossible de lier l'adresse");
     axum::serve(listener, app).await.expect("Erreur serveur");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    fn etat() -> AppState {
+        AppState { registry: Arc::new(Mutex::new(HashMap::new())), started_at: Instant::now() }
+    }
+
+    #[tokio::test]
+    async fn blob_depose_relu_puis_supprime() {
+        let dossier = std::env::temp_dir().join(format!("relais-essai-{}", Uuid::new_v4()));
+        std::env::set_var("BLOBS_DIR", &dossier);
+        let tenant = Uuid::new_v4();
+        let url = format!("/api/blobs/{tenant}/sauvegarde-amane-3");
+        // Plus de 2 Mo : la limite par défaut d'axum refuserait ce dépôt.
+        let blob = vec![7u8; 3 * 1024 * 1024];
+
+        let r = routeur(etat())
+            .oneshot(Request::put(&url).body(Body::from(blob.clone())).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+
+        let r = routeur(etat()).oneshot(Request::get(&url).body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+        let lu = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(lu.len(), blob.len());
+
+        let r = routeur(etat()).oneshot(Request::delete(&url).body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+        let r = routeur(etat()).oneshot(Request::get(&url).body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(r.status(), StatusCode::NOT_FOUND);
+        let _ = std::fs::remove_dir_all(dossier);
+    }
+
+    #[test]
+    fn chemin_de_blob_refuse_les_evasions() {
+        assert!(blob_path("/data", "pas-un-uuid", "x").is_none());
+        let p = blob_path("/data", &Uuid::nil().to_string(), "../../etc/passwd").unwrap();
+        assert!(!p.to_string_lossy().contains(".."));
+        assert!(blob_path("/data", &Uuid::nil().to_string(), "").is_none());
+    }
 }

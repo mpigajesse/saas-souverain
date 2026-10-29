@@ -161,6 +161,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let da = if active == "accueil" { "active" } else { "" };
     let ca = if active == "cluster" { "active" } else { "" };
     let ua = if active == "utilisateurs" { "active" } else { "" };
+    let ea = if active == "enrolement" { "active" } else { "" };
 
     let admin_section = if is_admin {
         format!(
@@ -179,9 +180,16 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
       </svg>
       Utilisateurs
     </a>
+    <a href="/amane/admin/enrolement" class="{ea}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Enrôlement
+    </a>
   </nav>"#,
             ca = ca,
             ua = ua,
+            ea = ea,
         )
     } else {
         String::new()
@@ -423,6 +431,76 @@ pub async fn logout(
         Redirect::to("/amane/login"),
     )
         .into_response()
+}
+
+// ── Enrôlement d'un serveur (étape 4) ─────────────────────────────────────────
+
+fn page_enrolement(state: &AppState, code: Option<&str>) -> String {
+    let corps = match (&state.dek, code) {
+        (None, _) => r#"<div class="empty">Cette machine ne détient pas la DEK du cluster : elle ne peut pas
+  en enrôler une autre. Ouvrez cette page sur le premier serveur, ou sur un serveur déjà enrôlé.</div>"#
+            .to_string(),
+        (Some(_), None) => r#"<p style="margin-bottom:14px">Un serveur ajouté au cluster ne détient pas la DEK : il ne peut ni
+  chiffrer ses journaux ni lire les sauvegardes. Générez un code à usage unique (valable 15 minutes),
+  puis saisissez-le sur le nouveau serveur.</p>
+<form method="post" action="/amane/admin/enrolement">
+  <button type="submit" class="btn btn-p">Générer un code d'enrôlement</button>
+</form>"#
+            .to_string(),
+        (Some(_), Some(c)) => format!(
+            r#"<p>Code à usage unique, valable 15 minutes :</p>
+<p class="mono" style="font-size:1.6rem;font-weight:800;letter-spacing:.08em;margin:12px 0">{code}</p>
+<p>Sur le nouveau serveur, en administrateur :</p>
+<pre class="mono" style="background:#F3F4F6;padding:12px;border-radius:8px;margin-top:8px;white-space:pre-wrap">docker exec ss-node ss-node enroler --depuis http://ADRESSE-DE-CE-SERVEUR:{port} --code {code}
+docker restart ss-node</pre>
+<p style="margin-top:12px;color:var(--mu);font-size:.83rem">La DEK est scellée pour la clé publique du nouveau serveur :
+  elle ne circule jamais en clair et lui seul peut l'ouvrir.</p>"#,
+            code = esc(c),
+            port = state.web_port,
+        ),
+    };
+    format!(
+        r#"<div class="page-title">Enrôlement</div>
+<div class="page-sub">Transmettre la DEK du cluster à un nouveau serveur — opération humaine</div>
+<div class="cluster-card">{corps}</div>"#
+    )
+}
+
+pub async fn enrolement_page(State(state): State<Arc<AppState>>, Extension(user): Extension<User>) -> Html<String> {
+    let content = page_enrolement(&state, None);
+    Html(layout("Enrôlement", "enrolement", &user, &state.tenant_name, &content))
+}
+
+pub async fn enrolement_emettre(State(state): State<Arc<AppState>>, Extension(user): Extension<User>) -> Html<String> {
+    let code = state.dek.as_ref().map(|_| state.invitations.emettre());
+    if code.is_some() {
+        println!("  Enrôlement : code émis par {}", user.username);
+    }
+    let content = page_enrolement(&state, code.as_deref());
+    Html(layout("Enrôlement", "enrolement", &user, &state.tenant_name, &content))
+}
+
+/// `POST /amane/api/enrolement` — appelé par `ss-node enroler` sur le nouveau
+/// serveur. Authentifié par le seul code à usage unique.
+pub async fn api_enrolement(
+    State(state): State<Arc<AppState>>,
+    axum::Json(demande): axum::Json<crate::enrolement::Demande>,
+) -> Response {
+    use axum::http::StatusCode;
+    let Some(dek) = state.dek.as_ref() else {
+        return (StatusCode::CONFLICT, "Cette machine ne détient pas la DEK du cluster.").into_response();
+    };
+    if !state.invitations.consommer(&demande.code) {
+        println!("  Enrôlement : code refusé");
+        return (StatusCode::FORBIDDEN, "Code d'enrôlement invalide, expiré ou déjà utilisé.").into_response();
+    }
+    match crate::enrolement::sceller_pour(dek, &demande.cle_publique) {
+        Ok(dek_scellee) => {
+            println!("  Enrôlement : DEK scellée pour un nouveau serveur");
+            axum::Json(crate::enrolement::Reponse { dek_scellee }).into_response()
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+    }
 }
 
 // ── Accueil — application hébergée ────────────────────────────────────────────

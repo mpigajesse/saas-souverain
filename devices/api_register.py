@@ -160,6 +160,12 @@ def device_register(request):
             {'status': 'error', 'message': 'node_kind invalide (attendu : serveur ou temoin).'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    chiffrement_disque = request.data.get('chiffrement_disque', '')
+    if chiffrement_disque not in ('', 'oui', 'non', 'inconnu'):
+        return Response(
+            {'status': 'error', 'message': 'chiffrement_disque invalide.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     etat_application = request.data.get('etat_application', '')
     if etat_application not in ('', 'ok', 'ko'):
         return Response(
@@ -185,6 +191,7 @@ def device_register(request):
             'node_kind': node_kind,
             'etat_quorum': etat_quorum,
             'etat_application': etat_application,
+            'chiffrement_disque': chiffrement_disque,
             'is_active': True,
         },
     )
@@ -198,6 +205,8 @@ def device_register(request):
             device.etat_quorum = etat_quorum
         if etat_application:
             device.etat_application = etat_application
+        if chiffrement_disque:
+            device.chiffrement_disque = chiffrement_disque
         if node_addr:
             device.node_addr = node_addr
         if web_addr:

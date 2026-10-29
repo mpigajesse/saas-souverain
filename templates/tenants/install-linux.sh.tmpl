@@ -60,6 +60,19 @@ MY_HOSTNAME=$(hostname 2>/dev/null | tr -c 'A-Za-z0-9_.\n-' '-' | sed 's/^[^A-Za
 [ -z "$MY_HOSTNAME" ] && MY_HOSTNAME="pme-$(echo "$MY_IP" | tr . -)"
 echo "       IP : $MY_IP   Nom : $MY_HOSTNAME"
 
+# Chiffrement du disque (ADR-008) : les données de la PME sont au repos sur ce
+# disque ; AMANE délègue leur chiffrement à LUKS/dm-crypt et le vérifie ici.
+CHIFFREMENT_DISQUE="inconnu"
+RACINE=$(findmnt -no SOURCE / 2>/dev/null || true)
+if [ -n "$RACINE" ]; then
+    if lsblk -s -no TYPE "$RACINE" 2>/dev/null | grep -q crypt; then
+        CHIFFREMENT_DISQUE="oui"
+    else
+        CHIFFREMENT_DISQUE="non"
+    fi
+fi
+echo "       Disque chiffré : ${CHIFFREMENT_DISQUE}"
+
 # ── 2. Docker ────────────────────────────────────────────────────────────────
 echo "[2/8] Vérification de Docker..."
 if ! command -v docker &>/dev/null; then
@@ -136,6 +149,7 @@ RELAY_URL=${RELAY_URL}
 REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
 TENANT_ID={{ tenant.id }}
 PGADMIN_EMAIL=admin@pme{{ tenant.name|slugify }}.com
+CHIFFREMENT_DISQUE=${CHIFFREMENT_DISQUE}
 ENV_EOF
 if ! curl -fsSL -o "${INSTALL_DIR}/docker-compose.yml" \
     "${SAAS_URL}/api/tenants/pme/compose/?token=${REGISTRATION_TOKEN}&type=${TYPE_MACHINE}"; then
@@ -217,6 +231,12 @@ if [ "$TYPE_MACHINE" = "serveur" ]; then
 else
     echo "  Témoin etcd actif : il donne au cluster sa majorité quand l'un"
     echo "  des deux serveurs est indisponible. Laissez cette machine allumée."
+fi
+if [ "$CHIFFREMENT_DISQUE" != "oui" ]; then
+    echo ""
+    echo "  ATTENTION : le disque de cette machine n'est pas chiffré (ou n'a pas pu"
+    echo "  être vérifié). Les données de la PME y sont stockées en clair au repos :"
+    echo "  activez le chiffrement du disque (LUKS) pour tenir la promesse AMANE."
 fi
 echo ""
 echo "  Espace PME : ${SAAS_URL}/mon-espace"

@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use ss_consensus::{
     check_fencing, epoque_cluster, evaluer_quorum, EpochToken, EtatQuorum, FencingResult,
 };
-use ss_crypto::DeviceKeyPair;
+use ss_crypto::{Dek, DeviceKeyPair};
 use ss_journal::Journal;
 use tokio::sync::watch;
 use uuid::Uuid;
@@ -105,14 +105,27 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
         }
 
         let web_tenant = config.tenant_name.clone().unwrap_or_else(|| "PME".to_string());
+        // DEK partagée par la console (enrôlement) et les sauvegardes.
+        let dek = ouvrir_dek(&config)?.map(std::sync::Arc::new);
         if application.is_some() {
             println!("  Application : interface relayée à la racine du port {web_port} ; console du nœud sous /amane");
         }
-        tokio::spawn(crate::web::serve(web_port, config.node_id, pool.clone(), web_tenant, application));
+        tokio::spawn(crate::web::serve(web_port, config.node_id, pool.clone(), web_tenant, application, dek.clone()));
 
         match std::env::var("PATRONI_URL") {
             Ok(base) if !base.is_empty() => {
-                boucle_supervision(&base, journal, config.node_id, canal_role, canal_etat).await
+                let sauvegardes = match (&dek, crate::sauvegarde::cible_depuis_env(&config.relay_url, config.tenant_id)) {
+                    (Some(dek), Ok(cible)) => Some((dek.clone(), cible)),
+                    (None, _) => {
+                        println!("  Sauvegardes : DEK absente sur cette machine — enrôlez-la pour qu'elle puisse sauvegarder");
+                        None
+                    }
+                    (Some(_), Err(e)) => {
+                        println!("  Sauvegardes : désactivées — {e}");
+                        None
+                    }
+                };
+                boucle_supervision(&base, journal, config.node_id, canal_role, canal_etat, sauvegardes).await
             }
             _ => {
                 // Hors pile V3 (pas de Patroni) : rôle lu dans PostgreSQL, aucune
@@ -144,8 +157,8 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     }
 }
 
-/// Ouvre le journal chiffré si la DEK est disponible sur cette machine.
-fn ouvrir_journal(config: &NodeConfig, config_path: &Path) -> Result<Option<Journal>> {
+/// Ouvre la DEK du cluster, si cette machine la détient (scellée pour sa clé).
+pub fn ouvrir_dek(config: &NodeConfig) -> Result<Option<Dek>> {
     let Some(sealed_hex) = config.sealed_dek_hex.as_ref() else {
         return Ok(None);
     };
@@ -158,8 +171,23 @@ fn ouvrir_journal(config: &NodeConfig, config_path: &Path) -> Result<Option<Jour
     let dek = keypair
         .open_sealed_dek(&sealed)
         .context("Impossible de déchiffrer la DEK — config corrompue ?")?;
+    Ok(Some(dek))
+}
+
+/// Ouvre le journal chiffré si la DEK est disponible sur cette machine.
+fn ouvrir_journal(config: &NodeConfig, config_path: &Path) -> Result<Option<Journal>> {
+    let Some(dek) = ouvrir_dek(config)? else {
+        return Ok(None);
+    };
     let chemin = config_path.parent().unwrap_or(Path::new(".")).join("journal.bin");
     Ok(Some(Journal::open(chemin, dek).context("Impossible d'ouvrir le journal")?))
+}
+
+/// Délai avant la première sauvegarde après une prise de rôle primaire, puis
+/// période entre deux sauvegardes (`AMANE_SAUVEGARDE_DELAI_S`,
+/// `AMANE_SAUVEGARDE_PERIODE_S`).
+fn duree_env(nom: &str, defaut: u64) -> Duration {
+    Duration::from_secs(std::env::var(nom).ok().and_then(|v| v.parse().ok()).unwrap_or(defaut))
 }
 
 /// Décision du nœud pour un tick : rôle à annoncer, droit d'écrire.
@@ -205,8 +233,14 @@ async fn boucle_supervision(
     node_id: Uuid,
     canal_role: watch::Sender<String>,
     canal_etat: watch::Sender<String>,
+    sauvegardes: Option<(std::sync::Arc<Dek>, crate::sauvegarde::Cible)>,
 ) {
     println!("  Patroni  : supervision en lecture ({base}) — la bascule appartient à etcd/Patroni");
+    // Sauvegardes chiffrées (étape 4) : faites par le primaire autorisé à
+    // écrire ; les résultats reviennent par ce canal pour être consignés dans
+    // le journal sans bloquer la supervision.
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, std::result::Result<(String, usize), String>)>();
+    let mut prochaine_sauvegarde: Option<std::time::Instant> = None;
     let mut epoque_max: u64 = 0;
     let mut ecrivait = false;
     let mut dernier_etat = String::new();
@@ -258,6 +292,38 @@ async fn boucle_supervision(
             }
         }
         ecrivait = d.ecriture_autorisee;
+
+        if let Some((dek, cible)) = &sauvegardes {
+            let maintenant = std::time::Instant::now();
+            match (d.ecriture_autorisee, prochaine_sauvegarde) {
+                (false, _) => prochaine_sauvegarde = None,
+                (true, None) => {
+                    prochaine_sauvegarde = Some(maintenant + duree_env("AMANE_SAUVEGARDE_DELAI_S", 300));
+                }
+                (true, Some(echeance)) if maintenant >= echeance => {
+                    prochaine_sauvegarde = Some(maintenant + duree_env("AMANE_SAUVEGARDE_PERIODE_S", 86_400));
+                    let (dek, cible, tx) = (dek.clone(), cible.clone(), tx.clone());
+                    tokio::spawn(async move {
+                        for base in crate::sauvegarde::bases_a_sauvegarder() {
+                            let res = crate::sauvegarde::sauvegarder(&dek, &cible, base).await.map_err(|e| e.to_string());
+                            let _ = tx.send((base.to_string(), res));
+                        }
+                    });
+                }
+                _ => {}
+            }
+        }
+        while let Ok((base, res)) = rx.try_recv() {
+            match res {
+                Ok((cle, taille)) => {
+                    println!("  Sauvegarde : {base} chiffrée et déposée sur le relais ({cle}, {taille} octets)");
+                    if let Some(j) = journal.as_mut() {
+                        let _ = j.append(epoque_max, node_id, &format!("sauvegarde.{base}"), format!("{cle} {taille}").into_bytes());
+                    }
+                }
+                Err(e) => println!("  Sauvegarde : {base} ÉCHEC — {e}"),
+            }
+        }
 
         tokio::time::sleep(PERIODE_SUPERVISION).await;
     }
@@ -491,6 +557,12 @@ async fn annoncer_au_saas(
     }
     if !etat_application.is_empty() {
         body["etat_application"] = etat_application.into();
+    }
+    // Chiffrement du disque constaté par l'installeur (ADR-008).
+    if let Ok(c) = std::env::var("CHIFFREMENT_DISQUE") {
+        if matches!(c.as_str(), "oui" | "non" | "inconnu") {
+            body["chiffrement_disque"] = c.into();
+        }
     }
 
     match reqwest::Client::new()

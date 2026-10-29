@@ -8,8 +8,10 @@ mod application;
 mod auth;
 mod cmd;
 mod config;
+mod enrolement;
 mod patroni;
 mod relay_client;
+mod sauvegarde;
 mod web;
 
 #[derive(Parser)]
@@ -46,6 +48,26 @@ enum Commands {
         /// UUID de l'appareil à retirer du cluster
         #[arg(long)]
         device_id: String,
+    },
+    /// Recevoir la DEK du cluster depuis un serveur qui la détient (code à usage unique)
+    Enroler {
+        /// Adresse web du serveur qui a émis le code (ex. http://192.168.1.10:9001)
+        #[arg(long)]
+        depuis: String,
+        /// Code d'enrôlement affiché par sa console (/amane/admin/enrolement)
+        #[arg(long)]
+        code: String,
+    },
+    /// Sauvegarder maintenant les bases, chiffrées par la DEK, sur le relais
+    Sauvegarder,
+    /// Restaurer une base depuis sa sauvegarde chiffrée sur le relais
+    Restaurer {
+        /// Base à restaurer : amane ou application
+        #[arg(long)]
+        base: String,
+        /// Jour de la sauvegarde : 1 (lundi) à 7 (dimanche)
+        #[arg(long)]
+        jour: u32,
     },
     /// Créer ou mettre à jour un utilisateur dans la base de données
     Adduser {
@@ -92,6 +114,15 @@ async fn main() -> Result<()> {
         }
         Commands::Delist { device_id } => {
             cmd::delist::run(&device_id, &config_path).await?;
+        }
+        Commands::Enroler { depuis, code } => {
+            cmd::enroler::run(&depuis, &code, &config_path).await?;
+        }
+        Commands::Sauvegarder => {
+            cmd::sauvegarder::run(&config_path).await?;
+        }
+        Commands::Restaurer { base, jour } => {
+            cmd::sauvegarder::restaurer_base(&base, jour, &config_path).await?;
         }
         Commands::Adduser { username, name, role, password } => {
             cmd::adduser::run(&username, &name, &role, &password, &config_path).await?;
