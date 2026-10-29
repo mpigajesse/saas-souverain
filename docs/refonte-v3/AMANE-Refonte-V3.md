@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.1
+version: 2.2
 date: 2026-10-29
 branche: main3
-statut: Étape 5 terminée — étape 6 à suivre
+statut: Étape 6 terminée — étape 7 à suivre
 ---
 
 # Fiche du document
@@ -30,6 +30,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.9 | 2026-10-29 | main3 | Étape 3 : le nœud héberge une application externe (manifeste, lanceur, base dédiée, reverse proxy) ; ADR-007 |
 | 2.0 | 2026-10-29 | main3 | Étape 4 : réseau de l'application sans sortie, enrôlement des serveurs par code à usage unique, sauvegardes chiffrées sur le relais, chiffrement du disque vérifié ; ADR-008 ; routes de blobs du relais corrigées |
 | 2.1 | 2026-10-29 | main3 | Étape 5 : catalogue des applications hébergées (modèle, validation contre le registre, rattachement à la licence) ; ADR-009 ; contrat d'API à jour des champs V3 |
+| 2.2 | 2026-10-29 | main3 | Étape 6 : console React — page Applications, application rattachée aux licences, états V3 des machines, page Architecture réécrite pour la V3 |
 
 # 1. Objet de la refonte
 
@@ -296,7 +297,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002, ADR-007) | Terminée |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, enrôlement des serveurs, sauvegardes chiffrées via le relais, chiffrement du disque vérifié (ADR-003, ADR-008) | Terminée |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
-| 6 | Console React : page Applications, mise à jour Architecture | À faire |
+| 6 | Console React : page Applications, mise à jour Architecture | Terminée |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
 
@@ -654,6 +655,21 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
 | Contrat d'API | `CONTRAT-API.md` | Section 2.8 ; champs V3 manquants ajoutés (`etat_cluster`, `etat_quorum`, `etat_application`, `chiffrement_disque`, `application`) |
 
 **Vérifications.** Django : 116 tests réussis (+16) : création et normalisation, manifeste invalide et format `exe` refusés, unicité, accès refusé à la PME et à l'anonyme (et `/api/applications/` ajouté aux routes éditeur verrouillées), validation selon le registre (absente, injoignable, présente, une seule fois), manifeste figé, rattachement limité aux applications validées, espace PME, retrait, suppression protégée, licence inactive, requêtes au registre (méthode, URL, 404, injoignable), et la pile générée **sans simulation** depuis le catalogue (application rattachée présente, absente du témoin, disparue après retrait). `makemigrations --check` : aucune migration manquante.
+
+## Étape 6 — Console React (2026-10-29)
+
+**Ce qui a été fait.** Aucune décision d'architecture nouvelle : la console expose ce que les étapes 2d à 5 ont produit.
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Applications (éditeur) | `pages/ApplicationsPage.tsx`, `App.tsx`, `Layout.tsx` | Page « Applications » : catalogue, création d'un brouillon (manifeste JSON vérifié avant envoi, erreurs du serveur affichées sur le champ), validation contre le registre, retrait avec rappel du nombre de PME concernées, suppression ; manifeste en lecture seule une fois validé |
+| Licences | `pages/LicensesPage.tsx` | Colonne « Application » et choix de l'application hébergée (applications validées seulement) |
+| États des machines | `components/EtatsNoeud.tsx`, `DevicesPage.tsx`, `MonEspacePage.tsx` | Pastilles « Témoin », « Application disponible / indisponible », « Disque chiffré / non chiffré » |
+| Espace PME | `pages/MonEspacePage.tsx` | Encart de l'application hébergée (nom, version, éditeur, sans accès à Internet) ; alerte nominative sur les disques non chiffrés |
+| Architecture | `pages/ArchitecturePage.tsx` | Contenu réécrit pour la V3 : enveloppe d'exécution, application confinée, pile etcd + Patroni + HAProxy, enrôlement par code, sauvegardes chiffrées sur le relais, règles de bascule d'ADR-004 et ADR-006, garantie zero-knowledge étendue à l'éditeur du SaaS hébergé. L'ancienne page décrivait une bascule propre au nœud, un enrôlement par QR et un stockage S3 qui n'existent pas |
+| Types et client | `types/index.ts`, `api/client.ts` | `Application`, `ApplicationResume`, champs V3 de `Device`, `License` et `EspacePme` ; fonctions de `/api/applications/` |
+
+**Vérifications.** `tsc -b` sans erreur, `eslint` sans avertissement, `vite build` réussi. Les pages n'ont pas été parcourues dans un navigateur contre un portail réel (à faire lors de la validation sur le banc).
 
 # 7. Points ouverts
 

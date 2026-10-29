@@ -6,6 +6,7 @@ import { AlertCircle, KeyRound, Loader2, Pencil, Plus, PowerOff, RotateCw, Trash
 import {
   createLicense,
   deleteLicense,
+  getApplications,
   getLicenses,
   getTenants,
   normalizeApiError,
@@ -13,7 +14,7 @@ import {
   type LicenseWritePayload,
 } from '../api/client'
 import { PLAN_LABELS } from '../types/index'
-import type { FieldErrors, License, LicensePlan, Tenant } from '../types/index'
+import type { Application, FieldErrors, License, LicensePlan, Tenant } from '../types/index'
 import StatusBadge from '../components/StatusBadge'
 
 function formatDate(iso: string | null): string {
@@ -105,6 +106,8 @@ interface FormState {
   starts_at: string
   expires_at: string
   is_active: boolean
+  /** UUID de l'application hébergée, '' pour aucune. */
+  application: string
 }
 
 function emptyForm(defaultTenant: string): FormState {
@@ -115,12 +118,14 @@ function emptyForm(defaultTenant: string): FormState {
     starts_at: new Date().toISOString().slice(0, 10),
     expires_at: '',
     is_active: true,
+    application: '',
   }
 }
 
 export default function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -140,9 +145,14 @@ export default function LicensesPage() {
     setLoading(true)
     setError(null)
     try {
-      const [licensesData, tenantsData] = await Promise.all([getLicenses(), getTenants()])
+      const [licensesData, tenantsData, applicationsData] = await Promise.all([
+        getLicenses(),
+        getTenants(),
+        getApplications(),
+      ])
       setLicenses(licensesData)
       setTenants(tenantsData)
+      setApplications(applicationsData)
     } catch (err) {
       setError(normalizeApiError(err).message)
     } finally {
@@ -176,6 +186,7 @@ export default function LicensesPage() {
       starts_at: toDateInput(lic.starts_at),
       expires_at: toDateInput(lic.expires_at),
       is_active: lic.is_active,
+      application: lic.application ?? '',
     })
     setFormError(null)
     setFieldErrors(null)
@@ -202,6 +213,7 @@ export default function LicensesPage() {
       starts_at: form.starts_at,
       expires_at: form.expires_at || null,
       is_active: form.is_active,
+      application: form.application || null,
     }
     try {
       if (editingLicense) {
@@ -386,6 +398,7 @@ export default function LicensesPage() {
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Tenant</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Offre</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Sièges</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Application</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Début</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Expiration</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>Statut</th>
@@ -402,6 +415,9 @@ export default function LicensesPage() {
                         </span>
                       </td>
                       <td style={{ padding: '14px 16px', fontWeight: 600 }}>{lic.seats} poste{lic.seats > 1 ? 's' : ''}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '13px', color: lic.application_nom ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {lic.application_nom || 'Aucune'}
+                      </td>
                       <td style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-secondary)' }}>{formatDate(lic.starts_at)}</td>
                       <td style={{ padding: '14px 16px' }}>{formatDate(lic.expires_at)}</td>
                       <td style={{ padding: '14px 16px' }}><StatusBadge active={lic.is_active} /></td>
@@ -594,6 +610,28 @@ export default function LicensesPage() {
                   />
                   <FieldError messages={fieldErrors?.expires_at} />
                 </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Application hébergée</label>
+                <select
+                  value={form.application}
+                  onChange={(e) => updateField('application', e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">Aucune</option>
+                  {applications
+                    .filter((a) => a.statut === 'validee' || a.id === form.application)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nom} {a.version} — {a.editeur}{a.statut !== 'validee' ? ' (retirée)' : ''}
+                      </option>
+                    ))}
+                </select>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Seules les applications validées se rattachent. La PME la reçoit en régénérant sa pile.
+                </div>
+                <FieldError messages={fieldErrors?.application} />
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

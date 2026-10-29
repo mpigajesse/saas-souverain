@@ -1,8 +1,10 @@
-// Page de présentation de l'architecture — remplace templates/dashboard/architecture.html.
+// Page de présentation de l'architecture V3 : AMANE, enveloppe d'exécution
+// souveraine pour SaaS externes (docs/refonte-v3/AMANE-Refonte-V3.md).
 // Contenu statique et explicatif uniquement : aucune donnée n'est prétendue provenir de l'API.
 
 import type { ComponentType, ReactNode } from 'react'
 import {
+  AppWindow,
   ArrowRightLeft,
   Building2,
   Database,
@@ -171,10 +173,10 @@ export default function ArchitecturePage() {
           Architecture souveraine
         </span>
         <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-          Architecture SaaS Souverain
+          AMANE — enveloppe d'exécution souveraine
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Flux zero-knowledge · Données souveraines sur le cluster PME · Réplication PostgreSQL distribuée
+          Un SaaS externe s'exécute dans le cluster de la PME, sans changer son code · zero-knowledge · haute disponibilité etcd + Patroni
         </p>
       </div>
 
@@ -185,7 +187,7 @@ export default function ArchitecturePage() {
           labelColor="var(--crimson)"
           borderColor="rgba(160,21,32,0.3)"
           background="rgba(160,21,32,0.04)"
-          footer={['UUID nœuds & rôle cluster', 'Dernier heartbeat reçu', 'Jamais les données métier', 'Jamais la clé DEK']}
+          footer={['UUID d\'installation, rôle, état du quorum', 'Santé de l\'application, chiffrement du disque', 'Jamais les données métier', 'Jamais la DEK ni les secrets de base']}
           footerLabel="Ce que voit l'éditeur"
           footerColor="var(--crimson)"
         >
@@ -194,17 +196,17 @@ export default function ArchitecturePage() {
             iconColor="#6EE7B7"
             iconBg="#092E20"
             title="Django + React / TypeScript"
-            detail="Portail web SaaS · gestion des tenants, des licences et suivi du parc installé."
-            tagText="Voit : comptes & licences"
+            detail="Tenants, licences, parc installé et catalogue des applications hébergées (manifestes, images par digest). Génère la pile et les installeurs de chaque PME."
+            tagText="Voit : comptes, licences, manifestes"
             tagOk
           />
           <ZoneCard
             icon={Database}
             iconColor="#93C5FD"
             iconBg="#17375F"
-            title="PostgreSQL éditeur"
-            detail="Tenants · appareils · sessions. Identifiant d'installation (UUID authentifié), jamais l'adresse MAC."
-            tagText="Jamais les données métier PME"
+            title="Registre d'images"
+            detail="Images de la pile PME et des applications, épinglées par digest : la PME exécute exactement ce qui a été validé."
+            tagText="Aucune donnée de la PME"
             tagOk={false}
           />
         </Zone>
@@ -214,7 +216,7 @@ export default function ArchitecturePage() {
           labelColor="#4F46E5"
           borderColor="rgba(99,102,241,0.3)"
           background="rgba(99,102,241,0.04)"
-          footer={['UUID nœuds (metadata)', 'Blobs chiffrés opaques', 'Jamais la DEK en clair', 'Jamais les clés privées X25519']}
+          footer={['Topologie des nœuds (metadata)', 'Sauvegardes chiffrées opaques', 'Jamais la DEK', 'Jamais les clés privées X25519']}
           footerLabel="Garantie zero-knowledge"
           footerColor="#4F46E5"
         >
@@ -222,8 +224,8 @@ export default function ArchitecturePage() {
             icon={Radio}
             iconColor="#FBBF24"
             iconBg="#4F1C14"
-            title="Service stateless (Rust/Go)"
-            detail="Point de rendez-vous multi-sites · enregistrement des nœuds PME à chaque démarrage."
+            title="Relais (Rust)"
+            detail="Point de rendez-vous : chaque nœud s'y annonce au démarrage et y découvre ses pairs."
             tagText="Ne lit jamais le contenu"
             tagOk={false}
           />
@@ -231,8 +233,8 @@ export default function ArchitecturePage() {
             icon={Lock}
             iconColor="#FCA5A5"
             iconBg="#4A0F1C"
-            title="Stockage objet S3-compatible"
-            detail="Blobs DEK chiffrés (XChaCha20-Poly1305) · blob de récupération protégé par Argon2id."
+            title="Stockage de blobs"
+            detail="Sauvegardes quotidiennes des bases, chiffrées par la DEK avant de quitter la PME · rotation sur 7 jours."
             tagText="Blobs opaques — jamais déchiffrés"
             tagOk
           />
@@ -243,26 +245,35 @@ export default function ArchitecturePage() {
           labelColor="#059669"
           borderColor="rgba(16,185,129,0.3)"
           background="rgba(16,185,129,0.05)"
-          footer={['Données métier (stock, paie…)', 'Journal CBOR chiffré (DEK)', 'DEK déchiffrée en RAM uniquement', 'Failover auto ≥ 3 nœuds · fencing par époque']}
+          footer={['Données de l\'application en clair', 'DEK sur les seuls serveurs enrôlés', 'Disque chiffré vérifié (BitLocker, LUKS)', 'Bascule par etcd + Patroni · fencing par timeline']}
           footerLabel="Périmètre souverain"
           footerColor="#059669"
         >
           <ZoneCard
-            icon={ShieldCheck}
+            icon={AppWindow}
             iconColor="#34D399"
             iconBg="#064E3B"
-            title="Nœud primaire"
-            detail="Exécute le logiciel métier · PostgreSQL maître · DEK déchiffrée en RAM uniquement."
-            tagText="Données en clair — périmètre souverain uniquement"
+            title="Application externe hébergée"
+            detail="Image de l'éditeur tiers, inchangée · réseau interne sans sortie vers Internet · interface relayée par le nœud · base dédiée jointe par HAProxy."
+            tagText="Ne peut rien envoyer à son éditeur"
+            tagOk
+          />
+          <ZoneCard
+            icon={ShieldCheck}
+            iconColor="#93C5FD"
+            iconBg="#17375F"
+            title="Nœud AMANE (Rust)"
+            detail="Console d'administration, enrôlement des serveurs, sauvegardes chiffrées, garde de quorum en lecture."
+            tagText="Seul à détenir la DEK"
             tagOk
           />
           <ZoneCard
             icon={GitBranch}
             iconColor="#FCD34D"
             iconBg="#451A03"
-            title="Nœud(s) standby"
-            detail="PostgreSQL standby · réplication streaming synchrone · prêt au failover."
-            tagText="Réplique synchrone"
+            title="Pile haute disponibilité"
+            detail="etcd (Raft) + Patroni / PostgreSQL 17 + HAProxy, pilotés par l'orchestrateur Go · témoin etcd sur une troisième machine."
+            tagText="Réplication synchrone"
             tagOk
           />
         </Zone>
@@ -274,20 +285,20 @@ export default function ArchitecturePage() {
         <div style={{ background: '#FFFFFF', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px 20px', boxShadow: 'var(--shadow)' }}>
           <PanelTitle icon={KeyRound} color="#4F46E5">Hiérarchie des clés</PanelTitle>
           <div style={{ fontFamily: 'monospace', fontSize: '.76rem', lineHeight: 2, color: 'var(--text-secondary)' }}>
-            <div><strong style={{ color: '#4F46E5' }}>DEK</strong> — symétrique, unique par entreprise</div>
-            <div style={{ paddingLeft: '14px' }}>├▶ chiffre données métier + journal CBOR</div>
+            <div><strong style={{ color: '#4F46E5' }}>DEK</strong> — symétrique, unique par cluster</div>
+            <div style={{ paddingLeft: '14px' }}>├▶ chiffre le journal du nœud et les sauvegardes</div>
             <div style={{ paddingLeft: '14px' }}>├▶ <strong style={{ color: '#059669' }}>sealed box X25519</strong></div>
-            <div style={{ paddingLeft: '28px' }}>└▶ un blob par appareil autorisé</div>
-            <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>Argon2id</strong></div>
-            <div style={{ paddingLeft: '28px' }}>└▶ blob de récupération, stocké chiffré sur le relais</div>
+            <div style={{ paddingLeft: '28px' }}>└▶ une par serveur enrôlé</div>
+            <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>KEK — Shamir K=2/N=3</strong></div>
+            <div style={{ paddingLeft: '28px' }}>└▶ récupération d'urgence, sans tiers de confiance</div>
           </div>
           <div style={{ marginTop: '14px', fontFamily: 'monospace', fontSize: '.76rem', lineHeight: 2, color: 'var(--text-secondary)' }}>
-            <div><strong style={{ color: '#4F46E5' }}>Enrôlement d'un nouveau nœud</strong></div>
-            <div style={{ paddingLeft: '14px' }}>1. le nœud génère sa paire X25519, affiche sa clé publique en QR</div>
-            <div style={{ paddingLeft: '14px' }}>2. un appareil autorisé scanne le QR</div>
-            <div style={{ paddingLeft: '14px' }}>3. il emballe la DEK (sealed box) pour le nouveau nœud</div>
-            <div style={{ paddingLeft: '14px' }}>4. le nouveau nœud ouvre le blob avec sa clé privée</div>
-            <div style={{ paddingLeft: '14px' }}>5. le jeton d'invitation est consommé (usage unique)</div>
+            <div><strong style={{ color: '#4F46E5' }}>Enrôlement d'un nouveau serveur</strong> (opération humaine)</div>
+            <div style={{ paddingLeft: '14px' }}>1. un administrateur génère un code dans la console d'un serveur enrôlé</div>
+            <div style={{ paddingLeft: '14px' }}>2. il le saisit sur le nouveau serveur (ss-node enroler)</div>
+            <div style={{ paddingLeft: '14px' }}>3. la DEK est scellée pour la clé publique du nouveau serveur</div>
+            <div style={{ paddingLeft: '14px' }}>4. le nouveau serveur l'ouvre avec sa clé privée</div>
+            <div style={{ paddingLeft: '14px' }}>5. le code est consommé (usage unique, 15 minutes)</div>
           </div>
         </div>
 
@@ -295,11 +306,12 @@ export default function ArchitecturePage() {
         <div style={{ background: '#FFFFFF', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px 20px', boxShadow: 'var(--shadow)' }}>
           <PanelTitle icon={Zap} color="#059669">Règles de bascule</PanelTitle>
           {[
-            { color: '#10B981', title: '≥ 3 nœuds — bascule automatique par quorum', sub: 'Supervision type Patroni · promotion de standby' },
-            { color: '#EF4444', title: '2 nœuds — bascule manuelle uniquement', sub: 'Intervention de la PME requise' },
-            { color: '#F59E0B', title: 'Fencing — jeton d\'époque monotone', sub: 'Ancien primaire isolé · split-brain impossible' },
-            { color: '#F59E0B', title: 'Alerte 3 → 2 nœuds — signalée au SaaS', sub: 'La PME est informée que seule la bascule manuelle reste possible' },
-            { color: '#EF4444', title: 'Sinistre total — récupération assistée', sub: 'Blob relais + code de récupération Argon2id → DEK retrouvée' },
+            { color: '#10B981', title: 'Bascule automatique par etcd + Patroni', sub: 'Quorum etcd à 3 membres : 2 serveurs + témoin, ou 3 serveurs · panne détectée en moins de 5 s' },
+            { color: '#10B981', title: '≥ 3 serveurs — réplication synchrone stricte', sub: 'Aucune écriture validée sans copie sur un second serveur' },
+            { color: '#F59E0B', title: '2 serveurs — synchrone non strict, alerte', sub: 'Un serveur seul continue d\'écrire ; la PME est prévenue que ses données ne sont plus protégées' },
+            { color: '#EF4444', title: '2 serveurs sans témoin — pas de quorum', sub: 'La panne de l\'un bloque les écritures : le portail demande d\'installer un témoin' },
+            { color: '#F59E0B', title: 'Fencing — timeline PostgreSQL', sub: 'Un ancien primaire revenu ne peut plus écrire · split-brain impossible' },
+            { color: '#EF4444', title: 'Sinistre — restauration depuis le relais', sub: 'Sauvegarde chiffrée récupérée et déchiffrée par un serveur enrôlé' },
           ].map((item, idx, arr) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
               <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: item.color, flexShrink: 0, marginTop: '5px' }} />
@@ -315,11 +327,11 @@ export default function ArchitecturePage() {
         <div style={{ background: '#FFFFFF', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px 20px', boxShadow: 'var(--shadow)' }}>
           <PanelTitle icon={ArrowRightLeft} color="var(--gold)">Flux entre acteurs</PanelTitle>
           {[
-            { tag: 'TLS', tagColor: '#4F46E5', label: 'Nœud PME → Éditeur SaaS', desc: 'UUID · rôle · heartbeat de topologie' },
-            { tag: 'ZK', tagColor: '#059669', label: 'Nœud PME → Relais', desc: 'DEK chiffrée X25519 · blob de récupération Argon2id' },
-            { tag: 'WAL', tagColor: 'var(--gold)', label: 'Primaire PG → Standby PG', desc: 'Réplication streaming synchrone' },
-            { tag: 'RAM', tagColor: 'var(--gold)', label: 'Application → PostgreSQL local', desc: 'Données en clair · exclusivement LAN PME' },
-            { tag: 'TLS', tagColor: '#4F46E5', label: 'Éditeur → Nœud PME', desc: 'Instructions d\'installation · docker-compose.yml' },
+            { tag: 'META', tagColor: '#4F46E5', label: 'Nœud PME → Éditeur', desc: 'UUID · rôle · état du quorum · santé de l\'application · chiffrement du disque' },
+            { tag: 'ZK', tagColor: '#059669', label: 'Nœud PME → Relais', desc: 'Annonce de topologie · sauvegardes chiffrées par la DEK' },
+            { tag: 'WAL', tagColor: 'var(--gold)', label: 'Primaire PG → Standby PG', desc: 'Réplication streaming, synchrone selon la taille du cluster' },
+            { tag: 'LAN', tagColor: 'var(--gold)', label: 'Application → sa base', desc: 'Réseau interne sans sortie · HAProxy mène toujours au primaire' },
+            { tag: 'PILE', tagColor: '#4F46E5', label: 'Éditeur → PME', desc: 'docker-compose et installeurs · images par digest · manifeste de l\'application' },
           ].map((item, idx, arr) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', padding: '8px 0', borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
               <span style={{ fontSize: '.6rem', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '2px', background: `${item.tagColor}22`, color: item.tagColor }}>
@@ -343,7 +355,8 @@ export default function ArchitecturePage() {
               <Building2 size={14} color="var(--crimson)" /> Éditeur
             </div>
             <p style={{ fontSize: '.76rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Gère comptes et licences. Voit uniquement les données de compte et de licence — jamais les données métier.
+              Gère comptes, licences et le catalogue des applications. Voit des métadonnées d'état — jamais les données
+              de la PME, ni la DEK, ni les mots de passe de ses bases.
             </p>
           </div>
           <div>
@@ -351,7 +364,8 @@ export default function ArchitecturePage() {
               <QrCode size={14} color="#4F46E5" /> Relais
             </div>
             <p style={{ fontSize: '.76rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Stockage chiffré des données métier et point de rendez-vous multi-sites. Ne voit jamais le clair, même compromis ou saisi.
+              Point de rendez-vous et stockage des sauvegardes, chiffrées avant de quitter la PME. Ne voit jamais le
+              clair, même compromis ou saisi.
             </p>
           </div>
           <div>
@@ -359,7 +373,8 @@ export default function ArchitecturePage() {
               <ShieldCheck size={14} color="#059669" /> Cluster PME
             </div>
             <p style={{ fontSize: '.76rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Exécute le logiciel métier, détient et sérialise les données en clair — exclusivement dans le périmètre souverain de la PME.
+              Exécute le SaaS externe et détient les données en clair, exclusivement dans son périmètre. L'application
+              hébergée tourne sans accès à Internet : même son éditeur ne peut rien en extraire.
             </p>
           </div>
         </div>
@@ -379,10 +394,10 @@ export default function ArchitecturePage() {
       >
         <Lock size={22} color="#4F46E5" style={{ flexShrink: 0, marginTop: '2px' }} />
         <p style={{ fontSize: '.82rem', color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
-          <strong style={{ color: 'var(--text-primary)' }}>Garantie zero-knowledge</strong> — L'éditeur gère les comptes et
-          licences sans jamais voir les données métier. Le relais stocke des blobs chiffrés opaques qu'il ne peut pas
-          déchiffrer. Les données métier ne sortent jamais en clair du périmètre PME, même en cas de saisie du relais ou de
-          compromission du serveur éditeur.
+          <strong style={{ color: 'var(--text-primary)' }}>Garantie zero-knowledge</strong> — Personne d'autre que la PME ne
+          voit ses données en clair : ni l'éditeur AMANE, qui gère comptes, licences et applications ; ni le relais, qui ne
+          stocke que des sauvegardes chiffrées ; ni l'éditeur du SaaS hébergé, dont l'application n'a aucune sortie réseau.
+          La DEK et toutes les clés restent dans le cluster de la PME, et leur transmission reste une opération humaine.
         </p>
       </div>
     </div>

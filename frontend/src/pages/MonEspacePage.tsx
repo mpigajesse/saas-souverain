@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle,
+  AppWindow,
   Building2,
   Calendar,
   ExternalLink,
@@ -31,6 +32,7 @@ import { downloadInstallerUrl, getEspacePme, normalizeApiError } from '../api/cl
 import { NODE_ROLE_LABELS, PLAN_LABELS, isDeviceOnline } from '../types/index'
 import type { Device, EspacePme } from '../types/index'
 import StatusBadge from '../components/StatusBadge'
+import EtatsNoeud from '../components/EtatsNoeud'
 
 // ---------------------------------------------------------------------------
 // États partagés (chargement / erreur)
@@ -156,6 +158,7 @@ function DeviceCard({ device }: { device: Device }) {
             )}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{device.os || 'OS inconnu'}</div>
+          <EtatsNoeud device={device} />
         </div>
       </div>
 
@@ -269,7 +272,9 @@ export default function MonEspacePage() {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />
   if (!data) return null
 
-  const { tenant, active_license, devices, pgadmin, besoin_temoin, etat_cluster, relay_url } = data
+  const { tenant, active_license, devices, pgadmin, besoin_temoin, etat_cluster, application, relay_url } = data
+  // Serveurs dont l'installeur a constaté un disque non chiffré (ADR-008).
+  const disquesEnClair = devices.filter((d) => d.chiffrement_disque === 'non')
   const seatsUsedPercent =
     active_license && active_license.seats > 0
       ? Math.min(100, Math.round((devices.length / active_license.seats) * 100))
@@ -479,6 +484,52 @@ export default function MonEspacePage() {
           {etat_cluster === 'perdu'
             ? "Aucun serveur primaire n'est disponible : rallumez ou reconnectez vos serveurs."
             : "Un seul serveur détient vos données : si celui-ci tombe, les écritures récentes peuvent être perdues. Rallumez ou reconnectez l'autre serveur."}
+        </div>
+      )}
+
+      {/* Application hébergée (ADR-009) */}
+      {application && (
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <AppWindow size={18} color="var(--crimson)" style={{ flexShrink: 0 }} />
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>{application.nom} {application.version}</strong>
+            {' '}— édité par {application.editeur}. Hébergé sur vos serveurs, sans accès à Internet : ses
+            données ne quittent pas votre réseau. « Lancer le logiciel » sur une machine ouvre cette application.
+          </div>
+        </div>
+      )}
+
+      {/* Disques non chiffrés (ADR-008) */}
+      {disquesEnClair.length > 0 && (
+        <div
+          style={{
+            background: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+            fontSize: '0.875rem',
+            color: '#92400E',
+          }}
+        >
+          <strong style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <AlertCircle size={16} /> Disque non chiffré : {disquesEnClair.map((d) => d.hostname || 'machine sans nom').join(', ')}
+          </strong>
+          Vos données sont stockées en clair sur le disque de {disquesEnClair.length > 1 ? 'ces machines' : 'cette machine'} :
+          en cas de vol, elles seraient lisibles. Activez BitLocker (Windows) ou le chiffrement LUKS (Linux).
         </div>
       )}
 

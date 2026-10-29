@@ -16,6 +16,7 @@ import ClustersPage from './pages/ClustersPage'
 import RelayPage from './pages/RelayPage'
 import DeploiementPage from './pages/DeploiementPage'
 import ArchitecturePage from './pages/ArchitecturePage'
+import ApplicationsPage from './pages/ApplicationsPage'
 import MonEspacePage from './pages/MonEspacePage'
 import BienvenuePage from './pages/BienvenuePage'
 import LoginPage from './pages/LoginPage'
@@ -115,6 +116,7 @@ export default function App() {
           <Route path="/tenants/:id" element={<EditorRoute><TenantDetail /></EditorRoute>} />
           <Route path="/tenants/:id/modifier" element={<EditorRoute><TenantFormPage /></EditorRoute>} />
           <Route path="/licenses" element={<EditorRoute><LicensesPage /></EditorRoute>} />
+          <Route path="/applications" element={<EditorRoute><ApplicationsPage /></EditorRoute>} />
           <Route path="/devices" element={<EditorRoute><DevicesPage /></EditorRoute>} />
           <Route path="/clusters" element={<EditorRoute><ClustersPage /></EditorRoute>} />
           <Route path="/relay" element={<EditorRoute><RelayPage /></EditorRoute>} />

@@ -7,6 +7,7 @@ import { AlertCircle, HardDrive, Loader2, Power, PowerOff, RotateCw } from 'luci
 import { getDevices, normalizeApiError, toggleDeviceActive } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import { NODE_ROLE_LABELS, isDeviceOnline } from '../types/index'
+import EtatsNoeud from '../components/EtatsNoeud'
 import type { Device } from '../types/index'
 
 function formatDateTime(iso: string): string {
@@ -178,7 +179,10 @@ export default function DevicesPage() {
                             {dev.tenant_name || '—'}
                           </Link>
                         </td>
-                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>{dev.hostname || '—'}</td>
+                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                          {dev.hostname || '—'}
+                          <EtatsNoeud device={dev} />
+                        </td>
                         <td style={{ padding: '12px 16px' }}>
                           <span
                             style={{

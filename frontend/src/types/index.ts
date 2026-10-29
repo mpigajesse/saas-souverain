@@ -29,6 +29,10 @@ export interface License {
   starts_at: string
   expires_at: string | null
   is_active: boolean
+  /** Application externe hébergée par les machines de la PME (ADR-009). */
+  application: string | null
+  /** « Nom version », lecture seule. */
+  application_nom?: string | null
   created_at: string
 }
 
@@ -50,6 +54,10 @@ export interface Device {
   node_kind: 'serveur' | 'temoin'
   /** État du cluster vu par ce nœud (vide pour un témoin ou un nœud ancien). */
   etat_quorum: EtatCluster | ''
+  /** Santé de l'application hébergée, sondée par le nœud (étape 3). */
+  etat_application: 'ok' | 'ko' | ''
+  /** Chiffrement du disque constaté par l'installeur (ADR-008). */
+  chiffrement_disque: 'oui' | 'non' | 'inconnu' | ''
   /** IP:port annoncée par le nœud (ex : 192.168.200.130:9001). */
   node_addr: string
   /** IP:port de l'interface web PME (ex : 192.168.200.130:3000). */
@@ -253,6 +261,8 @@ export interface EspacePme {
   /** Deux serveurs et aucun témoin : la panne de l'un bloquerait les écritures. */
   besoin_temoin: boolean
   etat_cluster: EtatCluster | null
+  /** Application externe hébergée, null si aucune (ADR-009). */
+  application: ApplicationResume | null
   relay_url: string
 }
 
@@ -315,4 +325,53 @@ export interface NodeImage {
   construit_le: string | null
   url_telechargement: string
   registre: NodeImageRegistry
+}
+
+// ---------------------------------------------------------------------------
+// Applications hébergées — /api/applications/ (refonte V3, ADR-009)
+// ---------------------------------------------------------------------------
+
+export type StatutApplication = 'brouillon' | 'validee' | 'retiree'
+
+export const STATUT_APPLICATION_LABELS: Record<StatutApplication, string> = {
+  brouillon: 'Brouillon',
+  validee: 'Validée',
+  retiree: 'Retirée',
+}
+
+/** Manifeste d'exécution (tenants/manifeste.py), forme normalisée. */
+export interface ManifesteApplication {
+  type_artefact: 'docker'
+  image: string
+  commande: string[]
+  port: number
+  sante: string
+  variables: Record<string, string>
+  base_de_donnees: { variables: Record<string, string> } | null
+  volumes: { nom: string; chemin: string }[]
+}
+
+export interface Application {
+  id: string
+  nom: string
+  editeur: string
+  version: string
+  manifeste: ManifesteApplication
+  type_artefact: string
+  image: string
+  statut: StatutApplication
+  validee_le: string | null
+  /** Licences actives qui rattachent cette application. */
+  licences_actives: number
+  created_at: string
+  updated_at: string
+}
+
+/** Ce qu'une PME voit de l'application qu'elle héberge (jamais le manifeste). */
+export interface ApplicationResume {
+  id: string
+  nom: string
+  editeur: string
+  version: string
+  statut: StatutApplication
 }

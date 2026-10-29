@@ -8,6 +8,7 @@
 import axios, { AxiosError } from 'axios'
 import type {
   ApiError,
+  Application,
   ClusterOverview,
   DashboardStats,
   Device,
@@ -258,7 +259,7 @@ export async function deleteTenant(id: string): Promise<void> {
 }
 
 export type LicenseWritePayload = Partial<
-  Pick<License, 'tenant' | 'plan' | 'seats' | 'starts_at' | 'expires_at' | 'is_active'>
+  Pick<License, 'tenant' | 'plan' | 'seats' | 'starts_at' | 'expires_at' | 'is_active' | 'application'>
 >
 
 export async function getLicenses(tenantId?: string): Promise<License[]> {
@@ -334,4 +335,43 @@ export function downloadComposeUrl(): string {
 export function downloadInstallerUrl(os: 'linux' | 'windows', type: 'serveur' | 'temoin' = 'serveur'): string {
   const suffixe = type === 'temoin' ? '?type=temoin' : ''
   return `${getApiOrigin()}/api/tenants/me/download/installer/${os}/${suffixe}`
+}
+
+// ---------------------------------------------------------------------------
+// Applications hébergées — /api/applications/ (staff, ADR-009)
+// ---------------------------------------------------------------------------
+
+export type ApplicationWritePayload = Partial<Pick<Application, 'nom' | 'editeur' | 'version'>> & {
+  /** Objet JSON libre : le serveur le valide et renvoie sa forme normalisée. */
+  manifeste?: unknown
+}
+
+export async function getApplications(): Promise<Application[]> {
+  const { data } = await http.get<Application[]>('/applications/')
+  return data
+}
+
+export async function createApplication(payload: ApplicationWritePayload): Promise<Application> {
+  const { data } = await http.post<Application>('/applications/', payload)
+  return data
+}
+
+export async function updateApplication(id: string, payload: ApplicationWritePayload): Promise<Application> {
+  const { data } = await http.patch<Application>(`/applications/${id}/`, payload)
+  return data
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  await http.delete(`/applications/${id}/`)
+}
+
+/** Brouillon → validée, si l'image est publiée dans le registre (409 / 503 sinon). */
+export async function validerApplication(id: string): Promise<Application> {
+  const { data } = await http.post<Application>(`/applications/${id}/valider/`)
+  return data
+}
+
+export async function retirerApplication(id: string): Promise<Application> {
+  const { data } = await http.post<Application>(`/applications/${id}/retirer/`)
+  return data
 }

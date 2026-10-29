@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { ComponentType, ReactNode } from 'react'
 import {
+  AppWindow,
   BarChart3,
   Boxes,
   Building2,
@@ -34,6 +35,7 @@ const EDITOR_LINKS: NavItem[] = [
   { to: '/', label: 'Console', exact: true, Icon: LayoutDashboard },
   { to: '/tenants', label: 'Tenants', exact: false, Icon: Building2 },
   { to: '/licenses', label: 'Licences', exact: false, Icon: KeyRound },
+  { to: '/applications', label: 'Applications', exact: false, Icon: AppWindow },
   { to: '/devices', label: 'Appareils', exact: false, Icon: HardDrive },
   { to: '/clusters', label: 'Clusters', exact: false, Icon: Network },
   { to: '/relay', label: 'Relais', exact: false, Icon: Radio },
