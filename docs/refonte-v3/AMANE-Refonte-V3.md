@@ -764,6 +764,21 @@ Le laboratoire simule trois machines par des conteneurs sur un seul poste ; rien
 
 L'essai de l'étape 3, interrompu faute de mémoire, n'avait validé que la première machine : application `FROM scratch` démarrée, `DATABASE_URL` injectée, rôle et base créés, base jointe par HAProxy, sonde passée à « disponible ». Restent : la page servie par le proxy des deux serveurs, un compteur écrit par un serveur et relu par l'autre (même primaire), la continuité de l'application après bascule, l'enrôlement et une sauvegarde dans le même essai, et le parcours réel du catalogue (image poussée, validée, rattachée, pile téléchargée), dont la vérification du registre n'a été testée côté Django qu'avec des réponses simulées. Cet essai se fera sur le banc plutôt que sur le poste de développement.
 
+### Reconstruction des images (étape 10)
+
+La console servie sur `:5173` était encore la V2 : les conteneurs du portail avaient été relancés sur des images construites deux semaines (backend) et huit semaines (frontend) plus tôt, le conteneur ne montant pas le code. Les images de la pile publiées pour l'essai de la veille l'avaient été sur un registre de laboratoire (`localhost:5055`), et non sur celui du portail ; `media/node-images/pile.json` n'existait pas, si bien que le téléchargement de la pile aurait répondu 503.
+
+| Composant | Ce qui a été fait | Vérification |
+|---|---|---|
+| Portail (backend, frontend) | `docker compose build backend frontend` puis redémarrage | Migrations V3 appliquées (`applications 0001`, `devices 0006` à `0009`, `licenses 0002`), aucune en attente ; la console servie contient la page Applications et les pastilles Témoin et Disque chiffré. Un premier démarrage a échoué sur une transaction en lecture seule, Patroni n'ayant pas encore élu de primaire ; le redémarrage automatique prévu par le compose l'a résolu |
+| Nœud | `spike\build-node.ps1 -Version v3` | Binaire vérifié, `localhost:5000/ss-node:v3` poussé, archive hors ligne `ss-node-v3.tar.gz` (50 Mo) |
+| Pile | `scripts/publier-pile.sh localhost:5000` (construit aussi l'orchestrateur) | `pile.json` liste six images par digest ; la pile serveur générée pour AMANE Test les référence |
+| Relais | Image reconstruite (`ss-relay:dev`, `localhost:5000/ss-relay:dev`), conteneur recréé à l'identique (port 8080, volume `relay_blobs` conservé) | L'ancienne image datait du 15 octobre, avant la correction des routes de blobs ; `/health`, dépôt, relecture et suppression d'un blob répondent 200. Le dépôt sans jeton est accepté, ce qui confirme le constat de l'étape 9 |
+
+Digests publiés le 2026-10-29 : nœud `a98b2497…`, orchestrateur `824bea25…`, PostgreSQL `17bf371c…`, etcd `9344cfb9…`, HAProxy `43f51ba5…`, pgAdmin `2fbd14f8…`. Le champ `registre` de `pile.json` vaut `localhost:5000` à titre indicatif : le portail préfixe les images par l'hôte qui a servi à joindre l'éditeur, donc l'IP du poste éditeur vue depuis la PME.
+
+Le `Dockerfile` du nœud n'a pas de couche de cache des dépendances : une modification du code recompile tout l'espace de travail (337 crates). Une couche de cache (cargo-chef ou montage de cache) raccourcirait les reconstructions des étapes 8 et 9.
+
 ### Étapes avant les tests
 
 1. Trancher les trois décisions de la récupération de la DEK et rédiger l'ADR-010.
