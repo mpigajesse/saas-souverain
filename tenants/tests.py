@@ -527,3 +527,23 @@ class ChiffrementDisqueTests(InstalleursTests):
             'chiffrement_disque': 'peut-etre',
         }, content_type='application/json', HTTP_HOST=HOTE)
         self.assertEqual(r.status_code, 400)
+
+
+# ── Étape 5 : application rattachée à la licence ────────────────────────────
+
+class PileDepuisLeCatalogueTests(BasePile):
+    """Sans simulation : la pile reprend l'application validée de la licence."""
+
+    def test_application_rattachee_puis_retiree(self):
+        from applications.models import Application
+        doc = yaml.safe_load(corps(self.compose()))
+        self.assertNotIn('amane-application', doc['services'])
+        app = Application.objects.create(nom='Facturation', editeur='Lumière', version='1.0',
+                                         manifeste=valider(MANIFESTE_APP), statut=Application.VALIDEE)
+        License.objects.filter(tenant=self.tenant).update(application=app)
+        doc = yaml.safe_load(corps(self.compose()))
+        self.assertEqual(doc['services']['amane-application']['image'], f'{HOTE}:5000/editeurs/facturation@{DIGEST}')
+        # Le témoin n'héberge jamais l'application.
+        self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose('temoin')))['services'])
+        Application.objects.filter(pk=app.pk).update(statut=Application.RETIREE)
+        self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose()))['services'])

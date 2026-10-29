@@ -109,6 +109,7 @@ def device_register(request):
       - node_kind (str, optionnel)   : « serveur » (défaut) ou « temoin » (ADR-005)
       - etat_quorum (str, optionnel) : « sain », « sous_le_seuil » ou « perdu » (étape 2d)
       - etat_application (str, opt.) : « ok » ou « ko » — application hébergée (étape 3)
+      - chiffrement_disque (str, opt.) : « oui », « non » ou « inconnu » — disque de la machine (étape 4)
     """
     tenant_token_raw = request.data.get('tenant_token')
     installation_id_raw = request.data.get('installation_id')

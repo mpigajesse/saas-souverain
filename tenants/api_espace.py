@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from api.permissions import IsTenantUser
+from applications.serializers import ApplicationResumeSerializer
 from devices.serializers import DeviceSerializer
 from licenses.serializers import LicenseSerializer
 
@@ -18,6 +19,7 @@ from .serializers import TenantSerializer
 from .services import (
     TYPES_MACHINE,
     _pgadmin_url,
+    application_hebergee,
     build_bienvenue_context,
     build_compose_response,
     build_installeur_response,
@@ -46,6 +48,9 @@ def tenant_me(request):
         },
         'besoin_temoin': ctx['besoin_temoin'],
         'etat_cluster': tenant.etat_cluster,
+        # Application externe hébergée (étape 5) : None si aucune.
+        'application': (ApplicationResumeSerializer(app).data
+                        if (app := application_hebergee(tenant)) else None),
         'relay_url': getattr(settings, 'RELAY_URL', 'http://localhost:8080'),
     })
 

@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.0
+version: 2.1
 date: 2026-10-29
 branche: main3
-statut: Étape 4 terminée — étape 5 à suivre
+statut: Étape 5 terminée — étape 6 à suivre
 ---
 
 # Fiche du document
@@ -29,6 +29,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.8 | 2026-10-29 | main3 | Sous-étape 2d : mode synchrone selon la taille du cluster, alerte « sous le seuil », mesures ; ADR-006 ; essai sur trois machines 13/13 |
 | 1.9 | 2026-10-29 | main3 | Étape 3 : le nœud héberge une application externe (manifeste, lanceur, base dédiée, reverse proxy) ; ADR-007 |
 | 2.0 | 2026-10-29 | main3 | Étape 4 : réseau de l'application sans sortie, enrôlement des serveurs par code à usage unique, sauvegardes chiffrées sur le relais, chiffrement du disque vérifié ; ADR-008 ; routes de blobs du relais corrigées |
+| 2.1 | 2026-10-29 | main3 | Étape 5 : catalogue des applications hébergées (modèle, validation contre le registre, rattachement à la licence) ; ADR-009 ; contrat d'API à jour des champs V3 |
 
 # 1. Objet de la refonte
 
@@ -93,6 +94,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-006 | Réglages de bascule : taille du cluster retenue, `loop_wait`, cibles de délai | Acceptée (décidée seule, méthode du 29/10) | 2026-10-29 |
 | ADR-007 | Hébergement de l'application externe : lancement, interface, base, injection des identifiants | Acceptée (décidée seule) | 2026-10-29 |
 | ADR-008 | Confinement et chiffrement : réseau sans sortie, enrôlement, sauvegardes, chiffrement au repos, mesh reporté | Acceptée (décidée seule) | 2026-10-29 |
+| ADR-009 | Catalogue des applications hébergées : modèle, cycle de vie, rattachement à la licence | Acceptée (décidée seule) | 2026-10-29 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -224,6 +226,20 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Conséquences.** Une application qui appellerait une API externe (licence, télémétrie, paiement) ne fonctionnera pas : c'est voulu, et la question de la licence de l'application reste ouverte (§ 7). Un serveur ajouté sans enrôlement fonctionne (réplication, bascule), mais ne peut ni chiffrer son journal ni sauvegarder ; s'il devient primaire, il le signale dans ses journaux. La promesse « chiffré au repos » dépend de la PME : AMANE la vérifie et la signale, sans pouvoir l'imposer.
 
+## ADR-009 — Catalogue des applications hébergées
+
+**Contexte.** L'étape 5 donne au SaaS éditeur AMANE de quoi admettre un SaaS externe et l'attribuer à des PME ; jusqu'ici `application_du_tenant` ne renvoyait rien. Décisions prises seules (méthode du 29/10).
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Où vit l'application | Application Django dédiée `applications`, modèle `Application` (nom, éditeur, version, manifeste normalisé, statut) : un **catalogue** indépendant des PME, une même application pouvant être hébergée par plusieurs | Manifeste stocké sur la licence ou le tenant (dupliqué pour chaque PME, aucune vue d'ensemble pour l'éditeur) |
+| 2 | Rattachement | `License.application` (clé étrangère facultative, `PROTECT`) ; la pile reprend l'application de la **licence active la plus récente**, comme le reste de l'espace PME | Lien direct tenant ↔ applications (plusieurs) : la pile n'héberge qu'un service `amane-application` (applications multi-conteneurs : point ouvert) |
+| 3 | Cycle de vie | `brouillon` → `validee` → `retiree`. La **validation** vérifie le manifeste et la présence de l'image, par son digest, dans le registre de l'éditeur (`HEAD /v2/…/manifests/<digest>`) : une PME ne reçoit jamais une pile qu'elle ne pourrait pas tirer. Seule une application validée se rattache ; une application retirée disparaît des piles générées ensuite | Validation déclarative sans vérification du registre (erreur découverte chez la PME) ; suppression pure (perte de traçabilité) |
+| 4 | Immuabilité | Le manifeste est **figé** dès la validation : changer d'image, c'est une nouvelle version (`nom` + `version` uniques), rattachée explicitement. Une application rattachée ne se supprime pas (`409`), elle se retire | Manifeste modifiable : une PME exécuterait, à la prochaine génération, un code différent de celui qui a été validé |
+| 5 | Ce que voit la PME | Nom, éditeur, version, statut de son application (`GET /api/tenants/me/`), jamais le manifeste | Exposer le manifeste (détails d'exécution sans utilité pour la PME) |
+
+**Conséquences.** Le portail ne stocke que des manifestes (aucune donnée de PME, aucun secret de base : ils sont générés dans le cluster, ADR-007). La publication de l'image du SaaS externe dans le registre reste une opération de l'éditeur AMANE (comme pour la pile, `scripts/publier-pile.sh`). Une machine déjà installée ne reçoit la nouvelle version qu'en régénérant sa pile.
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -279,7 +295,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | Terminée (mesures en laboratoire ; banc à faire) |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002, ADR-007) | Terminée |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, enrôlement des serveurs, sauvegardes chiffrées via le relais, chiffrement du disque vérifié (ADR-003, ADR-008) | Terminée |
-| 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
+| 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
 | 6 | Console React : page Applications, mise à jour Architecture | À faire |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
@@ -624,15 +640,30 @@ Le rattachement d'une application à la licence d'un tenant relève de l'étape 
   - enrôlement, 7/7 : code émis par la console du serveur A ; B démarre sans DEK ; un faux code est refusé ; B enrôlé avec le vrai code ; pas de second enrôlement ; la DEK de B est scellée pour sa propre clé ;
   - confinement : depuis un réseau interne, aucune sortie vers Internet, le voisin du réseau reste joignable.
 
+## Étape 5 — Catalogue des applications du SaaS éditeur (2026-10-29)
+
+**Ce qui a été fait (ADR-009).**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Modèle | `applications/models.py`, migrations `applications/0001`, `licenses/0002` | `Application` (unicité nom + version, manifeste normalisé), `License.application` |
+| Registre | `applications/registre.py` | Présence d'une image par son digest dans le registre (mêmes adresses que la page « Image du nœud ») ; registre injoignable distingué d'une image absente |
+| API éditeur | `applications/views.py`, `serializers.py`, `urls_api.py` | `/api/applications/` réservé au staff : CRUD, actions `valider` et `retirer`, suppression refusée si rattachée, manifeste figé après validation |
+| Licences | `licenses/serializers.py` | Champ `application` (seule une application validée se rattache) et `application_nom` |
+| Pile et espace PME | `tenants/services.py`, `api_espace.py` | `application_hebergee` et `application_du_tenant` lisent la licence active ; `GET /api/tenants/me/` expose l'application (résumé) |
+| Contrat d'API | `CONTRAT-API.md` | Section 2.8 ; champs V3 manquants ajoutés (`etat_cluster`, `etat_quorum`, `etat_application`, `chiffrement_disque`, `application`) |
+
+**Vérifications.** Django : 116 tests réussis (+16) : création et normalisation, manifeste invalide et format `exe` refusés, unicité, accès refusé à la PME et à l'anonyme (et `/api/applications/` ajouté aux routes éditeur verrouillées), validation selon le registre (absente, injoignable, présente, une seule fois), manifeste figé, rattachement limité aux applications validées, espace PME, retrait, suppression protégée, licence inactive, requêtes au registre (méthode, URL, 404, injoignable), et la pile générée **sans simulation** depuis le catalogue (application rattachée présente, absente du témoin, disparue après retrait). `makemigrations --check` : aucune migration manquante.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
 | Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
-| Mises à jour de l'application | Signature des images (cosign) en plus du digest ? Qui valide une nouvelle version ? | ADR-002 |
+| Mises à jour de l'application | Une nouvelle version est validée par l'éditeur AMANE (ADR-009) ; reste : signature des images (cosign) en plus du digest, et propagation aux machines installées (régénération de la pile aujourd'hui) | ADR-002, ADR-009 |
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
-| Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? | ADR-002 |
+| Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? Une licence ne rattache qu'une application | ADR-002, ADR-009 |
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |

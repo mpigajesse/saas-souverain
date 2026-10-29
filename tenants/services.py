@@ -152,13 +152,22 @@ def _registry_host(request) -> str:
     return f'{saas_host}:{getattr(settings, "REGISTRY_PORT", "5000")}'
 
 
-def application_du_tenant(tenant: Tenant):
-    """Manifeste de l'application externe hébergée pour ce tenant, ou None.
+def application_hebergee(tenant: Tenant):
+    """Application validée rattachée à la licence active du tenant, ou None
+    (étape 5, ADR-009). Une application retirée n'est plus hébergée."""
+    licence = (tenant.licenses.filter(is_active=True)
+               .select_related('application').order_by('-created_at').first())
+    if licence is None or licence.application is None:
+        return None
+    if licence.application.statut != licence.application.VALIDEE:
+        return None
+    return licence.application
 
-    Le rattachement d'une application validée à la licence du tenant est
-    l'objet de l'étape 5 ; jusque-là, aucun tenant n'héberge d'application.
-    """
-    return None
+
+def application_du_tenant(tenant: Tenant):
+    """Manifeste de l'application externe hébergée pour ce tenant, ou None."""
+    app = application_hebergee(tenant)
+    return app.manifeste if app else None
 
 
 def build_compose_response(request, tenant: Tenant, type_machine: str = 'serveur') -> HttpResponse:

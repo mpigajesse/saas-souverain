@@ -8,4 +8,4 @@ class LicenseAdmin(admin.ModelAdmin):
     list_filter = ['plan', 'is_active']
     search_fields = ['tenant__name']
     readonly_fields = ['id', 'created_at']
-    raw_id_fields = ['tenant']
+    raw_id_fields = ['tenant', 'application']

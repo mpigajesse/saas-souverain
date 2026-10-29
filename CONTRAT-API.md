@@ -236,6 +236,8 @@ Quand `disponible` est `false` (manifeste ou archive absents), `version`, `image
 
 Invariant validé côté serializer : **`seats` ne peut pas dépasser `employee_count` du tenant** → `400 {"seats": ["…"]}`.
 
+`application` (UUID, nullable) rattache l'application externe que les machines de la PME hébergent (refonte V3, ADR-009). Seule une application au statut `validee` se rattache → sinon `400 {"application": ["…"]}` ; `null` détache. La pile générée pour le tenant reprend l'application de sa **licence active la plus récente**.
+
 ### 2.7 Appareils — `/api/devices/`
 
 `DeviceViewSet` (`devices/views.py`). CRUD complet, plus une action :
@@ -245,6 +247,31 @@ Invariant validé côté serializer : **`seats` ne peut pas dépasser `employee_
 | `POST` | `/api/devices/<uuid>/toggle/` | Bascule `is_active` → `{"id": "…", "is_active": false}` |
 
 `is_within_license` et `tenant_name` sont calculés en lecture seule.
+
+### 2.8 Applications hébergées — `/api/applications/`
+
+`ApplicationViewSet` (`applications/views.py`), refonte V3, ADR-009. Catalogue des SaaS externes qu'AMANE exécute dans les clusters des PME. CRUD complet, plus deux actions :
+
+| Méthode | Route | Effet |
+| :--- | :--- | :--- |
+| `POST` | `/api/applications/<uuid>/valider/` | `brouillon` → `validee` si l'image (épinglée par digest) est publiée dans le registre de l'éditeur. `409` si l'image est absente ou si l'application n'est pas un brouillon ; `503` si le registre ne répond pas |
+| `POST` | `/api/applications/<uuid>/retirer/` | → `retiree` : les piles générées ensuite ne contiennent plus l'application ; elle ne peut plus être rattachée |
+
+```jsonc
+{
+  "id": "uuid", "nom": "Facturation", "editeur": "Éditions Lumière", "version": "1.0",
+  "manifeste": { /* voir tenants/manifeste.py — forme normalisée */ },
+  "type_artefact": "docker",          // lecture seule, tiré du manifeste
+  "image": "editeurs/facturation@sha256:…",   // lecture seule, tiré du manifeste
+  "statut": "brouillon",              // brouillon | validee | retiree — lecture seule (actions ci-dessus)
+  "validee_le": null,
+  "licences_actives": 0,              // licences actives qui la rattachent
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Le manifeste est validé à l'écriture (`400 {"manifeste": ["…"]}`) et **figé une fois l'application validée** : changer d'image, c'est créer une nouvelle version (`nom` + `version` uniques).
+- `DELETE` d'une application rattachée à une licence → `409` : on la retire.
 
 ---
 
@@ -273,6 +300,10 @@ Les compose ne référencent les images que par digest, lus dans `media/node-ima
   "active_devices": 2,
   "pgadmin": {"url": "…", "email": "…"},
   "besoin_temoin": false,             // true : 2 serveurs actifs et aucun témoin
+  "etat_cluster": "sain",             // sain | sous_le_seuil | perdu | "" — pire état annoncé par les serveurs
+  "application": {                    // application externe hébergée, null si aucune (ADR-009)
+    "id": "uuid", "nom": "Facturation", "editeur": "Éditions Lumière", "version": "1.0", "statut": "validee"
+  },
   "relay_url": "http://host.docker.internal:8080"
 }
 ```
@@ -324,10 +355,13 @@ Lecture seule : `id`, `created_at`, `registration_token`.
   "plan": "starter",                  // starter | pro | enterprise
   "seats": 5,
   "starts_at": "2026-08-31", "expires_at": "2026-09-30",   // expires_at nullable
-  "is_active": true, "created_at": "…"
+  "is_active": true,
+  "application": "uuid",              // nullable — application hébergée (section 2.6)
+  "application_nom": "Facturation 1.0",
+  "created_at": "…"
 }
 ```
-Lecture seule : `id`, `tenant_name`, `created_at`.
+Lecture seule : `id`, `tenant_name`, `application_nom`, `created_at`.
 
 ### `<Device>`
 
@@ -340,6 +374,9 @@ Lecture seule : `id`, `tenant_name`, `created_at`.
   "node_kind": "serveur",             // serveur | temoin (témoin etcd seul, ne consomme pas de poste)
   "node_addr": "192.168.200.130:9001",
   "web_addr": "192.168.200.130:3000",
+  "etat_quorum": "sain",              // sain | sous_le_seuil | perdu | "" (annoncé par le nœud)
+  "etat_application": "ok",           // ok | ko | "" — santé de l'application hébergée
+  "chiffrement_disque": "oui",        // oui | non | inconnu | "" — constaté par l'installeur (ADR-008)
   "registered_at": "…", "last_seen": "…",
   "is_active": true, "is_within_license": true
 }
@@ -364,11 +401,14 @@ Appelés par le binaire `ss-node`, pas par la console : **pas de session**, donc
   "installation_id": "uuid",          // obligatoire — généré une fois par installation
   "hostname": "…", "os": "…", "mac_address": "…",
   "node_addr": "…", "web_addr": "…", "node_role": "primary",
-  "node_kind": "serveur"              // optionnel : serveur (défaut) | temoin
+  "node_kind": "serveur",             // optionnel : serveur (défaut) | temoin
+  "etat_quorum": "sain",              // optionnel : sain | sous_le_seuil | perdu
+  "etat_application": "ok",           // optionnel : ok | ko
+  "chiffrement_disque": "oui"         // optionnel : oui | non | inconnu
 }
 ```
 
-Un témoin (`node_kind: temoin`, annoncé par `orchestrator temoin`) ne consomme pas de poste : il n'est ni compté ni refusé pour dépassement de licence. `node_kind` invalide → `400`.
+Un témoin (`node_kind: temoin`, annoncé par `orchestrator temoin`) ne consomme pas de poste : il n'est ni compté ni refusé pour dépassement de licence. `node_kind`, `etat_quorum`, `etat_application` ou `chiffrement_disque` invalide → `400`.
 
 | Statut | Corps | Cas |
 | :--- | :--- | :--- |

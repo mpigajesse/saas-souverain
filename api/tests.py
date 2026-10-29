@@ -32,6 +32,7 @@ EDITOR_ENDPOINTS = [
     '/api/devices/',
     '/api/dashboard/stats/',
     '/api/clusters/',
+    '/api/applications/',
 ]
 
 

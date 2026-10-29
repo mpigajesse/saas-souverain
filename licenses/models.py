@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from applications.models import Application
 from tenants.models import Tenant
 
 
@@ -17,6 +18,13 @@ class License(models.Model):
     starts_at = models.DateField()
     expires_at = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # Application externe hébergée par les machines de la PME (étape 5,
+    # ADR-009). PROTECT : une application hébergée se retire, elle ne se
+    # supprime pas.
+    application = models.ForeignKey(
+        Application, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='licences',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'licenses',
     'devices',
     'dashboard',
+    'applications',
 ]
 
 MIDDLEWARE = [
