@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.8
+version: 1.9
 date: 2026-10-29
 branche: main3
-statut: Étape 2 terminée (validation sur le banc à faire) — étape 3 à suivre
+statut: Étape 3 terminée — étape 4 à suivre
 ---
 
 # Fiche du document
@@ -27,6 +27,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.6 | 2026-10-29 | main3 / 08fa0a3 | Sous-étape 2b : pile PME générée (serveur, témoin), amorçage etcd, secrets locaux, HAProxy, images épinglées ; essai sur trois machines réussi ; procédure du banc |
 | 1.7 | 2026-10-29 | main3 | Sous-étape 2c : nœud Rust recentré (garde de quorum en lecture, époque = timeline, fencing continu) ; méthode de travail : étapes enchaînées, commit par étape sans push |
 | 1.8 | 2026-10-29 | main3 | Sous-étape 2d : mode synchrone selon la taille du cluster, alerte « sous le seuil », mesures ; ADR-006 ; essai sur trois machines 13/13 |
+| 1.9 | 2026-10-29 | main3 | Étape 3 : le nœud héberge une application externe (manifeste, lanceur, base dédiée, reverse proxy) ; ADR-007 |
 
 # 1. Objet de la refonte
 
@@ -89,6 +90,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-004 | Modalités de la HA PME : témoin etcd, synchrone strict dès 3 nœuds, garde de quorum en lecture | Acceptée | 2026-10-28 |
 | ADR-005 | Installation de la pile HA chez la PME : amorçage etcd, témoin, images, secrets, HAProxy | Acceptée | 2026-10-28 |
 | ADR-006 | Réglages de bascule : taille du cluster retenue, `loop_wait`, cibles de délai | Acceptée (décidée seule, méthode du 29/10) | 2026-10-29 |
+| ADR-007 | Hébergement de l'application externe : lancement, interface, base, injection des identifiants | Acceptée (décidée seule) | 2026-10-29 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -191,6 +193,20 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Conséquences.** Retirer définitivement un serveur du cluster suppose d'abaisser la valeur mémorisée (`etcdctl put /amane/config/serveurs_installes <n>`) ; c'est une opération d'administration humaine, documentée ici.
 
+## ADR-007 — Hébergement de l'application externe
+
+**Contexte.** L'étape 3 fait du nœud l'hôte d'exécution d'un SaaS externe livré en image Docker (ADR-002), sans modifier son interface ni sa couche métier. Décisions prises seules (méthode du 29/10).
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Lancement | **Service déclaratif** `amane-application` dans la pile générée, image épinglée par digest ; Docker redémarre le conteneur | Le nœud pilotant Docker par son socket : équivaut à lui donner les droits root de la machine |
+| 2 | Interface utilisateur | Le nœud **relaie** l'application à la racine de son port web (reverse proxy, réponses en flux) ; sa propre console passe sous `/amane/` | Publier directement le port de l'application : contournerait le nœud et tout contrôle futur (appairage d'appareil, ADR-003) |
+| 3 | Base de données | L'orchestrateur crée un rôle `application` et sa base (dont il est propriétaire), mot de passe généré et partagé par etcd ; l'application rejoint sa base par HAProxy (toujours le primaire) | Base partagée avec le nœud ; rôle superutilisateur |
+| 4 | Injection des identifiants | Un **lanceur statique** (le binaire de l'orchestrateur, copié dans un volume par l'amorçage) est le point d'entrée du conteneur : il lit les identifiants, compose les variables décrites par le manifeste (`DATABASE_URL`…), puis exécute la commande d'origine de l'image. Aucune image n'est modifiée ; aucun mot de passe n'apparaît dans la configuration du conteneur | Variables dans le compose (le portail connaîtrait le mot de passe) ; `env_file` (lu par Compose avant que les secrets n'existent) ; reconstruire l'image de l'éditeur |
+| 5 | Manifeste | JSON validé par le portail (`tenants/manifeste.py`) : type d'artefact, image par digest, commande d'origine, port, chemin de santé, variables, modèles de variables de base, volumes. `binaire` et `exe` sont refusés pour l'instant (ADR-002) | Déduire tout de l'image (commande, port) : fragile et opaque |
+
+**Conséquences.** L'application doit savoir lire sa base depuis une variable d'environnement (cas usuel des SaaS). Les WebSockets ne sont pas encore relayés. La sécurité du relais (contrôle d'appareil appairé devant l'interface) reste ouverte (ADR-003).
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -244,7 +260,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 2b | Gabarit compose PME (etcd, Patroni, orchestrateur, HAProxy), installeurs, génération par le portail, tests Django (ADR-005) | Réalisée ; validation sur le banc AMANE Test à faire (annexe) |
 | 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | Terminée |
 | 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | Terminée (mesures en laboratoire ; banc à faire) |
-| 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
+| 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002, ADR-007) | Terminée |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
 | 6 | Console React : page Applications, mise à jour Architecture | À faire |
@@ -543,6 +559,28 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 
 **Reste à faire sur le banc AMANE Test** : mêmes vérifications sur machines réelles (annexe), en particulier les délais de bascule sous Docker Desktop.
 
+## Étape 3 — Le nœud, hôte d'exécution (2026-10-29)
+
+**Ce qui a été fait (ADR-007).**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Manifeste | `tenants/manifeste.py` | Schéma, validation (14 cas de refus testés), mise en forme pour la pile (valeurs YAML sûres, `$` échappé pour Compose) |
+| Pile générée | `docker-compose.yml.tmpl` | Service `amane-application` conditionnel : image par digest, lanceur en point d'entrée, commande d'origine, variables, volumes ; rien ne change pour un tenant sans application |
+| Orchestrateur | `lanceur/` (couverture 100 %), `cmd/orchestrator/lancer.go`, `provision/`, `bootstrap/` | Sous-commande `lancer` (attend les identifiants, rend les modèles, remplace son processus par la commande d'origine) ; copie du binaire statique par l'amorçage ; rôle et base `application` créés sur le primaire ; noms SQL validés et échappés |
+| Nœud | `spike/node/src/application.rs`, `web.rs`, `auth/routes.rs`, `cmd/run.rs` | Reverse proxy (en-têtes de connexion filtrés, `X-Forwarded-*`, redirections laissées au navigateur, réponses en flux) ; console du nœud sous `/amane` ; sonde de santé toutes les 30 s ; état remonté au portail |
+| Portail | `devices` (migration 0008) | `Device.etat_application` (`ok` / `ko`) |
+| Exemple | `ha-lab/application-exemple/` | SaaS d'exemple qui ne connaît que `DATABASE_URL`, image `FROM scratch` (ni shell ni outils) |
+
+Le rattachement d'une application à la licence d'un tenant relève de l'étape 5 : jusque-là, `application_du_tenant` ne renvoie rien.
+
+**Vérifications.**
+
+- Django : 82 tests réussis, dont 8 sur le manifeste et la pile avec application (service, lanceur, aucun mot de passe dans la pile, nœud configuré, témoin sans application, application sans base).
+- Go : `lanceur` 100 %, tests de la sous-commande `lancer` et de la copie du binaire ; suite complète sur etcd réel réussie. Un échec isolé du superviseur est survenu une fois sous la forte charge de l'essai en parallèle (test d'intégration sensible au temps), non reproduit sur deux exécutions suivantes.
+- Rust : 20 tests du nœud, dont un relais de bout en bout vers une vraie application HTTP (méthode, chemin, requête, corps, cookies, en-têtes de connexion filtrés) et l'application absente (502).
+- **Essai sur trois machines — interrompu.** Claude Code a arrêté l'essai faute de mémoire sur le poste ; il n'a pas été relancé, conformément à la consigne. Ce qu'il avait validé sur la première machine : l'application d'exemple **démarre dans son image `scratch`** (le lanceur injecte `DATABASE_URL`, l'orchestrateur a créé le rôle et la base, l'application les joint par HAProxy), et la sonde du nœud la voit passer d'« indisponible » à « disponible ». Restent à jouer, quand la mémoire le permettra : page servie par le proxy des deux machines, compteur partagé, continuité après bascule (script d'essai conservé hors dépôt, à réintégrer à `ha-lab`).
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -555,6 +593,8 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
+| Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire) | Étape 3 |
+| WebSockets | Le relais du nœud ne relaie pas encore les connexions WebSocket | ADR-007 |
 | Enrôlement des serveurs suivants | Seul le premier serveur détient la DEK ; les suivants doivent la recevoir (sceau par appareil) par une opération humaine | Étape 4 |
 | Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |

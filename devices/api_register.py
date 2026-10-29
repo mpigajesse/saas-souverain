@@ -108,6 +108,7 @@ def device_register(request):
       - mac_address (str, optionnel) : indicatif seulement
       - node_kind (str, optionnel)   : « serveur » (défaut) ou « temoin » (ADR-005)
       - etat_quorum (str, optionnel) : « sain », « sous_le_seuil » ou « perdu » (étape 2d)
+      - etat_application (str, opt.) : « ok » ou « ko » — application hébergée (étape 3)
     """
     tenant_token_raw = request.data.get('tenant_token')
     installation_id_raw = request.data.get('installation_id')
@@ -159,6 +160,12 @@ def device_register(request):
             {'status': 'error', 'message': 'node_kind invalide (attendu : serveur ou temoin).'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    etat_application = request.data.get('etat_application', '')
+    if etat_application not in ('', 'ok', 'ko'):
+        return Response(
+            {'status': 'error', 'message': 'etat_application invalide.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     etat_quorum = request.data.get('etat_quorum', '')
     if etat_quorum not in ('', 'sain', 'sous_le_seuil', 'perdu'):
         return Response(
@@ -177,6 +184,7 @@ def device_register(request):
             'node_role': node_role,
             'node_kind': node_kind,
             'etat_quorum': etat_quorum,
+            'etat_application': etat_application,
             'is_active': True,
         },
     )
@@ -188,6 +196,8 @@ def device_register(request):
         device.node_kind = node_kind
         if etat_quorum:
             device.etat_quorum = etat_quorum
+        if etat_application:
+            device.etat_application = etat_application
         if node_addr:
             device.node_addr = node_addr
         if web_addr:

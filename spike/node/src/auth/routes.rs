@@ -167,13 +167,13 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
             r#"
   <div class="sb-section">Administration</div>
   <nav class="sb-nav">
-    <a href="/admin" class="{ca}">
+    <a href="/amane/admin" class="{ca}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
       Cluster
     </a>
-    <a href="/admin/utilisateurs" class="{ua}">
+    <a href="/amane/admin/utilisateurs" class="{ua}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
@@ -209,7 +209,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
 
   <div class="sb-section">Application</div>
   <nav class="sb-nav">
-    <a href="/" class="{da}">
+    <a href="/amane" class="{da}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
         <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
@@ -223,7 +223,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
       <strong>{username}</strong>
       <span class="sb-role {role_class}">{role_label}</span>
     </div>
-    <form method="post" action="/logout">
+    <form method="post" action="/amane/logout">
       <button type="submit" class="btn-logout">Déconnexion</button>
     </form>
   </div>
@@ -254,7 +254,7 @@ async fn primary_web_url(state: &Arc<AppState>) -> Option<String> {
     .await
     .ok()
     .flatten();
-    host.map(|h| format!("http://{}:{}/login", h, state.web_port))
+    host.map(|h| format!("http://{}:{}/amane/login", h, state.web_port))
 }
 
 fn standby_html(tenant: &str, primary_url: Option<&str>) -> String {
@@ -341,7 +341,7 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
     </div>
   </div>
   {err_block}
-  <form method="post" action="/login">
+  <form method="post" action="/amane/login">
     <div class="fg">
       <label for="username">Identifiant</label>
       <input id="username" name="username" required autocomplete="username" placeholder="Votre identifiant">
@@ -384,7 +384,7 @@ pub async fn login_post(
 
     match super::authenticate(&state.pool, username, password).await {
         Some(user) => {
-            let redirect_to = if user.role == "admin" { "/admin" } else { "/" };
+            let redirect_to = if user.role == "admin" { "/amane/admin" } else { "/amane" };
             match super::create_session(&state.pool, user.id).await {
                 Ok(sid) => (
                     [(header::SET_COOKIE, super::session_cookie_set(sid))],
@@ -420,7 +420,7 @@ pub async fn logout(
 
     (
         [(header::SET_COOKIE, super::session_cookie_clear())],
-        Redirect::to("/login"),
+        Redirect::to("/amane/login"),
     )
         .into_response()
 }
@@ -623,7 +623,7 @@ pub async fn users_list(
                     ("btn-y", "Activer")
                 };
                 format!(
-                    r#"<form method="post" action="/admin/utilisateurs/{id}/toggle" style="display:inline">
+                    r#"<form method="post" action="/amane/admin/utilisateurs/{id}/toggle" style="display:inline">
   <button type="submit" class="btn {btn_class} btn-sm">{btn_label}</button>
 </form>"#,
                     id = u.id,
@@ -632,7 +632,7 @@ pub async fn users_list(
                 String::new()
             };
             let mdp_btn = format!(
-                r#"<a href="/admin/utilisateurs/{id}/mdp" class="btn btn-g btn-sm">Mot de passe</a>"#,
+                r#"<a href="/amane/admin/utilisateurs/{id}/mdp" class="btn btn-g btn-sm">Mot de passe</a>"#,
                 id = u.id,
             );
             format!(
@@ -661,7 +661,7 @@ pub async fn users_list(
     <div class="page-title">Utilisateurs</div>
     <div class="page-sub">{n} compte(s) enregistré(s)</div>
   </div>
-  <a href="/admin/utilisateurs/nouveau" class="btn btn-p">+ Nouvel utilisateur</a>
+  <a href="/amane/admin/utilisateurs/nouveau" class="btn btn-p">+ Nouvel utilisateur</a>
 </div>
 
 <div class="stats" style="margin-bottom:24px">
@@ -702,7 +702,7 @@ pub async fn user_form(
 <div class="panel">
   <div class="ph"><span class="pt">Informations du compte</span></div>
   <div style="padding:24px">
-  <form method="post" action="/admin/utilisateurs/nouveau">
+  <form method="post" action="/amane/admin/utilisateurs/nouveau">
     <div class="form-grid">
       <div class="fg">
         <label for="username">Identifiant *</label>
@@ -730,7 +730,7 @@ pub async fn user_form(
     </div>
     <div class="fa">
       <button type="submit" class="btn btn-p">Créer le compte</button>
-      <a href="/admin/utilisateurs" class="btn btn-g">Annuler</a>
+      <a href="/amane/admin/utilisateurs" class="btn btn-g">Annuler</a>
     </div>
   </form>
   </div>
@@ -783,7 +783,7 @@ pub async fn user_create(
     let role = if f.role == "admin" { "admin" } else { "employee" };
 
     match super::create_user(&state.pool, username, full_name, role, &f.password).await {
-        Ok(_) => Redirect::to("/admin/utilisateurs").into_response(),
+        Ok(_) => Redirect::to("/amane/admin/utilisateurs").into_response(),
         Err(e) => {
             let msg = if e.to_string().contains("unique") {
                 "Cet identifiant est déjà utilisé.".to_string()
@@ -801,7 +801,7 @@ pub async fn user_toggle(
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
     match super::toggle_user(&state.pool, id).await {
-        Ok(_) => Redirect::to("/admin/utilisateurs").into_response(),
+        Ok(_) => Redirect::to("/amane/admin/utilisateurs").into_response(),
         Err(e) => error_admin(&e.to_string(), &user, &state.tenant_name).into_response(),
     }
 }
@@ -817,7 +817,7 @@ pub async fn user_mdp_form(
 <div class="panel">
   <div class="ph"><span class="pt">Nouveau mot de passe</span></div>
   <div style="padding:24px">
-  <form method="post" action="/admin/utilisateurs/{id}/mdp">
+  <form method="post" action="/amane/admin/utilisateurs/{id}/mdp">
     <div class="form-grid">
       <div class="fg">
         <label for="password">Nouveau mot de passe *</label>
@@ -830,7 +830,7 @@ pub async fn user_mdp_form(
     </div>
     <div class="fa">
       <button type="submit" class="btn btn-p">Enregistrer</button>
-      <a href="/admin/utilisateurs" class="btn btn-g">Annuler</a>
+      <a href="/amane/admin/utilisateurs" class="btn btn-g">Annuler</a>
     </div>
   </form>
   </div>
@@ -868,7 +868,7 @@ pub async fn user_mdp_change(
         .into_response();
     }
     match super::update_password(&state.pool, id, &f.password).await {
-        Ok(_) => Redirect::to("/admin/utilisateurs").into_response(),
+        Ok(_) => Redirect::to("/amane/admin/utilisateurs").into_response(),
         Err(e) => error_admin(&e.to_string(), &user, &state.tenant_name).into_response(),
     }
 }
@@ -881,6 +881,6 @@ fn error_admin(msg: &str, user: &User, tenant: &str) -> Html<String> {
         "utilisateurs",
         user,
         tenant,
-        &format!(r#"<div class="err-bar">⚠️ <strong>Erreur :</strong> {}</div><a href="/admin/utilisateurs" class="btn btn-g">← Retour</a>"#, esc(msg)),
+        &format!(r#"<div class="err-bar">⚠️ <strong>Erreur :</strong> {}</div><a href="/amane/admin/utilisateurs" class="btn btn-g">← Retour</a>"#, esc(msg)),
     ))
 }

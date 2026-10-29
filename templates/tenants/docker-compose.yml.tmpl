@@ -49,12 +49,15 @@ services:
       - -jeton=${REGISTRATION_TOKEN}
       - -dossier-secrets=/amane/secrets
       - -dossier-haproxy=/amane/haproxy
-    volumes:
+{% if application.base %}      # Lanceur statique de l'application (identifiants de sa base, étape 3).
+      - -copier-binaire=/amane/bin
+{% endif %}    volumes:
       - etcd-data:/etcd-data
       - etcd-conf:/amane/etcd
       - secrets:/amane/secrets
       - haproxy:/amane/haproxy
-
+{% if application.base %}      - amane-bin:/amane/bin
+{% endif %}
   amane-etcd:
     image: {{ images.etcd }}
     container_name: amane-etcd
@@ -88,7 +91,9 @@ services:
       - -haproxy-dossier=/amane/haproxy
       # Mode synchrone strict à partir de 3 serveurs (ADR-004, décision 2).
       - -synchrone-auto
-    environment:
+{% if application.base %}      # Rôle, base et identifiants de l'application hébergée (étape 3).
+      - -application-secrets=/amane/secrets/application.env
+{% endif %}    environment:
       AMANE_NODE_ID: "${NODE_HOSTNAME}"
     volumes:
       - secrets:/amane/secrets
@@ -185,14 +190,39 @@ services:
       # active = premier serveur : génère la DEK au premier démarrage.
       NODE_MODE: "${NODE_MODE:-passive}"
       PATRONI_URL: http://amane-postgresql:8008
-      HOSTNAME: "${NODE_HOSTNAME}"
+{% if application %}      # Application hébergée : servie à la racine du port web, telle que son
+      # éditeur l'a conçue ; console du nœud sous /amane (étape 3, ADR-007).
+      AMANE_APP_URL: http://amane-application:{{ application.port }}
+      AMANE_APP_SANTE: "{{ application.sante }}"
+{% endif %}      HOSTNAME: "${NODE_HOSTNAME}"
       RUST_LOG: info
     volumes:
       - node-data:/data
       - secrets:/amane/secrets:ro
     depends_on: [amane-postgresql, amane-haproxy]
 
-  pgadmin:
+{% if application %}  # Application externe hébergée (étape 3, ADR-007) : image de son éditeur,
+  # inchangée, épinglée par digest. Sa base et ses identifiants sont fournis
+  # par AMANE ; elle la joint par HAProxy, donc toujours sur le primaire.
+  amane-application:
+    image: {{ application.image }}
+    container_name: amane-application
+    restart: unless-stopped
+    networks: [amane]
+{% if application.base %}    # Point d'entrée : le lanceur AMANE compose les variables de la base
+    # (manifeste) puis exécute la commande d'origine de l'image.
+    entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets/application.env", "--"]
+    command: {{ application.commande }}
+{% endif %}{% if application.environnement %}    environment:
+{% for nom, valeur in application.environnement %}      {{ nom }}: {{ valeur }}
+{% endfor %}{% endif %}    volumes:
+{% if application.base %}      - amane-bin:/amane/bin:ro
+      - secrets:/amane/secrets:ro
+{% endif %}{% for v in application.volumes %}      - {{ v.cle }}:{{ v.chemin }}
+{% endfor %}{% if not application.base and not application.volumes %}      []
+{% endif %}    depends_on: [amane-orchestrateur, amane-haproxy]
+
+{% endif %}  pgadmin:
     image: {{ images.pgadmin }}
     container_name: pgadmin
     restart: unless-stopped
@@ -219,4 +249,6 @@ volumes:
   pg-data:
   node-data:
   pgadmin-data:
-{% endautoescape %}
+{% if application.base %}  amane-bin:
+{% endif %}{% for v in application.volumes %}  {{ v.cle }}:
+{% endfor %}{% endautoescape %}

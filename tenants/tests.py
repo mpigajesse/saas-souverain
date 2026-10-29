@@ -367,3 +367,110 @@ class EtatClusterTests(TestCase):
         self.assertEqual(entree['etat_cluster'], 'sous_le_seuil')
         self.assertEqual(entree['health'], 'unprotected')
         self.assertTrue(entree['is_alert'])
+
+
+# ── Étape 3 : application externe hébergée ──────────────────────────────────
+
+from unittest import mock  # noqa: E402
+
+from tenants.manifeste import ManifesteInvalide, pour_compose, valider  # noqa: E402
+
+MANIFESTE_APP = {
+    'type_artefact': 'docker',
+    'image': 'editeurs/facturation@' + DIGEST,
+    'commande': ['/app/serveur', '--port', '8080'],
+    'port': 8080,
+    'sante': '/sante',
+    'variables': {'APP_ENV': 'production', 'DEVISE': '$EUR'},
+    'base_de_donnees': {'variables': {
+        'DATABASE_URL': 'postgres://{utilisateur}:{mot_de_passe}@{hote}:{port}/{base}',
+    }},
+    'volumes': [{'nom': 'fichiers', 'chemin': '/data'}],
+}
+
+
+class ManifesteTests(TestCase):
+
+    def test_manifeste_complet_accepte(self):
+        m = valider(MANIFESTE_APP)
+        self.assertEqual(m['port'], 8080)
+        self.assertEqual(m['base_de_donnees']['variables']['DATABASE_URL'], MANIFESTE_APP['base_de_donnees']['variables']['DATABASE_URL'])
+
+    def test_refus(self):
+        def avec(**modif):
+            m = json.loads(json.dumps(MANIFESTE_APP))
+            m.update(modif)
+            return m
+        cas = {
+            'binaire pas encore pris en charge': avec(type_artefact='binaire'),
+            'type inconnu': avec(type_artefact='vm'),
+            'image par tag': avec(image='editeurs/facturation:1.0'),
+            'commande vide': avec(commande=[]),
+            'port hors bornes': avec(port=70000),
+            'port booléen': avec(port=True),
+            'santé relative': avec(sante='sante'),
+            'variable réservée AMANE_': avec(variables={'AMANE_X': '1'}),
+            'variable en minuscules': avec(variables={'app_env': '1'}),
+            'espace réservé inconnu': avec(base_de_donnees={'variables': {'URL': '{jeton}'}}),
+            'base sans variable': avec(base_de_donnees={'variables': {}}),
+            'volume à la racine': avec(volumes=[{'nom': 'x', 'chemin': '/'}]),
+            'volume en double': avec(volumes=[{'nom': 'x', 'chemin': '/a'}, {'nom': 'x', 'chemin': '/b'}]),
+            'variable sur plusieurs lignes': avec(variables={'X': 'a\nb'}),
+        }
+        for nom, manifeste in cas.items():
+            with self.assertRaises(ManifesteInvalide, msg=nom):
+                valider(manifeste)
+        with self.assertRaises(ManifesteInvalide):
+            valider('pas un objet')
+
+    def test_mise_en_forme_compose_echappe_les_dollars(self):
+        ctx = pour_compose(MANIFESTE_APP, '192.168.7.7:5000')
+        self.assertEqual(ctx['image'], '192.168.7.7:5000/editeurs/facturation@' + DIGEST)
+        self.assertIn(('DEVISE', '"$$EUR"'), ctx['environnement'])
+        self.assertTrue(any(nom == 'AMANE_MODELES' for nom, _ in ctx['environnement']))
+
+
+class PileAvecApplicationTests(BasePile):
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch('tenants.services.application_du_tenant', return_value=MANIFESTE_APP)
+        patch.start()
+        self.addCleanup(patch.stop)
+        r = self.compose()
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.texte = corps(r)
+        self.doc = yaml.safe_load(self.texte)
+
+    def test_service_de_l_application(self):
+        app = self.doc['services']['amane-application']
+        self.assertEqual(app['image'], f'{HOTE}:5000/editeurs/facturation@{DIGEST}')
+        self.assertEqual(app['entrypoint'][:2], ['/amane/bin/orchestrator', 'lancer'])
+        self.assertEqual(app['command'], ['/app/serveur', '--port', '8080'])
+        self.assertEqual(app['environment']['DEVISE'], '$$EUR')
+        modeles = json.loads(app['environment']['AMANE_MODELES'])
+        self.assertIn('{mot_de_passe}', modeles['DATABASE_URL'])
+        self.assertIn('app-fichiers:/data', app['volumes'])
+        self.assertIn('app-fichiers', self.doc['volumes'])
+
+    def test_aucun_secret_de_l_application_dans_la_pile(self):
+        self.assertNotIn('AMANE_APP_DB_MOT_DE_PASSE', self.texte)
+        self.assertIn('-application-secrets=/amane/secrets/application.env', self.doc['services']['amane-orchestrateur']['command'])
+        self.assertIn('-copier-binaire=/amane/bin', self.doc['services']['amane-init']['command'])
+
+    def test_le_noeud_sert_l_application(self):
+        env = self.doc['services']['ss-node']['environment']
+        self.assertEqual(env['AMANE_APP_URL'], 'http://amane-application:8080')
+        self.assertEqual(env['AMANE_APP_SANTE'], '/sante')
+
+    def test_le_temoin_n_heberge_jamais_l_application(self):
+        self.assertNotIn('amane-application', corps(self.compose('temoin')))
+
+    def test_application_sans_base(self):
+        sans_base = {k: v for k, v in MANIFESTE_APP.items() if k not in ('base_de_donnees', 'volumes')}
+        with mock.patch('tenants.services.application_du_tenant', return_value=sans_base):
+            doc = yaml.safe_load(corps(self.compose()))
+        app = doc['services']['amane-application']
+        self.assertNotIn('entrypoint', app)
+        self.assertNotIn('amane-bin', doc['volumes'])
+        self.assertNotIn('-application-secrets=/amane/secrets/application.env', doc['services']['amane-orchestrateur']['command'])

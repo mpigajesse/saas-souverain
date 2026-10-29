@@ -10,7 +10,7 @@ class DeviceSerializer(serializers.ModelSerializer):
         model = Device
         fields = [
             'id', 'tenant', 'tenant_name', 'installation_id', 'mac_address',
-            'hostname', 'os', 'node_role', 'node_kind', 'etat_quorum', 'node_addr', 'web_addr',
+            'hostname', 'os', 'node_role', 'node_kind', 'etat_quorum', 'etat_application', 'node_addr', 'web_addr',
             'registered_at', 'last_seen', 'is_active', 'is_within_license',
         ]
         read_only_fields = ['id', 'registered_at', 'last_seen']

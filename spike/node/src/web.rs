@@ -11,6 +11,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::{self, AppState};
+use crate::application::{relayer, Application};
 use crate::auth::routes as auth_routes;
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ async fn auth_middleware(
         req.extensions_mut().insert(user);
         return next.run(req).await;
     }
-    Redirect::to("/login").into_response()
+    Redirect::to("/amane/login").into_response()
 }
 
 async fn admin_middleware(
@@ -37,8 +38,8 @@ async fn admin_middleware(
             req.extensions_mut().insert(user);
             next.run(req).await
         }
-        Some(_) => Redirect::to("/").into_response(),
-        None => Redirect::to("/login").into_response(),
+        Some(_) => Redirect::to("/amane").into_response(),
+        None => Redirect::to("/amane/login").into_response(),
     }
 }
 
@@ -59,7 +60,16 @@ async fn resolve_user(
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) {
+/// Sert la console du nœud sous `/amane` et, si une application est hébergée,
+/// relaie tout le reste vers elle : l'utilisateur retrouve l'interface de
+/// l'application telle que son éditeur l'a conçue (refonte V3, étape 3).
+pub async fn serve(
+    port: u16,
+    node_id: Uuid,
+    pool: PgPool,
+    tenant_name: String,
+    application: Option<Arc<Application>>,
+) {
     let state = Arc::new(AppState { pool, node_id, tenant_name, web_port: port });
 
     // Public routes — no auth required
@@ -91,10 +101,19 @@ pub async fn serve(port: u16, node_id: Uuid, pool: PgPool, tenant_name: String) 
         )
         .route_layer(middleware::from_fn_with_state(state.clone(), admin_middleware));
 
-    let app = public_routes
+    let console: Router = public_routes
         .merge(user_routes)
         .merge(admin_routes)
         .with_state(state);
+
+    let racine = Router::new().nest("/amane", console);
+    let app = match application {
+        Some(application) => racine.fallback(move |req: Request| {
+            let application = application.clone();
+            async move { relayer(&application, req).await }
+        }),
+        None => racine.route("/", get(|| async { Redirect::to("/amane") })),
+    };
 
     let addr = format!("0.0.0.0:{}", port);
     let listener = match tokio::net::TcpListener::bind(&addr).await {

@@ -85,6 +85,47 @@ func ObtenirSecrets(ctx context.Context, cli *clientv3.Client) (Secrets, bool, e
 	return existants, false, nil
 }
 
+// CleSecretApplication est la clé etcd du mot de passe de la base de
+// l'application hébergée (étape 3).
+const CleSecretApplication = "/amane/secrets/application"
+
+// ObtenirSecretApplication lit le mot de passe de la base de l'application,
+// ou le crée (transaction « si absent », comme ObtenirSecrets).
+func ObtenirSecretApplication(ctx context.Context, cli *clientv3.Client) (string, error) {
+	nouveau, err := motDePasse()
+	if err != nil {
+		return "", err
+	}
+	resp, err := cli.Txn(ctx).
+		If(clientv3.Compare(clientv3.CreateRevision(CleSecretApplication), "=", 0)).
+		Then(clientv3.OpPut(CleSecretApplication, nouveau)).
+		Else(clientv3.OpGet(CleSecretApplication)).
+		Commit()
+	if err != nil {
+		return "", err
+	}
+	if resp.Succeeded {
+		return nouveau, nil
+	}
+	kvs := resp.Responses[0].GetResponseRange().Kvs
+	if len(kvs) != 1 || len(kvs[0].Value) == 0 {
+		return "", errors.New("secret de l'application illisible")
+	}
+	return string(kvs[0].Value), nil
+}
+
+// EcrireEnvApplication écrit les identifiants de la base de l'application,
+// lus par le lanceur (`orchestrator lancer`) au démarrage de son conteneur.
+func EcrireEnvApplication(chemin, utilisateur, motDePasse, hote, port, base string) error {
+	return ecrireEnv(chemin, [][2]string{
+		{"AMANE_APP_DB_UTILISATEUR", utilisateur},
+		{"AMANE_APP_DB_MOT_DE_PASSE", motDePasse},
+		{"AMANE_APP_DB_HOTE", hote},
+		{"AMANE_APP_DB_PORT", port},
+		{"AMANE_APP_DB_BASE", base},
+	}, 0o644)
+}
+
 // EcrireEnvSecrets écrit les secrets sous forme de variables chargées par les
 // conteneurs de la machine (Spilo, nœud, pgAdmin) au démarrage. Le fichier
 // reste sur le volume local de la machine.

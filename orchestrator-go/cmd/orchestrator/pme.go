@@ -43,6 +43,7 @@ func cmdInit(args []string) int {
 	donnees := fs.String("donnees-etcd", "/etcd-data", "dossier de données etcd (volume partagé avec etcd)")
 	config := fs.String("config-etcd", "/amane/etcd/etcd.env", "fichier de configuration etcd produit")
 	secrets := fs.String("dossier-secrets", "", "dossier des secrets à préparer (serveur uniquement)")
+	copier := fs.String("copier-binaire", "", "dossier où déposer le binaire statique de l'orchestrateur (lanceur de l'application, étape 3)")
 	temoin := fs.String("dossier-temoin", "", "dossier de l'identifiant du témoin à préparer (témoin uniquement)")
 	dossierHAProxy := fs.String("dossier-haproxy", "", "dossier HAProxy à préparer (serveur uniquement)")
 	uid := fs.Int("uid-orchestrateur", 10001, "uid de l'orchestrateur, propriétaire des dossiers qu'il écrit")
@@ -56,6 +57,12 @@ func cmdInit(args []string) int {
 	if err := bootstrap.PreparerDossiers([]string{*secrets, *temoin}, *dossierHAProxy, *uid); err != nil {
 		logger.Error("préparation des dossiers impossible", "err", err)
 		return 1
+	}
+	if *copier != "" {
+		if err := copierBinaire(*copier); err != nil {
+			logger.Error("copie du lanceur impossible", "dossier", *copier, "err", err)
+			return 1
+		}
 	}
 
 	var listePairs []string
@@ -179,6 +186,37 @@ func produireSecrets(ctx context.Context, cli *clientv3.Client, chemin string, l
 		case <-ctx.Done():
 			return bootstrap.Secrets{}, false
 		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
+// produireSecretsApplication obtient le mot de passe de la base de
+// l'application hébergée, crée son rôle et sa base sur le primaire, puis écrit
+// le fichier lu par le lanceur. L'application rejoint sa base par HAProxy.
+func produireSecretsApplication(ctx context.Context, cli *clientv3.Client, chemin, scope string, s bootstrap.Secrets, logger *slog.Logger) {
+	for {
+		lecture, cancel := context.WithTimeout(ctx, 10*time.Second)
+		mdp, err := bootstrap.ObtenirSecretApplication(lecture, cli)
+		if err == nil {
+			var primaire dcs.Membre
+			if primaire, err = dcs.Primaire(lecture, cli, scope); err == nil {
+				err = provision.GarantirRole(lecture, provision.DSNSuperutilisateur(primaire.HotePG, s.Superutilisateur),
+					provision.RoleApplication, provision.BaseApplication, mdp)
+			}
+			if err == nil {
+				err = bootstrap.EcrireEnvApplication(chemin, provision.RoleApplication, mdp, "amane-haproxy", "5000", provision.BaseApplication)
+			}
+		}
+		cancel()
+		if err == nil {
+			logger.Info("base de l'application prête", "role", provision.RoleApplication, "base", provision.BaseApplication)
+			return
+		}
+		logger.Warn("base de l'application en attente", "err", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(3 * time.Second):
 		}
 	}
 }

@@ -32,6 +32,12 @@ class Device(models.Model):
         choices=[('sain', 'Sain'), ('sous_le_seuil', 'Sous le seuil'), ('perdu', 'Quorum perdu')],
         help_text='État du cluster vu par ce nœud',
     )
+    # Étape 3 : état de l'application hébergée sondé par le nœud (ok / ko).
+    etat_application = models.CharField(
+        max_length=2, blank=True,
+        choices=[('ok', 'Disponible'), ('ko', 'Indisponible')],
+        help_text="État de l'application hébergée vu par ce nœud",
+    )
     last_failover_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Dernier failover automatique détecté sur ce nœud',

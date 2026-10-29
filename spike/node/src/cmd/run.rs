@@ -53,9 +53,15 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     // rôle plutôt qu'un rôle supposé.
     let (canal_role, recepteur_role) = watch::channel(String::new());
     let (canal_etat, recepteur_etat) = watch::channel(String::new());
+    // État de l'application hébergée (`ok` / `ko`), si le cluster en héberge une.
+    let (canal_app, recepteur_app) = watch::channel(String::new());
+    let application = crate::application::Application::depuis_env().map(std::sync::Arc::new);
+    if let Some(app) = &application {
+        crate::application::lancer_sonde(app.clone(), canal_app);
+    }
 
     // Enregistrement SaaS en premier — fonctionne même si le nœud n'est pas encore enrôlé.
-    if let Some(name) = annoncer_au_saas(config.node_id, "", "", true).await.tenant_name {
+    if let Some(name) = annoncer_au_saas(config.node_id, "", "", "", true).await.tenant_name {
         if config.tenant_name.as_deref() != Some(name.as_str()) {
             config.tenant_name = Some(name);
             let _ = config.save(config_path);
@@ -65,7 +71,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     // Battement de cœur SaaS — indépendant de PostgreSQL et de Patroni. Sans
     // lui, `Device.last_seen` n'est jamais rafraîchi et un nœud sain apparaît
     // « hors ligne » au bout de 2 minutes.
-    lancer_heartbeat_saas(config.node_id, recepteur_role, recepteur_etat);
+    lancer_heartbeat_saas(config.node_id, recepteur_role, recepteur_etat, recepteur_app);
 
     // Journal chiffré, si le nœud détient la DEK. Un serveur qui n'est pas le
     // premier du cluster démarre sans DEK : il attend son enrôlement, sans
@@ -99,7 +105,10 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
         }
 
         let web_tenant = config.tenant_name.clone().unwrap_or_else(|| "PME".to_string());
-        tokio::spawn(crate::web::serve(web_port, config.node_id, pool.clone(), web_tenant));
+        if application.is_some() {
+            println!("  Application : interface relayée à la racine du port {web_port} ; console du nœud sous /amane");
+        }
+        tokio::spawn(crate::web::serve(web_port, config.node_id, pool.clone(), web_tenant, application));
 
         match std::env::var("PATRONI_URL") {
             Ok(base) if !base.is_empty() => {
@@ -228,7 +237,7 @@ async fn boucle_supervision(
             // prochain battement de cœur (jusqu'à 60 s) qu'elle n'est plus
             // protégée — ou qu'elle l'est de nouveau.
             let role = canal_role.borrow().clone();
-            annoncer_au_saas(node_id, &role, quorum.code(), false).await;
+            annoncer_au_saas(node_id, &role, quorum.code(), "", false).await;
         }
 
         if d.fence && !fence_signale {
@@ -324,7 +333,7 @@ fn appliquer_role(canal: &watch::Sender<String>, role: &str) -> bool {
 /// le battement de cœur ; ici on ne paie un aller-retour HTTP que sur bascule.
 async fn majr_role(canal: &watch::Sender<String>, node_id: Uuid, role: &str, etat_quorum: &str) {
     if appliquer_role(canal, role) {
-        annoncer_au_saas(node_id, role, etat_quorum, true).await;
+        annoncer_au_saas(node_id, role, etat_quorum, "", true).await;
     }
 }
 
@@ -366,7 +375,7 @@ async fn connecter_postgres_avec_reprise(pg_url: &str) -> PgPool {
 /// Démarre la tâche de battement de cœur vers le SaaS éditeur.
 ///
 /// Elle n'emprunte rien : seul `node_id` (un `Uuid`, `Copy`) est déplacé dans la
-/// tâche, plus deux récepteurs `watch` (rôle et état du cluster). On ne clone
+/// tâche, plus trois récepteurs `watch` (rôle, état du cluster, état de l'application). On ne clone
 /// délibérément **pas** `NodeConfig` : il porte `secret_key_hex` et
 /// `sealed_dek_hex`, et dupliquer du matériel de clé sans nécessité contrevient
 /// à la règle « socle crypto » du dépôt. Tout le reste (SAAS_URL,
@@ -376,6 +385,7 @@ fn lancer_heartbeat_saas(
     node_id: Uuid,
     recepteur_role: watch::Receiver<String>,
     recepteur_etat: watch::Receiver<String>,
+    recepteur_app: watch::Receiver<String>,
 ) {
     let periode = match periode_heartbeat(std::env::var("SAAS_HEARTBEAT_SECS").ok().as_deref()) {
         Some(p) => p,
@@ -399,10 +409,11 @@ fn lancer_heartbeat_saas(
             // Rôle et état courants, pas ceux du démarrage (bascule…).
             let role = recepteur_role.borrow().clone();
             let etat = recepteur_etat.borrow().clone();
+            let app = recepteur_app.borrow().clone();
             let a_loguer = !premier_succes_logue || en_echec;
             // Une panne du SaaS ne doit jamais arrêter la boucle : `annoncer_au_saas`
             // absorbe et logue ses propres erreurs.
-            if annoncer_au_saas(node_id, &role, &etat, a_loguer).await.reussi {
+            if annoncer_au_saas(node_id, &role, &etat, &app, a_loguer).await.reussi {
                 premier_succes_logue = true;
                 en_echec = false;
             } else {
@@ -431,7 +442,13 @@ impl Annonce {
 /// `POST {SAAS_URL}/api/devices/register/`, timeout de 10 s. Non bloquant —
 /// toutes les erreurs sont loguées et absorbées. Rôle et état du cluster vides
 /// ne sont pas envoyés (inconnus). Seules des métadonnées partent (ADR-003).
-async fn annoncer_au_saas(node_id: Uuid, node_role: &str, etat_quorum: &str, logger_succes: bool) -> Annonce {
+async fn annoncer_au_saas(
+    node_id: Uuid,
+    node_role: &str,
+    etat_quorum: &str,
+    etat_application: &str,
+    logger_succes: bool,
+) -> Annonce {
     let saas_url = match std::env::var("SAAS_URL") {
         Ok(u) if !u.is_empty() => u,
         // Pas de SaaS configuré : silencieux, y compris pour le battement de cœur.
@@ -471,6 +488,9 @@ async fn annoncer_au_saas(node_id: Uuid, node_role: &str, etat_quorum: &str, log
     }
     if !etat_quorum.is_empty() {
         body["etat_quorum"] = etat_quorum.into();
+    }
+    if !etat_application.is_empty() {
+        body["etat_application"] = etat_application.into();
     }
 
     match reqwest::Client::new()

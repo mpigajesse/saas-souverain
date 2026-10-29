@@ -19,11 +19,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// Rôle et base du nœud AMANE.
+// Rôle et base du nœud AMANE, et ceux de l'application hébergée (étape 3).
 const (
-	Role = "amane"
-	Base = "amane"
+	Role            = "amane"
+	Base            = "amane"
+	RoleApplication = "application"
+	BaseApplication = "application"
 )
+
+// Noms de rôle et de base admis : minuscules, chiffres, souligné.
+var identifiantSur = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
 // Les mots de passe générés par bootstrap sont en base64url : on refuse tout
 // autre caractère plutôt que d'échapper un littéral SQL (ALTER ROLE n'accepte
@@ -45,6 +50,15 @@ func DSNSuperutilisateur(hotePG, motDePasse string) string {
 // Garantir crée le rôle et la base du nœud s'ils n'existent pas, et fixe le
 // mot de passe du rôle. Idempotent : chaque machine peut l'exécuter.
 func Garantir(ctx context.Context, dsn, motDePasseRole string) error {
+	return GarantirRole(ctx, dsn, Role, Base, motDePasseRole)
+}
+
+// GarantirRole crée un rôle de connexion et sa base (dont il est
+// propriétaire) s'ils n'existent pas, et fixe son mot de passe. Idempotent.
+func GarantirRole(ctx context.Context, dsn, role, base, motDePasseRole string) error {
+	if !identifiantSur.MatchString(role) || !identifiantSur.MatchString(base) {
+		return fmt.Errorf("nom de rôle ou de base refusé : %q / %q", role, base)
+	}
 	if !motDePasseSur.MatchString(motDePasseRole) {
 		return errors.New("mot de passe du rôle refusé : caractères hors base64url")
 	}
@@ -57,23 +71,25 @@ func Garantir(ctx context.Context, dsn, motDePasseRole string) error {
 	}
 	defer conn.Close(ctx)
 
+	// Noms validés par identifiantSur, puis échappés comme identifiants SQL.
+	idRole, idBase := pgx.Identifier{role}.Sanitize(), pgx.Identifier{base}.Sanitize()
 	if _, err := conn.Exec(ctx, `DO $$ BEGIN
-		IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '`+Role+`') THEN
-			CREATE ROLE `+Role+` LOGIN;
+		IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '`+role+`') THEN
+			CREATE ROLE `+idRole+` LOGIN;
 		END IF;
 	END $$`); err != nil && !codeErreur(err, "42710") { // duplicate_object : création concurrente
-		return fmt.Errorf("création du rôle %s : %w", Role, err)
+		return fmt.Errorf("création du rôle %s : %w", role, err)
 	}
-	if _, err := conn.Exec(ctx, "ALTER ROLE "+Role+" WITH LOGIN PASSWORD '"+motDePasseRole+"'"); err != nil {
-		return fmt.Errorf("mot de passe du rôle %s : %w", Role, err)
+	if _, err := conn.Exec(ctx, "ALTER ROLE "+idRole+" WITH LOGIN PASSWORD '"+motDePasseRole+"'"); err != nil {
+		return fmt.Errorf("mot de passe du rôle %s : %w", role, err)
 	}
 	var existe bool
-	if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", Base).Scan(&existe); err != nil {
+	if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", base).Scan(&existe); err != nil {
 		return err
 	}
 	if !existe {
-		if _, err := conn.Exec(ctx, "CREATE DATABASE "+Base+" OWNER "+Role); err != nil && !codeErreur(err, "42P04") { // duplicate_database
-			return fmt.Errorf("création de la base %s : %w", Base, err)
+		if _, err := conn.Exec(ctx, "CREATE DATABASE "+idBase+" OWNER "+idRole); err != nil && !codeErreur(err, "42P04") { // duplicate_database
+			return fmt.Errorf("création de la base %s : %w", base, err)
 		}
 	}
 	return nil

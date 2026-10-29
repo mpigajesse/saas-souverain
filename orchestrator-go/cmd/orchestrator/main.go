@@ -37,6 +37,8 @@ func main() {
 			os.Exit(cmdInit(os.Args[2:]))
 		case "temoin":
 			os.Exit(cmdTemoin(os.Args[2:]))
+		case "lancer":
+			os.Exit(cmdLancer(os.Args[2:]))
 		}
 	}
 
@@ -54,6 +56,7 @@ func main() {
 	fichierSecrets := flag.String("secrets", "", "fichier des secrets PostgreSQL à produire depuis etcd (pile PME)")
 	dossierHAProxy := flag.String("haproxy-dossier", "", "dossier partagé avec HAProxy : configuration et socket maître (pile PME)")
 	portHAProxy := flag.Int("haproxy-port", 5000, "port d'écoute de HAProxy vers le primaire")
+	secretsApplication := flag.String("application-secrets", "", "fichier des identifiants de la base de l'application hébergée (pile PME avec application, étape 3)")
 	synchroneAuto := flag.Bool("synchrone-auto", false, "mode synchrone strict à partir de 3 serveurs, non strict en dessous (pile PME, orchestrateur élu)")
 	flag.Parse()
 
@@ -109,6 +112,9 @@ func main() {
 		go func() {
 			if s, ok := produireSecrets(ctx, etcdCli, *fichierSecrets, logger); ok {
 				provisionner(ctx, etcdCli, *patroniScope, s, logger)
+				if *secretsApplication != "" {
+					produireSecretsApplication(ctx, etcdCli, *secretsApplication, *patroniScope, s, logger)
+				}
 			}
 		}()
 	}

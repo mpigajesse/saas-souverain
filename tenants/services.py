@@ -16,6 +16,7 @@ from django.utils.text import slugify
 
 from licenses.models import License
 from .models import Tenant
+from .manifeste import pour_compose
 from .pile import images_pile
 
 # Types de machine d'un cluster PME (ADR-005).
@@ -151,6 +152,15 @@ def _registry_host(request) -> str:
     return f'{saas_host}:{getattr(settings, "REGISTRY_PORT", "5000")}'
 
 
+def application_du_tenant(tenant: Tenant):
+    """Manifeste de l'application externe hébergée pour ce tenant, ou None.
+
+    Le rattachement d'une application validée à la licence du tenant est
+    l'objet de l'étape 5 ; jusque-là, aucun tenant n'héberge d'application.
+    """
+    return None
+
+
 def build_compose_response(request, tenant: Tenant, type_machine: str = 'serveur') -> HttpResponse:
     """Génère le docker-compose.yml d'une machine serveur ou témoin.
 
@@ -162,9 +172,13 @@ def build_compose_response(request, tenant: Tenant, type_machine: str = 'serveur
         'serveur': 'tenants/docker-compose.yml.tmpl',
         'temoin': 'tenants/docker-compose-temoin.yml.tmpl',
     }[type_machine]
+    registre = _registry_host(request)
+    manifeste = application_du_tenant(tenant) if type_machine == 'serveur' else None
     content = render(request, gabarit, {
         'tenant': tenant,
-        'images': images_pile(_registry_host(request)),
+        'images': images_pile(registre),
+        # Application externe hébergée (étape 3) : None si le tenant n'en a pas.
+        'application': pour_compose(manifeste, registre) if manifeste else None,
         'relay_url': getattr(settings, 'RELAY_URL', 'http://localhost:8080'),
         'generated_at': datetime.now().strftime('%d/%m/%Y à %H:%M'),
     }).content.decode('utf-8')

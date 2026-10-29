@@ -30,6 +30,18 @@ func TestGarantirRefuseUnMotDePasseNonSur(t *testing.T) {
 	}
 }
 
+func TestGarantirRoleRefuseUnNomNonSur(t *testing.T) {
+	dsn := DSNSuperutilisateur("10.0.0.1:5432", "x")
+	for _, nom := range []string{"Majuscule", "avec-tiret", "un; DROP", ""} {
+		if err := GarantirRole(context.Background(), dsn, nom, "base", "MotDePasseSuffisammentLong"); err == nil {
+			t.Errorf("rôle %q accepté", nom)
+		}
+		if err := GarantirRole(context.Background(), dsn, "role", nom, "MotDePasseSuffisammentLong"); err == nil {
+			t.Errorf("base %q acceptée", nom)
+		}
+	}
+}
+
 func TestGarantirAdresseInvalide(t *testing.T) {
 	if err := Garantir(context.Background(), "postgres://postgres@sans-port/postgres", "MotDePasseSuffisammentLong"); err == nil {
 		t.Fatal("adresse sans port : erreur attendue")

@@ -46,7 +46,7 @@ uuid   = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Réseau (HTTP vers relais pour découverte des pairs)
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 
 # CLI / TUI
 clap    = { version = "4", features = ["derive"] }
