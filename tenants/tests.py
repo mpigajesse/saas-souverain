@@ -136,10 +136,13 @@ class ComposeServeurTests(BasePile):
         for service in ('amane-postgresql', 'ss-node', 'pgadmin'):
             self.assertIn('/amane/secrets/postgresql.env', json.dumps(self.doc['services'][service]))
 
-    def test_bascule_du_noeud_neutralisee(self):
+    def test_le_noeud_lit_patroni_et_ecrit_par_haproxy(self):
+        """Étape 2c : le nœud ne décide d'aucune bascule, il lit son rôle dans
+        Patroni et écrit sur le primaire du moment par HAProxy."""
         env = self.doc['services']['ss-node']['environment']
-        self.assertEqual(env['CLUSTER_PEERS'], '')
-        self.assertIn('amane:$${AMANE_PG_PASSWORD}@amane-postgresql:5432/amane', self.texte)
+        self.assertEqual(env['PATRONI_URL'], 'http://amane-postgresql:8008')
+        self.assertNotIn('CLUSTER_PEERS', env)
+        self.assertIn('amane:$${AMANE_PG_PASSWORD}@amane-haproxy:5000/amane', self.texte)
 
     def test_patroni_annonce_lip_lan_et_replique_en_synchrone(self):
         env = self.doc['services']['amane-postgresql']['environment']

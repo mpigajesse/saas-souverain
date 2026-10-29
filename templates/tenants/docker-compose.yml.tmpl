@@ -12,7 +12,7 @@
 #   amane-postgresql    PostgreSQL 17 piloté par Patroni (Spilo)
 #   amane-orchestrateur détection de panne, secrets, rôle amane, HAProxy
 #   amane-haproxy       adresse fixe qui mène toujours au primaire du moment
-#   ss-node             nœud AMANE
+#   ss-node             nœud AMANE : lit son rôle dans Patroni, ne décide rien
 #   pgadmin             consultation locale des données
 #
 # Les mots de passe sont générés par la première machine et transmis aux
@@ -24,6 +24,7 @@
 #   NODE_IP             IP LAN de la machine, annoncée aux autres
 #   NODE_HOSTNAME       nom de la machine (membre etcd et Patroni)
 #   NODE_MODE           active = premier serveur (génère la DEK), passive sinon
+#                       (ne décide plus du rôle PostgreSQL : Patroni le fait)
 #   SAAS_URL / REGISTRATION_TOKEN / RELAY_URL / TENANT_ID / WEB_PORT
 #   PGADMIN_EMAIL
 # -----------------------------------------------------------------------------
@@ -163,12 +164,14 @@ services:
     networks: [amane]
     ports:
       - "${WEB_PORT:-9001}:${WEB_PORT:-9001}"
-    # PostgreSQL LOCAL (et non HAProxy) : le nœud lit le rôle réel de sa
-    # machine (primaire ou standby) jusqu'à son recentrage (étape 2c).
+    # Données par HAProxy : le nœud écrit toujours sur le primaire du moment,
+    # quelle que soit sa machine. Son rôle, il le lit dans Patroni
+    # (PATRONI_URL) : garde de quorum en lecture et fencing par la timeline
+    # (refonte V3, étape 2c). Il ne décide d'aucune bascule.
     entrypoint:
       - /bin/sh
       - -c
-      - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; export PG_URL="postgres://amane:$${AMANE_PG_PASSWORD}@amane-postgresql:5432/amane"; exec /entrypoint.sh run --mode "$${NODE_MODE:-passive}"
+      - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; export PG_URL="postgres://amane:$${AMANE_PG_PASSWORD}@amane-haproxy:5000/amane"; exec /entrypoint.sh run --mode "$${NODE_MODE:-passive}"
     environment:
       SS_NODE_DIR: /data
       WEB_PORT: "${WEB_PORT:-9001}"
@@ -177,16 +180,15 @@ services:
       RELAY_URL: "${RELAY_URL:-{{ relay_url }}}"
       SAAS_URL: "${SAAS_URL}"
       NODE_ADDR: "${NODE_IP}:${WEB_PORT:-9001}"
+      # active = premier serveur : génère la DEK au premier démarrage.
       NODE_MODE: "${NODE_MODE:-passive}"
-      # Bascule du nœud NEUTRALISÉE : etcd + Patroni décident (ADR-001).
-      # Deux décideurs simultanés provoqueraient un double primaire.
-      CLUSTER_PEERS: ""
+      PATRONI_URL: http://amane-postgresql:8008
       HOSTNAME: "${NODE_HOSTNAME}"
       RUST_LOG: info
     volumes:
       - node-data:/data
       - secrets:/amane/secrets:ro
-    depends_on: [amane-postgresql]
+    depends_on: [amane-postgresql, amane-haproxy]
 
   pgadmin:
     image: {{ images.pgadmin }}

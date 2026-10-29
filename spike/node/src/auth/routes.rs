@@ -447,10 +447,72 @@ pub async fn accueil(
 
 // ── Admin dashboard ───────────────────────────────────────────────────────────
 
+/// Page « Cluster » à partir de l'état Patroni : membres, rôles, époque et
+/// état du quorum (garde en lecture, `ss_consensus::evaluer_quorum`).
+fn page_cluster_patroni(etat: &crate::patroni::EtatPatroni) -> String {
+    use ss_consensus::{evaluer_quorum, EtatQuorum, Observation, RoleMembre};
+
+    let (bandeau, couleur) = match evaluer_quorum(&etat.observation) {
+        EtatQuorum::Sain => ("✓ Cluster sain : primaire et copie synchrone".to_string(), "#065F46"),
+        EtatQuorum::SousLeSeuil(m) => (format!("⚠ Sous le seuil : {m}"), "#92400E"),
+        EtatQuorum::Perdu(m) => (format!("✗ Quorum perdu : {m}"), "#991B1B"),
+    };
+    let lignes: String = match &etat.observation {
+        Observation::Injoignable => String::new(),
+        Observation::Membres(membres) => membres
+            .iter()
+            .map(|m| {
+                let role = match m.role {
+                    RoleMembre::Leader => "Primaire",
+                    RoleMembre::SyncStandby => "Standby synchrone",
+                    RoleMembre::Replica => "Réplica",
+                    RoleMembre::Autre => "—",
+                };
+                format!(
+                    r#"<tr><td class="mono">{nom}</td><td>{role}</td><td>{etat}</td><td class="mono">{tl}</td></tr>"#,
+                    nom = esc(&m.nom),
+                    etat = esc(&m.etat),
+                    tl = m.timeline.map(|t| t.to_string()).unwrap_or_else(|| "—".into()),
+                )
+            })
+            .collect(),
+    };
+    let tableau = if lignes.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<table style="margin-top:14px">
+<thead><tr><th>Machine</th><th>Rôle</th><th>État</th><th>Époque (timeline)</th></tr></thead>
+<tbody>{lignes}</tbody></table>"#
+        )
+    };
+    format!(
+        r#"<div class="page-title">Cluster</div>
+<div class="page-sub">État publié par Patroni — les bascules sont décidées par etcd</div>
+
+<div class="cluster-card">
+  <div class="cluster-detail">
+    <span style="color:{couleur};font-weight:700">{bandeau}</span>
+    {tableau}
+  </div>
+</div>"#,
+        bandeau = esc(&bandeau),
+    )
+}
+
 pub async fn admin_dashboard(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
 ) -> Html<String> {
+    // Pile V3 : PostgreSQL est joint par HAProxy (toujours le primaire), le
+    // rôle de chaque machine se lit donc dans Patroni.
+    if let Ok(base) = std::env::var("PATRONI_URL") {
+        if !base.is_empty() {
+            let etat = crate::patroni::lire_etat(&base).await;
+            let content = page_cluster_patroni(&etat);
+            return Html(layout("Cluster", "cluster", &user, &state.tenant_name, &content));
+        }
+    }
     let cluster = super::get_cluster_info(&state.pool).await;
 
     let (role_label, role_class, replication_info) = if cluster.is_primary {

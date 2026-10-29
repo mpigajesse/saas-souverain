@@ -2265,13 +2265,10 @@ dependencies = [
 name = "ss-consensus"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chrono",
  "serde",
  "serde_json",
- "sqlx",
  "thiserror",
- "tokio",
  "uuid",
 ]
 

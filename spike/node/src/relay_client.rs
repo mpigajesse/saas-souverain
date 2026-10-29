@@ -12,6 +12,9 @@ pub struct AnnounceRequest {
     pub epoch: u64,
 }
 
+// Désérialisé tel que le relais le publie ; seules certaines commandes en
+// lisent les champs (`delist` ne compte que les pairs).
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct NodeInfo {
     pub node_id: Uuid,

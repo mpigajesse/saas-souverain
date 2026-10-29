@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 mod auth;
 mod cmd;
 mod config;
+mod patroni;
 mod relay_client;
 mod web;
 
@@ -30,16 +31,15 @@ enum Commands {
         #[arg(long)]
         first: bool,
     },
-    /// Démarre le nœud en mode actif ou passif
+    /// Démarre le nœud. La bascule PostgreSQL appartient à etcd/Patroni :
+    /// pour une bascule manuelle, `patronictl switchover` (refonte V3).
     Run {
-        /// Mode d'exécution : "active" ou "passive"
+        /// "active" = premier serveur du cluster (a généré la DEK), "passive" sinon
         #[arg(long, default_value = "passive")]
         mode: String,
     },
     /// Affiche le statut du nœud
     Status,
-    /// Promouvoir ce nœud standby en primaire PostgreSQL et incrémenter l'époque
-    Failover,
     /// Dé-enrôler un appareil et effectuer une rotation DEK
     Delist {
         /// UUID de l'appareil à retirer du cluster
@@ -88,9 +88,6 @@ async fn main() -> Result<()> {
         }
         Commands::Status => {
             cmd::status::run(&config_path).await?;
-        }
-        Commands::Failover => {
-            cmd::failover::run(&config_path).await?;
         }
         Commands::Delist { device_id } => {
             cmd::delist::run(&device_id, &config_path).await?;

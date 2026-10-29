@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.6
+version: 1.7
 date: 2026-10-29
 branche: main3
-statut: Étape 2 en cours — 2b commitée (validation sur le banc à faire), 2c non lancée
+statut: Étape 2 en cours — 2c terminée, 2d à suivre
 ---
 
 # Fiche du document
@@ -25,6 +25,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.4 | 2026-10-28 | main3 | Sous-étape 2a : image de l'orchestrateur, laboratoire HA trois machines, 10 scénarios de chaos réussis, 3 défauts de l'orchestrateur corrigés |
 | 1.5 | 2026-10-28 | main3 | ADR-005 (installation de la pile HA chez la PME, 5 décisions) ; défaut zero-knowledge des mots de passe dérivés du jeton |
 | 1.6 | 2026-10-29 | main3 / 08fa0a3 | Sous-étape 2b : pile PME générée (serveur, témoin), amorçage etcd, secrets locaux, HAProxy, images épinglées ; essai sur trois machines réussi ; procédure du banc |
+| 1.7 | 2026-10-29 | main3 | Sous-étape 2c : nœud Rust recentré (garde de quorum en lecture, époque = timeline, fencing continu) ; méthode de travail : étapes enchaînées, commit par étape sans push |
 
 # 1. Objet de la refonte
 
@@ -198,7 +199,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | Django (`tenants/`, `licenses/`, `devices/`, `dashboard/`) | Nouveau modèle **Application** (image soumise, digest, manifeste : ports, volumes, base requise, variables), rattaché à la licence ; génération des installeurs et du compose incluant l'application |
 | `templates/tenants/*.tmpl`, `pme-deploy/` | Ajout du service applicatif et de la pile etcd/Patroni/orchestrateur (ADR-001) ; `watchtower` revu (mise à jour par digest vérifié uniquement) ; `pgadmin` rendu optionnel |
 | `frontend/` | Garde Tenants, Licences, Appareils, Clusters, Relais, MonEspace, Login, Register, Déploiement ; ajoute une page Applications ; met à jour la page Architecture |
-| `ss-consensus/src/supervision.rs` | Réduit à la lecture d'état PostgreSQL (plus de promotion par le nœud) |
+| `ss-consensus/src/supervision.rs` | **Supprimé (2c)** : le nœud lit Patroni ; `ss-consensus` ne dépend plus de `sqlx` |
 | `ss-consensus/src/quorum.rs` | **Reclassé (ADR-004)** : initialement à supprimer, il est réorienté de l'élection vers une garde de quorum en lecture (sain / sous le seuil / perdu) |
 | `README.md`, `CLAUDE.md`, `ACCES-INTERFACES.md`, `CONTRAT-API.md`, `Architecture_SaaS_Souverain_Trois_Acteurs.md` | Réécrits une fois la refonte stabilisée |
 
@@ -225,7 +226,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 1 | Nettoyage : suppressions du § 4.3, un commit par catégorie | Terminée |
 | 2a | Image Docker de l'orchestrateur ; laboratoire simulant trois machines ; scénarios de chaos prouvant chaque promesse (ADR-001, ADR-004) | Terminée |
 | 2b | Gabarit compose PME (etcd, Patroni, orchestrateur, HAProxy), installeurs, génération par le portail, tests Django (ADR-005) | Réalisée ; validation sur le banc AMANE Test à faire (annexe) |
-| 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | À faire |
+| 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | Terminée |
 | 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | À faire |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
@@ -478,6 +479,36 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 
 **Suite.** La sous-étape 2c (recentrage du nœud Rust) n'est pas lancée : elle attend la validation de 2b sur le banc AMANE Test et l'accord explicite pour démarrer.
 
+## Méthode de travail à partir du 2026-10-29
+
+À la demande de l'utilisateur, les étapes restantes (2c à 7) sont enchaînées sans validation intermédiaire. Après chaque étape : mise à jour de ce journal, **un commit local, aucun push**. Tout point à trancher est décidé selon l'option recommandée et consigné ici sous forme d'ADR, avec les options écartées.
+
+## Étape 2c — Recentrage du nœud Rust (2026-10-29)
+
+**Objectif.** Appliquer ADR-004 au nœud : il ne décide plus d'aucune bascule, il **vérifie** et **fait respecter** l'état décidé par etcd et appliqué par Patroni.
+
+**Ce qui a changé.**
+
+| Élément | Avant | Après |
+|---|---|---|
+| Décision de bascule | `run_supervision_loop` : sonde des pairs (`CLUSTER_PEERS`), élection par LSN (`decider_failover`), `pg_promote` | Supprimée. Bascule manuelle : `patronictl switchover` |
+| `ss-consensus/src/quorum.rs` | Élection écrite à la main | Garde de quorum en lecture : `evaluer_quorum` classe l'état Patroni en `sain`, `sous_le_seuil`, `perdu` (fonction pure, 7 tests) |
+| `ss-consensus/src/supervision.rs` | Lecture de PostgreSQL et promotion | Supprimé ; `ss-consensus` ne dépend plus de `sqlx` |
+| Époque | Compteur dans `config.toml`, vérifié au démarrage | Timeline PostgreSQL publiée par Patroni (`epoque_cluster`), vérifiée **à chaque tick** (5 s) |
+| Rôle annoncé au portail | `pg_is_in_recovery()` ou `NODE_MODE` | Rôle Patroni de la machine (`spike/node/src/patroni.rs`), et seulement s'il n'est pas fencé |
+| `ss-node failover` | Promotion manuelle par `pg_promote` | Commande retirée |
+| `NODE_MODE` | Rôle PostgreSQL **et** génération de la DEK | Uniquement « premier serveur » : génère la DEK au premier démarrage |
+| Connexion PostgreSQL du nœud | PostgreSQL local | HAProxy (toujours le primaire) ; migrations idempotentes jouées par chaque nœud |
+| Page « Cluster » de la console du nœud | Vues `pg_stat_*` locales | État Patroni : membres, rôles, époque, état du quorum |
+
+**Fencing continu.** À chaque tick, une fonction pure (`decider`, 4 tests) fixe le droit d'écrire : le nœud n'écrit dans son journal en tant que primaire que si Patroni le dit primaire, que le quorum n'est pas perdu et que sa timeline est la plus récente du cluster. Un ancien primaire revenu avec une timeline inférieure est fencé, même si son PostgreSQL se croit encore primaire ; il s'annonce alors `standby`. La prise de rôle primaire est consignée dans `ss-journal` avec l'époque.
+
+**DEK.** En mode Docker, chaque serveur générait sa propre DEK (le code le signalait comme provisoire) : les données chiffrées n'auraient pas été lisibles d'une machine à l'autre. Désormais seul le premier serveur la génère ; les suivants démarrent sans DEK, « en attente d'enrôlement », sans redémarrer en boucle (le nœud fonctionne, son journal est désactivé). L'enrôlement des serveurs suivants est traité à l'étape 4.
+
+**Remontée au portail.** Le nœud transmet désormais l'état du cluster (`etat_quorum`) à chaque battement de cœur ; son stockage et l'alerte associée relèvent de 2d.
+
+**Vérifications.** Workspace `spike/` : compilation et tests réussis (16 tests du nœud, 19 de `ss-consensus`, 21 de `ss-crypto`, 6 de `ss-journal`) ; `core-rust/` : 7 tests réussis ; Django : test de la pile adapté (le nœud lit Patroni et écrit par HAProxy ; plus de `CLUSTER_PEERS`). L'essai de bout en bout du nœud recentré est joué à la fin de 2d, avec l'alerte.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -490,7 +521,7 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule | Isolement réseau à 6–7 s, panne de machine autour de 5 s : régler `loop_wait` et la durée du heartbeat sur le banc réel, sans augmenter les fausses détections | ADR-004, étape 2d |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
-| Rôle remonté au portail | Le nœud lit encore son rôle dans PostgreSQL local ; à remplacer par la garde de quorum en lecture | Étape 2c |
+| Enrôlement des serveurs suivants | Seul le premier serveur détient la DEK ; les suivants doivent la recevoir (sceau par appareil) par une opération humaine | Étape 4 |
 | Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
