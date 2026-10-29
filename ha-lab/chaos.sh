@@ -229,7 +229,7 @@ sc_perte_standby_non_strict() {
   local sync; sync=$(etat_json | python -c 'import json,sys; print(sum(x["Role"]=="Sync Standby" for x in json.load(sys.stdin)))')
   relancer "$m"
   attendre_sain || { resultat "$nom" ÉCHEC "le cluster ne se reforme pas"; return; }
-  resultat "$nom" OK "écritures reprises en $reprise ms sans standby (standby synchrone restant : $sync → alerte à lever, étape 2d) ; standby réintégré"
+  resultat "$nom" OK "écritures reprises en $reprise ms sans standby (standby synchrone restant : $sync → le nœud remonte « sous le seuil » au portail, étape 2d) ; standby réintégré"
 }
 
 # Isolement du seul témoin etcd : rien ne doit changer.

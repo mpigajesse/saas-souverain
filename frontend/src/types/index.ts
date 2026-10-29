@@ -48,6 +48,8 @@ export interface Device {
   node_role: NodeRole
   /** Serveur (PostgreSQL + nœud) ou témoin etcd seul (ADR-005). */
   node_kind: 'serveur' | 'temoin'
+  /** État du cluster vu par ce nœud (vide pour un témoin ou un nœud ancien). */
+  etat_quorum: EtatCluster | ''
   /** IP:port annoncée par le nœud (ex : 192.168.200.130:9001). */
   node_addr: string
   /** IP:port de l'interface web PME (ex : 192.168.200.130:3000). */
@@ -148,6 +150,13 @@ export type ClusterHealth =
   | 'primary_offline'
   | 'no_standby'
   | 'over_license'
+  /** Étape 2d : remontés par les nœuds (garde de quorum en lecture). */
+  | 'quorum_lost'
+  | 'unprotected'
+  | 'no_witness'
+
+/** État du cluster vu par les nœuds : pire état parmi les serveurs en ligne. */
+export type EtatCluster = 'sain' | 'sous_le_seuil' | 'perdu'
 
 export interface ClusterNodeStatus {
   device: Device
@@ -171,6 +180,8 @@ export interface ClusterEntry {
   license: ClusterLicenseStatus
   health: ClusterHealth
   is_alert: boolean
+  etat_cluster: EtatCluster | null
+  besoin_temoin: boolean
 }
 
 export interface ClusterOverview {
@@ -241,6 +252,7 @@ export interface EspacePme {
   pgadmin: PgAdminAcces
   /** Deux serveurs et aucun témoin : la panne de l'un bloquerait les écritures. */
   besoin_temoin: boolean
+  etat_cluster: EtatCluster | null
   relay_url: string
 }
 

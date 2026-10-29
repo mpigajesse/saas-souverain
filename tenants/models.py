@@ -28,6 +28,23 @@ class Tenant(models.Model):
         return self.name
 
     @property
+    def etat_cluster(self):
+        """Pire état du cluster remonté par les serveurs en ligne (étape 2d) :
+        « perdu », « sous_le_seuil » ou « sain » ; None sans remontée récente.
+        Un nœud hors ligne depuis plus de 2 minutes n'est pas pris en compte."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        recents = self.devices.filter(
+            is_active=True, node_kind='serveur', last_seen__gte=timezone.now() - timedelta(minutes=2),
+        ).exclude(etat_quorum='').values_list('etat_quorum', flat=True)
+        for etat in ('perdu', 'sous_le_seuil', 'sain'):
+            if etat in recents:
+                return etat
+        return None
+
+    @property
     def licence_status(self):
         """Retourne un dict avec l'état de conformité licence."""
         active_license = self.licenses.filter(is_active=True).order_by('-created_at').first()

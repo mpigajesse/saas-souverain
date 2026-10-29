@@ -269,7 +269,7 @@ export default function MonEspacePage() {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />
   if (!data) return null
 
-  const { tenant, active_license, devices, pgadmin, besoin_temoin, relay_url } = data
+  const { tenant, active_license, devices, pgadmin, besoin_temoin, etat_cluster, relay_url } = data
   const seatsUsedPercent =
     active_license && active_license.seats > 0
       ? Math.min(100, Math.round((devices.length / active_license.seats) * 100))
@@ -458,6 +458,29 @@ export default function MonEspacePage() {
           Conservez ces identifiants en lieu sûr. Cliquez sur une valeur pour la sélectionner.
         </p>
       </div>
+
+      {/* État du cluster remonté par les nœuds (étape 2d) */}
+      {(etat_cluster === 'sous_le_seuil' || etat_cluster === 'perdu') && (
+        <div
+          style={{
+            background: '#FEE8E8',
+            border: '1px solid var(--crimson)',
+            color: 'var(--crimson)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+            fontSize: '0.875rem',
+          }}
+        >
+          <strong style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <AlertCircle size={16} />
+            {etat_cluster === 'perdu' ? 'Votre cluster ne peut plus écrire' : 'Vos données ne sont plus protégées'}
+          </strong>
+          {etat_cluster === 'perdu'
+            ? "Aucun serveur primaire n'est disponible : rallumez ou reconnectez vos serveurs."
+            : "Un seul serveur détient vos données : si celui-ci tombe, les écritures récentes peuvent être perdues. Rallumez ou reconnectez l'autre serveur."}
+        </div>
+      )}
 
       {/* Témoin etcd conseillé (ADR-004, décision 1) */}
       {besoin_temoin && (

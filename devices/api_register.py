@@ -107,6 +107,7 @@ def device_register(request):
       - os (str, optionnel)          : ex. "Windows 11"
       - mac_address (str, optionnel) : indicatif seulement
       - node_kind (str, optionnel)   : « serveur » (défaut) ou « temoin » (ADR-005)
+      - etat_quorum (str, optionnel) : « sain », « sous_le_seuil » ou « perdu » (étape 2d)
     """
     tenant_token_raw = request.data.get('tenant_token')
     installation_id_raw = request.data.get('installation_id')
@@ -158,6 +159,12 @@ def device_register(request):
             {'status': 'error', 'message': 'node_kind invalide (attendu : serveur ou temoin).'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    etat_quorum = request.data.get('etat_quorum', '')
+    if etat_quorum not in ('', 'sain', 'sous_le_seuil', 'perdu'):
+        return Response(
+            {'status': 'error', 'message': 'etat_quorum invalide.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     device, created = Device.objects.get_or_create(
         installation_id=installation_id,
         defaults={
@@ -169,6 +176,7 @@ def device_register(request):
             'web_addr': web_addr,
             'node_role': node_role,
             'node_kind': node_kind,
+            'etat_quorum': etat_quorum,
             'is_active': True,
         },
     )
@@ -178,6 +186,8 @@ def device_register(request):
         device.hostname = request.data.get('hostname', device.hostname)
         device.os = request.data.get('os', device.os)
         device.node_kind = node_kind
+        if etat_quorum:
+            device.etat_quorum = etat_quorum
         if node_addr:
             device.node_addr = node_addr
         if web_addr:

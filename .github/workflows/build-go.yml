@@ -91,7 +91,7 @@ jobs:
 
           # Plancher par paquet (anti-gaming) : chaque paquet produit doit être
           # ≥ PKG_MIN_COVERAGE, sinon la PR apporte un trou assumé en un seul bloc.
-          for pkg in consensus telemetry mesh supervisor grpcserver replication dcs haproxy bootstrap portail; do
+          for pkg in consensus telemetry mesh supervisor grpcserver replication dcs haproxy bootstrap portail synchrone; do
             pp=$(awk -v p="github.com/amane/orchestrator-go/$pkg/" \
               '$1 ~ p {s+=$2; if ($3>0) c+=$2} \
                END{printf "%.1f", (s?100*c/s:0)}' cov-prod.out)

@@ -45,6 +45,7 @@ def tenant_me(request):
             'email': f'admin@pme{slugify(tenant.name)}.com',
         },
         'besoin_temoin': ctx['besoin_temoin'],
+        'etat_cluster': tenant.etat_cluster,
         'relay_url': getattr(settings, 'RELAY_URL', 'http://localhost:8080'),
     })
 

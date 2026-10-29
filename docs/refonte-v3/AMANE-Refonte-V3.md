@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 1.7
+version: 1.8
 date: 2026-10-29
 branche: main3
-statut: Étape 2 en cours — 2c terminée, 2d à suivre
+statut: Étape 2 terminée (validation sur le banc à faire) — étape 3 à suivre
 ---
 
 # Fiche du document
@@ -26,6 +26,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 1.5 | 2026-10-28 | main3 | ADR-005 (installation de la pile HA chez la PME, 5 décisions) ; défaut zero-knowledge des mots de passe dérivés du jeton |
 | 1.6 | 2026-10-29 | main3 / 08fa0a3 | Sous-étape 2b : pile PME générée (serveur, témoin), amorçage etcd, secrets locaux, HAProxy, images épinglées ; essai sur trois machines réussi ; procédure du banc |
 | 1.7 | 2026-10-29 | main3 | Sous-étape 2c : nœud Rust recentré (garde de quorum en lecture, époque = timeline, fencing continu) ; méthode de travail : étapes enchaînées, commit par étape sans push |
+| 1.8 | 2026-10-29 | main3 | Sous-étape 2d : mode synchrone selon la taille du cluster, alerte « sous le seuil », mesures ; ADR-006 ; essai sur trois machines 13/13 |
 
 # 1. Objet de la refonte
 
@@ -87,6 +88,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-003 | Zero-knowledge strict : aucun clair hors du cluster PME, clés confinées | Acceptée | 2026-10-28 |
 | ADR-004 | Modalités de la HA PME : témoin etcd, synchrone strict dès 3 nœuds, garde de quorum en lecture | Acceptée | 2026-10-28 |
 | ADR-005 | Installation de la pile HA chez la PME : amorçage etcd, témoin, images, secrets, HAProxy | Acceptée | 2026-10-28 |
+| ADR-006 | Réglages de bascule : taille du cluster retenue, `loop_wait`, cibles de délai | Acceptée (décidée seule, méthode du 29/10) | 2026-10-29 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -175,6 +177,20 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 - Tant que le nœud Rust n'est pas recentré (2c), sa bascule automatique est neutralisée par configuration (`CLUSTER_PEERS` vide) : deux décideurs simultanés provoqueraient un double primaire.
 - Les secrets transitent en clair entre machines de la PME jusqu'au mesh WireGuard (étape 4, ADR-004 décision 6) ; ils ne sortent jamais du réseau de la PME.
 
+## ADR-006 — Réglages de bascule
+
+**Contexte.** La sous-étape 2d devait rendre la réplication synchrone effective selon la taille du cluster (ADR-004, décision 2) et trancher les délais de bascule laissés ouverts en 2a. Décision prise seule, selon la méthode convenue le 29/10 : option recommandée retenue, options écartées consignées.
+
+**Décisions.**
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Taille du cluster pour le mode strict | Le **maximum de serveurs observés**, mémorisé dans etcd (`/amane/config/serveurs_installes`). Seul l'orchestrateur élu (lease etcd) applique `synchronous_mode_strict` par l'API Patroni | Le nombre de serveurs vivants : la panne d'un serveur dans un cluster de 3 aurait retiré la protection au moment où elle compte le plus |
+| 2 | `loop_wait` de Patroni | **Conservé à 2 s** | 1 s : mesuré en laboratoire (10/10 scénarios), gain ≤ 1 s sur la bascule et ~1,3 s sur la mise hors service d'un primaire isolé (qui n'acquitte de toute façon aucune écriture), pour une charge d'écriture etcd doublée |
+| 3 | Cibles de délai | **< 5 s** pour un crash de processus, **≈ 5 s** pour la perte d'une machine, **< 8 s** pour une partition. La partition est volontairement plus lente : la garde anti-partition attend l'expiration du heartbeat avant de forcer | Abaisser le heartbeat ou les confirmations : risque de bascule forcée sur une simple coupure réseau |
+
+**Conséquences.** Retirer définitivement un serveur du cluster suppose d'abaisser la valeur mémorisée (`etcdctl put /amane/config/serveurs_installes <n>`) ; c'est une opération d'administration humaine, documentée ici.
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -227,7 +243,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 2a | Image Docker de l'orchestrateur ; laboratoire simulant trois machines ; scénarios de chaos prouvant chaque promesse (ADR-001, ADR-004) | Terminée |
 | 2b | Gabarit compose PME (etcd, Patroni, orchestrateur, HAProxy), installeurs, génération par le portail, tests Django (ADR-005) | Réalisée ; validation sur le banc AMANE Test à faire (annexe) |
 | 2c | Recentrage du nœud Rust : retrait de la promotion, garde de quorum en lecture, époque = timeline, fencing continu, séparation de `NODE_MODE` | Terminée |
-| 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | À faire |
+| 2d | Réplication synchrone et alerte sous le seuil, mesures de bascule sur le banc réinstallé | Terminée (mesures en laboratoire ; banc à faire) |
 | 3 | Nœud → hôte d'exécution : manifeste, lancement et supervision d'une image Docker, reverse proxy de l'interface (ADR-002) | À faire |
 | 4 | Confinement et chiffrement : réseau interne sans sortie, données de l'application chiffrées au repos, sauvegardes chiffrées via le relais (ADR-003) | À faire |
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs | À faire |
@@ -509,6 +525,24 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 
 **Vérifications.** Workspace `spike/` : compilation et tests réussis (16 tests du nœud, 19 de `ss-consensus`, 21 de `ss-crypto`, 6 de `ss-journal`) ; `core-rust/` : 7 tests réussis ; Django : test de la pile adapté (le nœud lit Patroni et écrit par HAProxy ; plus de `CLUSTER_PEERS`). L'essai de bout en bout du nœud recentré est joué à la fin de 2d, avec l'alerte.
 
+## Étape 2d — Réplication synchrone, alerte et mesures (2026-10-29)
+
+**Ce qui a été fait.**
+
+- **Mode synchrone selon la taille du cluster** (`orchestrator-go/synchrone/`, option `-synchrone-auto`) : strict à partir de 3 serveurs, non strict en dessous, appliqué par l'orchestrateur élu via `PATCH /config` de Patroni (ADR-006, décision 1). Couverture 73 %, test d'intégration sur etcd réel.
+- **Alerte « sous le seuil »** : le nœud remonte l'état du cluster (`etat_quorum`) à chaque battement de cœur et **immédiatement** à chaque changement (au lieu d'attendre jusqu'à 60 s). Le portail l'enregistre (`Device.etat_quorum`, migration 0007), en déduit l'état du tenant (pire état parmi ses serveurs en ligne, `Tenant.etat_cluster`) et alerte :
+  - **espace PME** : bandeau « Vos données ne sont plus protégées » ou « Votre cluster ne peut plus écrire » ;
+  - **console éditeur** (supervision des clusters) : nouveaux motifs `quorum_lost`, `unprotected`, `no_witness`.
+- **Mesures** : campagne de chaos rejouée avec `loop_wait` à 1 s ; résultat et décision dans ADR-006.
+
+**Vérifications.**
+
+- Django : 74 tests réussis (dont 3 nouveaux sur l'état du cluster) ; frontend : build et lint sans erreur ; Go : tests unitaires et d'intégration réussis.
+- **Essai sur trois machines** (Docker-dans-Docker, pile générée, images publiées, nœud recentré de 2c) : 13 vérifications sur 13 — premier serveur leader et DEK générée, second en standby synchrone et « en attente d'enrôlement », témoin, nœud voyant le cluster sain, mode non strict à deux serveurs, état « sain » au portail ; puis coupure brutale de la machine du primaire → bascule et écriture par HAProxy en 10 s sans perte, **alerte « sous le seuil » au portail en 1 s** ; retour de l'ancienne machine en standby (20 s) et état redevenu « sain ».
+- Journaux du nœud pendant l'essai : « sous le seuil » → « sain » → « quorum perdu » (pendant la bascule) → « sous le seuil » (époque 3) → « sain » ; prise de rôle primaire consignée dans `ss-journal` avec l'époque.
+
+**Reste à faire sur le banc AMANE Test** : mêmes vérifications sur machines réelles (annexe), en particulier les délais de bascule sous Docker Desktop.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -519,7 +553,7 @@ Plus aucune question n'est posée à l'installation (fini « IP du nœud primair
 | Authentification utilisateur | Le reverse proxy ajoute-t-il un contrôle d'appareil appairé devant l'interface, ou laisse-t-on uniquement le login de l'application ? | ADR-003 |
 | Applications multi-conteneurs | Un SaaS peut nécessiter plusieurs services (web, worker, cache) : le manifeste doit-il décrire un ensemble ? | ADR-002 |
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
-| Délais de bascule | Isolement réseau à 6–7 s, panne de machine autour de 5 s : régler `loop_wait` et la durée du heartbeat sur le banc réel, sans augmenter les fausses détections | ADR-004, étape 2d |
+| Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
 | Enrôlement des serveurs suivants | Seul le premier serveur détient la DEK ; les suivants doivent la recevoir (sceau par appareil) par une opération humaine | Étape 4 |
 | Dossier `pme-deploy/` | Décrit l'ancienne pile V2, désormais remplacée par la pile générée : à retirer ou réécrire | Étape 2c ou 7 |

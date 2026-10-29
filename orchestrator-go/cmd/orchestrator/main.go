@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"github.com/amane/orchestrator-go/haproxy"
 	"github.com/amane/orchestrator-go/replication"
 	"github.com/amane/orchestrator-go/supervisor"
+	"github.com/amane/orchestrator-go/synchrone"
 	"github.com/amane/orchestrator-go/telemetry"
 )
 
@@ -52,6 +54,7 @@ func main() {
 	fichierSecrets := flag.String("secrets", "", "fichier des secrets PostgreSQL à produire depuis etcd (pile PME)")
 	dossierHAProxy := flag.String("haproxy-dossier", "", "dossier partagé avec HAProxy : configuration et socket maître (pile PME)")
 	portHAProxy := flag.Int("haproxy-port", 5000, "port d'écoute de HAProxy vers le primaire")
+	synchroneAuto := flag.Bool("synchrone-auto", false, "mode synchrone strict à partir de 3 serveurs, non strict en dessous (pile PME, orchestrateur élu)")
 	flag.Parse()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -116,6 +119,18 @@ func main() {
 				slog.Error("gestionnaire HAProxy arrêté", "err", err)
 			}
 		}()
+	}
+
+	if *synchroneAuto {
+		g := synchrone.Gestionnaire{
+			Cli:     etcdCli,
+			Scope:   *patroniScope,
+			EstElu:  leadership.IsLeader,
+			API:     synchrone.ClientHTTP{HTTP: &http.Client{Timeout: 5 * time.Second}},
+			Periode: 10 * time.Second,
+			Logger:  logger,
+		}
+		go g.Run(ctx)
 	}
 
 	// --- Superviseur de failover (option C) : détection crash + /failover ---

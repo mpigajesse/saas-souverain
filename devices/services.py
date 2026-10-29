@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from tenants.models import Tenant
+from tenants.services import besoin_temoin
 
 ONLINE_THRESHOLD = timedelta(minutes=2)
 
@@ -31,6 +32,8 @@ def build_cluster_overview() -> dict:
         primary = devices.filter(node_role='primary').first()
         standbys = list(devices.filter(node_role='standby'))
         license_status = tenant.licence_status
+        etat_cluster = tenant.etat_cluster
+        sans_temoin = besoin_temoin(tenant)
 
         # Enrichir chaque nœud avec son statut online
         def enrich(d):
@@ -52,10 +55,17 @@ def build_cluster_overview() -> dict:
             health = 'no_primary'
         elif not (primary_info and primary_info['online']):
             health = 'primary_offline'
+        elif etat_cluster == 'perdu':
+            # Étape 2d : remonté par les nœuds (garde de quorum en lecture).
+            health = 'quorum_lost'
+        elif etat_cluster == 'sous_le_seuil':
+            health = 'unprotected'
         elif len(standbys) == 0:
             health = 'no_standby'
         elif not license_status['ok']:
             health = 'over_license'
+        elif sans_temoin:
+            health = 'no_witness'
         else:
             health = 'ok'
 
@@ -72,6 +82,8 @@ def build_cluster_overview() -> dict:
             'license': license_status,
             'health': health,
             'is_alert': is_alert,
+            'etat_cluster': etat_cluster,
+            'besoin_temoin': sans_temoin,
         })
 
     # Trier : alertes en premier

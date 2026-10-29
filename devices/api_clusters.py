@@ -40,6 +40,8 @@ def clusters_view(request):
             'license': c['license'],
             'health': c['health'],
             'is_alert': c['is_alert'],
+            'etat_cluster': c['etat_cluster'],
+            'besoin_temoin': c['besoin_temoin'],
         }
         for c in data['clusters']
     ]

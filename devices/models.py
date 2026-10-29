@@ -25,6 +25,13 @@ class Device(models.Model):
         choices=[('serveur', 'Serveur'), ('temoin', 'Témoin etcd')],
         help_text='Type de machine du cluster PME',
     )
+    # Étape 2d : état du cluster vu par le nœud (garde de quorum en lecture,
+    # `ss_consensus::evaluer_quorum`), remonté à chaque battement de cœur.
+    etat_quorum = models.CharField(
+        max_length=15, blank=True,
+        choices=[('sain', 'Sain'), ('sous_le_seuil', 'Sous le seuil'), ('perdu', 'Quorum perdu')],
+        help_text='État du cluster vu par ce nœud',
+    )
     last_failover_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Dernier failover automatique détecté sur ce nœud',

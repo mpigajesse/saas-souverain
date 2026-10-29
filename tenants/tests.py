@@ -326,3 +326,44 @@ class EnregistrementTemoinTests(TestCase):
         self.enregistrer('55555555-5555-4555-8555-555555555555', 'temoin')
         noeuds = self.client.get('/api/devices/cluster-status/', {'token': str(self.tenant.registration_token)}).json()
         self.assertEqual(noeuds['active_nodes'][0]['node_kind'], 'temoin')
+
+
+class EtatClusterTests(TestCase):
+    """Étape 2d : l'état du cluster remonté par les nœuds alerte la PME et
+    l'éditeur quand les écritures ne sont plus protégées."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(username='editeur-2d', password='x', is_staff=True)
+        cls.tenant = Tenant.objects.create(name='PME 2d', email='etat@pme.fr', employee_count=3)
+        License.objects.create(tenant=cls.tenant, plan='starter', seats=3, starts_at=date.today())
+
+    def annoncer(self, installation_id, etat, role='primary'):
+        return self.client.post('/api/devices/register/', {
+            'tenant_token': str(self.tenant.registration_token), 'installation_id': installation_id,
+            'node_addr': '192.168.1.10:9001', 'node_role': role, 'etat_quorum': etat,
+        }, content_type='application/json')
+
+    def test_etat_enregistre_et_valide(self):
+        self.assertEqual(self.annoncer('aaaaaaaa-0000-4000-8000-000000000001', 'sain').status_code, 201)
+        self.assertEqual(Device.objects.get(hostname='').etat_quorum, 'sain')
+        self.assertEqual(self.annoncer('aaaaaaaa-0000-4000-8000-000000000002', 'inconnu').status_code, 400)
+        # Un battement de cœur sans état ne l'efface pas.
+        self.annoncer('aaaaaaaa-0000-4000-8000-000000000001', '')
+        self.assertEqual(Device.objects.get(installation_id='aaaaaaaa-0000-4000-8000-000000000001').etat_quorum, 'sain')
+
+    def test_le_tenant_prend_le_pire_etat_de_ses_serveurs(self):
+        self.assertIsNone(self.tenant.etat_cluster)
+        self.annoncer('bbbbbbbb-0000-4000-8000-000000000001', 'sain')
+        self.assertEqual(self.tenant.etat_cluster, 'sain')
+        self.annoncer('bbbbbbbb-0000-4000-8000-000000000002', 'sous_le_seuil', 'standby')
+        self.assertEqual(self.tenant.etat_cluster, 'sous_le_seuil')
+
+    def test_alerte_dans_la_supervision_editeur(self):
+        self.annoncer('cccccccc-0000-4000-8000-000000000001', 'sous_le_seuil')
+        self.client.force_login(self.staff)
+        clusters = self.client.get('/api/clusters/').json()['clusters']
+        entree = next(c for c in clusters if c['tenant']['name'] == 'PME 2d')
+        self.assertEqual(entree['etat_cluster'], 'sous_le_seuil')
+        self.assertEqual(entree['health'], 'unprotected')
+        self.assertTrue(entree['is_alert'])

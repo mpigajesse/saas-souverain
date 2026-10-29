@@ -224,6 +224,11 @@ async fn boucle_supervision(
             println!("  Cluster  : {resume} (époque {epoque_max})");
             dernier_etat = resume;
             let _ = canal_etat.send_replace(quorum.code().to_string());
+            // Annonce immédiate : la PME doit apprendre sans attendre le
+            // prochain battement de cœur (jusqu'à 60 s) qu'elle n'est plus
+            // protégée — ou qu'elle l'est de nouveau.
+            let role = canal_role.borrow().clone();
+            annoncer_au_saas(node_id, &role, quorum.code(), false).await;
         }
 
         if d.fence && !fence_signale {

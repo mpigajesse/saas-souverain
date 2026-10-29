@@ -86,6 +86,8 @@ services:
       - -patroni-scope=amane
       - -secrets=/amane/secrets/postgresql.env
       - -haproxy-dossier=/amane/haproxy
+      # Mode synchrone strict à partir de 3 serveurs (ADR-004, décision 2).
+      - -synchrone-auto
     environment:
       AMANE_NODE_ID: "${NODE_HOSTNAME}"
     volumes:

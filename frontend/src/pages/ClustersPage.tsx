@@ -21,6 +21,9 @@ const HEALTH_LABELS: Record<ClusterHealth, string> = {
   primary_offline: 'Primaire hors ligne',
   no_standby: 'Bascule manuelle uniquement',
   over_license: 'Hors licence',
+  quorum_lost: 'Quorum perdu',
+  unprotected: 'Écritures non protégées',
+  no_witness: 'Témoin manquant',
 }
 
 const HEALTH_COLORS: Record<ClusterHealth, { bg: string; fg: string }> = {
@@ -30,6 +33,9 @@ const HEALTH_COLORS: Record<ClusterHealth, { bg: string; fg: string }> = {
   primary_offline: { bg: '#FEE2E2', fg: '#991B1B' },
   no_standby: { bg: '#FEF3C7', fg: '#92400E' },
   over_license: { bg: '#FEF3C7', fg: '#92400E' },
+  quorum_lost: { bg: '#FEE2E2', fg: '#991B1B' },
+  unprotected: { bg: '#FEF3C7', fg: '#92400E' },
+  no_witness: { bg: '#FEF3C7', fg: '#92400E' },
 }
 
 const HEALTH_MESSAGES: Partial<Record<ClusterHealth, string>> = {
@@ -37,6 +43,9 @@ const HEALTH_MESSAGES: Partial<Record<ClusterHealth, string>> = {
   primary_offline: 'Le nœud primaire ne répond plus — intervention requise',
   no_primary: 'Aucun primaire détecté — le cluster ne peut pas accepter d\'écritures',
   over_license: 'Nombre de machines actives supérieur au quota de la licence',
+  quorum_lost: 'Plus de primaire élu ou etcd sans majorité — aucune écriture possible',
+  unprotected: 'Plus aucune copie synchrone : les écritures ne sont plus protégées',
+  no_witness: "Deux serveurs sans témoin : la panne de l'un bloquerait les écritures",
 }
 
 function formatDateTime(iso: string): string {
