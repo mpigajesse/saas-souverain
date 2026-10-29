@@ -20,12 +20,24 @@ import (
 	"github.com/amane/orchestrator-go/consensus"
 	pb "github.com/amane/orchestrator-go/gen/amane/framework/v1"
 	"github.com/amane/orchestrator-go/grpcserver"
+	"github.com/amane/orchestrator-go/haproxy"
 	"github.com/amane/orchestrator-go/replication"
 	"github.com/amane/orchestrator-go/supervisor"
 	"github.com/amane/orchestrator-go/telemetry"
 )
 
 func main() {
+	// Sous-commandes de la pile PME (ADR-005) : amorçage d'une machine avant
+	// etcd, et présence d'un témoin auprès du portail.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "init":
+			os.Exit(cmdInit(os.Args[2:]))
+		case "temoin":
+			os.Exit(cmdTemoin(os.Args[2:]))
+		}
+	}
+
 	listen := flag.String("listen", ":50051", "adresse d'écoute gRPC")
 	tlsCert := flag.String("tls-cert", "", "certificat serveur (mTLS si tls-ca fourni)")
 	tlsKey := flag.String("tls-key", "", "clé privée du certificat serveur")
@@ -36,6 +48,10 @@ func main() {
 	patroniNodes := flag.String("patroni-nodes", "", "nœuds Patroni 'nom@http://host:port,...' (ex: postgres-primary@http://localhost:8008)")
 	replicateTo := flag.String("replicate-to", "", "pairs de réplication multi-site 'site-id@host:port,...' (PushDelta périodique)")
 	replicateInterval := flag.Duration("replicate-interval", time.Second, "intervalle de propagation des deltas vers les pairs")
+	discover := flag.Bool("decouvrir", false, "superviseur : membres Patroni relus dans etcd à chaque tick (pile PME)")
+	fichierSecrets := flag.String("secrets", "", "fichier des secrets PostgreSQL à produire depuis etcd (pile PME)")
+	dossierHAProxy := flag.String("haproxy-dossier", "", "dossier partagé avec HAProxy : configuration et socket maître (pile PME)")
+	portHAProxy := flag.Int("haproxy-port", 5000, "port d'écoute de HAProxy vers le primaire")
 	flag.Parse()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -85,17 +101,38 @@ func main() {
 		}
 	}()
 
+	// --- Pile PME : secrets partagés et routage vers le primaire (ADR-005) ---
+	if *fichierSecrets != "" {
+		go func() {
+			if s, ok := produireSecrets(ctx, etcdCli, *fichierSecrets, logger); ok {
+				provisionner(ctx, etcdCli, *patroniScope, s, logger)
+			}
+		}()
+	}
+	if *dossierHAProxy != "" {
+		g := haproxy.NouveauGestionnaire(etcdCli, *patroniScope, *dossierHAProxy, *portHAProxy, logger)
+		go func() {
+			if err := g.Run(ctx); err != nil {
+				slog.Error("gestionnaire HAProxy arrêté", "err", err)
+			}
+		}()
+	}
+
 	// --- Superviseur de failover (option C) : détection crash + /failover ---
 	if *supervisorEnabled {
-		nodes, err := parsePatroniNodes(*patroniNodes)
-		if err != nil {
-			slog.Error("superviseur : nœuds Patroni invalides", "err", err)
-			os.Exit(1)
+		var nodes []supervisor.Node
+		if !*discover || *patroniNodes != "" {
+			nodes, err = parsePatroniNodes(*patroniNodes)
+			if err != nil {
+				slog.Error("superviseur : nœuds Patroni invalides", "err", err)
+				os.Exit(1)
+			}
 		}
 		sv := supervisor.New(supervisor.Config{
 			EtcdEndpoints: strings.Split(*etcdEndpoints, ","),
 			Scope:         *patroniScope,
 			Nodes:         nodes,
+			Discover:      *discover,
 			// L'agent heartbeat du superviseur ne touche QUE son nœud local :
 			// en 3 nœuds, il ne doit jamais supprimer le heartbeat du primary
 			// quand SON lien REST est coupé (la garde anti-partition en dépend).

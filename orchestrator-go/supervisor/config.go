@@ -17,6 +17,7 @@ type Config struct {
 	EtcdEndpoints []string
 	Scope         string        // scope Patroni (préfixe DCS /service/<scope>/)
 	Nodes         []Node        // membres du cluster PostgreSQL
+	Discover      bool          // membres relus dans etcd à chaque tick (pile PME : la liste évolue)
 	LocalNode     string        // membre dont ce superviseur est l'agent local (vide = mode mono-hôte)
 	ProbeInterval time.Duration // cadence de sondage REST Patroni
 	ProbeTimeout  time.Duration // timeout d'un probe REST
@@ -60,8 +61,8 @@ func (c *Config) Validate() error {
 	if c.Scope == "" {
 		return errors.New("scope requis")
 	}
-	if len(c.Nodes) == 0 {
-		return errors.New("au moins un nœud Patroni requis")
+	if len(c.Nodes) == 0 && !c.Discover {
+		return errors.New("au moins un nœud Patroni requis (ou découverte dans etcd)")
 	}
 	return nil
 }

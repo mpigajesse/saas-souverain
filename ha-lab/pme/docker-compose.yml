@@ -1,0 +1,207 @@
+# Laboratoire d'installation PME (refonte V3, sous-étape 2b, ADR-005).
+#
+# Reproduit, sur un seul poste, l'installation d'un cluster PME machine par
+# machine, SANS aucune configuration figée : chaque machine s'amorce elle-même
+# (`orchestrator init`), rejoint le cluster etcd sur le réseau local, obtient
+# les secrets générés par la première, et route vers le primaire par son
+# HAProxy local. Valide les mécanismes que la pile générée par le portail
+# utilise chez la PME.
+#
+# Une machine = un profil, démarré dans l'ordre d'installation :
+#   m1 serveur (premier installé) · m2 serveur · m3 témoin etcd.
+# Pilotage : bash ha-lab/pme/installation.sh
+#
+# Adressage sur `lan` (une IP par conteneur, la « machine » étant le groupe) :
+#   10.77.0.<N>1 etcd · <N>2 PostgreSQL/Patroni · <N>3 orchestrateur · <N>4 HAProxy
+
+name: amane-ha-pme
+
+networks:
+  lan:
+    ipam:
+      config:
+        - subnet: 10.77.0.0/24
+  m1:
+  m2:
+  m3:
+
+x-init: &init
+  image: amane-orchestrator:lab
+  # Root le temps de l'amorçage : il prépare les droits des volumes partagés.
+  user: "0"
+  restart: "no"
+
+x-etcd: &etcd
+  image: quay.io/coreos/etcd:v3.5.5
+  # Configuration produite par l'amorçage (variables ETCD_*).
+  command: ["sh", "-c", ". /amane/etcd/etcd.env && exec etcd"]
+  healthcheck:
+    test: ["CMD", "etcdctl", "endpoint", "health"]
+    interval: 2s
+    timeout: 2s
+    retries: 60
+
+x-patroni-env: &patroni-env
+  SCOPE: amane-pme
+  PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+  PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+  # Connexions non chiffrées admises sur le réseau PME (nœud sans TLS) ;
+  # chiffrement entre machines : mesh WireGuard, étape 4 (ADR-004 décision 6).
+  ALLOW_NOSSL: "true"
+  SPILO_CONFIGURATION: |
+    bootstrap:
+      dcs:
+        ttl: 20
+        loop_wait: 2
+        retry_timeout: 5
+        synchronous_mode: true
+        synchronous_mode_strict: false
+        postgresql:
+          parameters:
+            synchronous_commit: "on"
+            max_wal_senders: 5
+            max_slot_wal_keep_size: 1024MB
+
+x-patroni: &patroni
+  image: ghcr.io/zalando/spilo-17:4.0-p3
+  # Les mots de passe viennent du cluster (secrets générés par la première
+  # machine, écrits ici par l'orchestrateur local) : on attend le fichier.
+  command:
+    - /bin/sh
+    - -c
+    - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; exec /bin/sh /launch.sh init
+
+x-haproxy: &haproxy
+  image: haproxy:3.0-alpine
+  command:
+    - sh
+    - -c
+    - until [ -f /amane/haproxy/haproxy.cfg ]; do sleep 1; done; exec haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg
+
+x-orchestrateur: &orchestrateur
+  image: amane-orchestrator:lab
+
+services:
+  # ── Machine m1 : premier serveur installé ────────────────────────────────
+  init-m1:
+    <<: *init
+    profiles: [m1]
+    container_name: init-m1
+    command: [init, -nom=pg-m1, -ip=10.77.0.11, -jeton=jeton-lab, "-pairs=${PAIRS_M1:-}",
+              -dossier-secrets=/amane/secrets, -dossier-haproxy=/amane/haproxy]
+    networks: { lan: { ipv4_address: 10.77.0.10 }, m1: {} }
+    volumes: [etcd-data-m1:/etcd-data, etcd-conf-m1:/amane/etcd, secrets-m1:/amane/secrets, haproxy-m1:/amane/haproxy]
+  etcd-m1:
+    <<: *etcd
+    profiles: [m1]
+    container_name: etcd-m1
+    networks: { lan: { ipv4_address: 10.77.0.11 }, m1: {} }
+    volumes: [etcd-data-m1:/etcd-data, etcd-conf-m1:/amane/etcd]
+    depends_on: { init-m1: { condition: service_completed_successfully } }
+  orch-m1:
+    <<: *orchestrateur
+    profiles: [m1]
+    container_name: orch-m1
+    command: [-etcd-endpoints=10.77.0.11:2379, -supervisor, -decouvrir, -patroni-scope=amane-pme,
+              -secrets=/amane/secrets/postgresql.env, -haproxy-dossier=/amane/haproxy]
+    environment: { AMANE_NODE_ID: pg-m1 }
+    networks: { lan: { ipv4_address: 10.77.0.13 }, m1: {} }
+    volumes: [secrets-m1:/amane/secrets, haproxy-m1:/amane/haproxy]
+    depends_on: { etcd-m1: { condition: service_healthy } }
+  pg-m1:
+    <<: *patroni
+    profiles: [m1]
+    container_name: pg-m1
+    hostname: pg-m1
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg-m1
+      ETCD3_HOSTS: "10.77.0.11:2379"
+      RESTAPI_CONNECT_ADDRESS: 10.77.0.12:8008
+      PG_CONNECT_ADDRESS: 10.77.0.12:5432
+    networks: { lan: { ipv4_address: 10.77.0.12 }, m1: {} }
+    volumes: [secrets-m1:/amane/secrets]
+    depends_on: { etcd-m1: { condition: service_healthy } }
+  haproxy-m1:
+    <<: *haproxy
+    profiles: [m1]
+    container_name: haproxy-m1
+    networks: { lan: { ipv4_address: 10.77.0.14 }, m1: {} }
+    volumes: [haproxy-m1:/amane/haproxy]
+    depends_on: [orch-m1]
+
+  # ── Machine m2 : second serveur ──────────────────────────────────────────
+  init-m2:
+    <<: *init
+    profiles: [m2]
+    container_name: init-m2
+    command: [init, -nom=pg-m2, -ip=10.77.0.21, -jeton=jeton-lab, "-pairs=${PAIRS_M2:-10.77.0.11}",
+              -dossier-secrets=/amane/secrets, -dossier-haproxy=/amane/haproxy]
+    networks: { lan: { ipv4_address: 10.77.0.20 }, m2: {} }
+    volumes: [etcd-data-m2:/etcd-data, etcd-conf-m2:/amane/etcd, secrets-m2:/amane/secrets, haproxy-m2:/amane/haproxy]
+  etcd-m2:
+    <<: *etcd
+    profiles: [m2]
+    container_name: etcd-m2
+    networks: { lan: { ipv4_address: 10.77.0.21 }, m2: {} }
+    volumes: [etcd-data-m2:/etcd-data, etcd-conf-m2:/amane/etcd]
+    depends_on: { init-m2: { condition: service_completed_successfully } }
+  orch-m2:
+    <<: *orchestrateur
+    profiles: [m2]
+    container_name: orch-m2
+    command: [-etcd-endpoints=10.77.0.21:2379, -supervisor, -decouvrir, -patroni-scope=amane-pme,
+              -secrets=/amane/secrets/postgresql.env, -haproxy-dossier=/amane/haproxy]
+    environment: { AMANE_NODE_ID: pg-m2 }
+    networks: { lan: { ipv4_address: 10.77.0.23 }, m2: {} }
+    volumes: [secrets-m2:/amane/secrets, haproxy-m2:/amane/haproxy]
+    depends_on: { etcd-m2: { condition: service_healthy } }
+  pg-m2:
+    <<: *patroni
+    profiles: [m2]
+    container_name: pg-m2
+    hostname: pg-m2
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg-m2
+      ETCD3_HOSTS: "10.77.0.21:2379"
+      RESTAPI_CONNECT_ADDRESS: 10.77.0.22:8008
+      PG_CONNECT_ADDRESS: 10.77.0.22:5432
+    networks: { lan: { ipv4_address: 10.77.0.22 }, m2: {} }
+    volumes: [secrets-m2:/amane/secrets]
+    depends_on: { etcd-m2: { condition: service_healthy } }
+  haproxy-m2:
+    <<: *haproxy
+    profiles: [m2]
+    container_name: haproxy-m2
+    networks: { lan: { ipv4_address: 10.77.0.24 }, m2: {} }
+    volumes: [haproxy-m2:/amane/haproxy]
+    depends_on: [orch-m2]
+
+  # ── Machine m3 : témoin etcd ─────────────────────────────────────────────
+  init-m3:
+    <<: *init
+    profiles: [m3]
+    container_name: init-m3
+    command: [init, -nom=temoin-m3, -ip=10.77.0.31, -jeton=jeton-lab, "-pairs=${PAIRS_M3:-10.77.0.11,10.77.0.21}"]
+    networks: { lan: { ipv4_address: 10.77.0.30 }, m3: {} }
+    volumes: [etcd-data-m3:/etcd-data, etcd-conf-m3:/amane/etcd]
+  etcd-m3:
+    <<: *etcd
+    profiles: [m3]
+    container_name: etcd-m3
+    networks: { lan: { ipv4_address: 10.77.0.31 }, m3: {} }
+    volumes: [etcd-data-m3:/etcd-data, etcd-conf-m3:/amane/etcd]
+    depends_on: { init-m3: { condition: service_completed_successfully } }
+
+volumes:
+  etcd-data-m1:
+  etcd-conf-m1:
+  secrets-m1:
+  haproxy-m1:
+  etcd-data-m2:
+  etcd-conf-m2:
+  secrets-m2:
+  haproxy-m2:
+  etcd-data-m3:
+  etcd-conf-m3:

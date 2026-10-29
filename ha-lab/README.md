@@ -65,3 +65,22 @@ docker network connect --ip 10.77.0.13 amane-ha-lab_lan orch-m1
   donc que PostgreSQL n'accepte plus d'écriture.
 
 Arrêt complet : `docker compose -f ha-lab/docker-compose.yml --profile trois-pg down -v`.
+
+## Variante « installation PME » (`ha-lab/pme/`)
+
+Étape 2b (ADR-005) : les mêmes mécanismes que la pile générée par le portail,
+sans aucune configuration figée. Les machines s'installent l'une après
+l'autre : `orchestrator init` crée puis rejoint le cluster etcd sur le réseau
+local, l'orchestrateur obtient les secrets générés par la première machine,
+crée le rôle `amane` sur le primaire et tient HAProxy à jour.
+
+```bash
+bash ha-lab/pme/installation.sh
+```
+
+| Vérification | Promesse |
+|---|---|
+| m1 : nouveau cluster, secrets, rôle amane, HAProxy | La première machine s'amorce seule |
+| m2 : ajout au cluster etcd, mêmes secrets, standby synchrone | Une machine suivante rejoint le cluster sur le réseau local, sans passer de secret par le portail |
+| m3 : témoin etcd ajouté | Le témoin apporte la majorité etcd |
+| Bascule vue par HAProxy | La même adresse mène au nouveau primaire, sans perte |

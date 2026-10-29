@@ -21,6 +21,12 @@ const (
 	KeepAliveTimeout = 1 * time.Second
 )
 
+// AutoSyncInterval : le client relit périodiquement la liste des membres etcd
+// et s'en sert comme points d'entrée. Sur une machine PME, l'orchestrateur ne
+// connaît au départ que l'etcd local ; si celui-ci tombe, il continue de
+// joindre le cluster par les autres membres.
+const AutoSyncInterval = 30 * time.Second
+
 // NewClient ouvre un client etcd v3 (DCS du cluster Amane).
 func NewClient(endpoints []string) (*clientv3.Client, error) {
 	return clientv3.New(clientv3.Config{
@@ -28,5 +34,6 @@ func NewClient(endpoints []string) (*clientv3.Client, error) {
 		DialTimeout:          5 * time.Second,
 		DialKeepAliveTime:    KeepAliveTime,
 		DialKeepAliveTimeout: KeepAliveTimeout,
+		AutoSyncInterval:     AutoSyncInterval,
 	})
 }

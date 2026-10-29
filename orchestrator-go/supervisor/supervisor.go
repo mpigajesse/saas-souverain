@@ -11,6 +11,7 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 
 	"github.com/amane/orchestrator-go/consensus"
+	"github.com/amane/orchestrator-go/dcs"
 )
 
 // forceRightKey est le lock etcd « droit de forcer » : une seule instance de
@@ -125,6 +126,9 @@ func (s *Supervisor) tick(ctx context.Context) {
 	if lresp.Count > 0 {
 		leader = string(lresp.Kvs[0].Value)
 	}
+	if s.cfg.Discover {
+		s.refreshNodes(ctx)
+	}
 
 	now := time.Now()
 	snap := snapshot{now: now, leader: leader, nodes: make(map[string]nodeHealth, len(s.cfg.Nodes))}
@@ -216,6 +220,25 @@ func (s *Supervisor) tick(ctx context.Context) {
 		"total_ms", time.Since(start).Milliseconds(),
 		"reason", act.reason,
 	)
+}
+
+// refreshNodes relit les membres Patroni dans etcd (pile PME : une machine
+// peut rejoindre le cluster après l'installation des autres). En cas d'échec
+// de lecture, la liste précédente est conservée.
+func (s *Supervisor) refreshNodes(ctx context.Context) {
+	membres, err := dcs.Membres(ctx, s.cli, s.cfg.Scope)
+	if err != nil {
+		s.logger.Warn("membres Patroni illisibles — liste précédente conservée", "err", err)
+		return
+	}
+	nodes := make([]Node, 0, len(membres))
+	for _, m := range membres {
+		nodes = append(nodes, Node{Name: m.Nom, PatroniURL: m.URLAPI})
+	}
+	if len(nodes) != len(s.cfg.Nodes) {
+		s.logger.Info("membres Patroni découverts", "nodes", len(nodes))
+	}
+	s.cfg.Nodes = nodes
 }
 
 // releasePatroniLock supprime la clé leader de Patroni (le lock) dans etcd.

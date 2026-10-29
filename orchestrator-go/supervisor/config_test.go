@@ -37,6 +37,11 @@ func TestConfigValidate(t *testing.T) {
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("config valide rejetée: %v", err)
 	}
+	// Pile PME : aucune liste figée, les membres sont découverts dans etcd.
+	decouverte := &Config{EtcdEndpoints: []string{"localhost:2379"}, Scope: "amane", Discover: true}
+	if err := decouverte.Validate(); err != nil {
+		t.Fatalf("config en découverte rejetée: %v", err)
+	}
 
 	for name, c := range map[string]*Config{
 		"endpoints vides": {},
