@@ -1,0 +1,28 @@
+{
+  "type_artefact": "docker",
+  "image": "amane/app-egress@sha256:96977a88f000c3d09e79d70e74607446ce17eae5195d3c5d9b1bf7f524e9e406",
+  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application"],
+  "port": 8080,
+  "sante": "/sante",
+  "variables": {
+    "APP_ENV": "production"
+  },
+  "base_de_donnees": {
+    "variables": {
+      "DATABASE_URL": "postgres://{utilisateur}:{mot_de_passe}@{hote}:{port}/{base}?sslmode=disable"
+    }
+  },
+  "hooks": {
+    "pre_start": "pre_start.sh"
+  },
+  "volumes": [
+    {
+      "nom": "migrations",
+      "chemin": "/migrations"
+    }
+  ],
+  "egress": {
+    "allowed_domains": ["httpbin.org", "api.github.com"],
+    "proxy_via_node": true
+  }
+}
