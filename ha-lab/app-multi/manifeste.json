@@ -1,0 +1,48 @@
+{
+  "type_artefact": "docker",
+  "image": "amane/app-multi@sha256:89e966bf4cd0cca7d25a3edba824badecefa85f88c9aa03b39a3d726da72819b",
+  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application --mode ${MODE:-web} --port ${PORT:-8080} --redis ${REDIS_URL:-redis://redis:6379}"],
+  "port": 8080,
+  "sante": "/sante",
+  "variables": {
+    "APP_ENV": "production",
+    "MODE": "web",
+    "PORT": "8080",
+    "REDIS_URL": "redis://redis:6379"
+  },
+  "base_de_donnees": {
+    "variables": {
+      "DATABASE_URL": "postgres://{utilisateur}:{mot_de_passe}@{hote}:{port}/{base}?sslmode=disable"
+    }
+  },
+  "hooks": {
+    "pre_start": "pre_start.sh"
+  },
+  "volumes": [
+    {
+      "nom": "migrations",
+      "chemin": "/migrations"
+    }
+  ],
+  "services": {
+    "web": {
+      "image": "amane/app-multi@sha256:89e966bf4cd0cca7d25a3edba824badecefa85f88c9aa03b39a3d726da72819b",
+      "commande": ["/application", "--mode", "web", "--port", "8080"],
+      "port": 8080,
+      "sante": "/sante",
+      "depends_on": ["redis"]
+    },
+    "worker": {
+      "image": "amane/app-multi@sha256:89e966bf4cd0cca7d25a3edba824badecefa85f88c9aa03b39a3d726da72819b",
+      "commande": ["/application", "--mode", "worker"],
+      "depends_on": ["web", "redis"]
+    },
+    "redis": {
+      "image": "amane/redis:7-alpine@sha256:REMPLACER_PAR_DIGEST_REEL"
+    }
+  },
+  "networks": {
+    "app-internal": { "internal": true },
+    "app-data": { "internal": true }
+  }
+}
