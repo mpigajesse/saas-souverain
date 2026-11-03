@@ -1,0 +1,24 @@
+{
+  "type_artefact": "docker",
+  "image": "amane/app-migrations@sha256:6ec3d942dca215e1a953af58bcb6122348463cf6245b32abccd952687cef5f63",
+  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application"],
+  "port": 8080,
+  "sante": "/sante",
+  "variables": {
+    "APP_ENV": "production"
+  },
+  "base_de_donnees": {
+    "variables": {
+      "DATABASE_URL": "postgres://{utilisateur}:{mot_de_passe}@{hote}:{port}/{base}?sslmode=disable"
+    }
+  },
+  "hooks": {
+    "pre_start": "pre_start.sh"
+  },
+  "volumes": [
+    {
+      "nom": "migrations",
+      "chemin": "/migrations"
+    }
+  ]
+}
