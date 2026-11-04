@@ -70,7 +70,10 @@ mkdir "%INSTALL_DIR%" >nul 2>&1
 :: ---------------------------------------------------------------------------
 echo [1/8] Detection de l'adresse reseau...
 set "NODE_IP="
-for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*' } | Sort-Object PrefixLength | Select-Object -Last 1).IPAddress"`) do set "NODE_IP=%%A"
+:: Adresse source de la route vers le portail : c'est par cette interface que
+:: les autres machines de la PME joignent celle-ci (reseau local ou Tailscale).
+for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$ip=$null; try { $a=[System.Net.Dns]::GetHostAddresses('{{ saas_host }}') | Where-Object { $_.AddressFamily -eq 'InterNetwork' } | Select-Object -First 1; $ip=(Find-NetRoute -RemoteIPAddress $a.IPAddressToString -ErrorAction Stop | Where-Object { $_.IPAddress } | Select-Object -First 1).IPAddress } catch { $ip=$null }; if ($ip -and $ip -notlike '127.*') { $ip }"`) do set "NODE_IP=%%A"
+if "!NODE_IP!"=="" for /f "usebackq delims=" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.*' } | Sort-Object PrefixLength | Select-Object -Last 1).IPAddress"`) do set "NODE_IP=%%A"
 if "!NODE_IP!"=="" goto IP_ERROR
 :: Nom de la machine = nom du membre etcd et Patroni : lettres, chiffres, . _ -
 set "NODE_HOSTNAME="

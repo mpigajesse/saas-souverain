@@ -259,6 +259,15 @@ class InstalleursTests(BasePile):
             texte = self.textes(type_machine)['windows'][0]
             self.assertEqual(texte, texte.encode('ascii', 'ignore').decode('ascii'), type_machine)
 
+    def test_adresse_de_la_route_vers_le_portail(self):
+        # Sur Tailscale (100.x), aucun préfixe /24 commun avec le portail : l'adresse
+        # annoncée à etcd et Patroni est la source de la route vers le portail.
+        for type_machine in ('serveur', 'temoin'):
+            textes = self.textes(type_machine)
+            self.assertIn('ip -4 route get "$SAAS_IP"', textes['linux'][0], type_machine)
+            self.assertRegex(textes['windows'][0], r"GetHostAddresses\('[0-9.]+'\)", type_machine)
+            self.assertIn('Find-NetRoute -RemoteIPAddress', textes['windows'][0], type_machine)
+
 
 class EspacePmeTests(BasePile):
 
