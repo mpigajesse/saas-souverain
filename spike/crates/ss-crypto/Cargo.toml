@@ -11,6 +11,9 @@ blake2           = { workspace = true }
 rand             = { workspace = true }
 rand_core        = { workspace = true }
 zeroize          = { workspace = true }
+vsss-rs          = { workspace = true }
+rand_core_010    = { workspace = true }
+getrandom_04     = { workspace = true }
 serde            = { workspace = true }
 base64           = { workspace = true }
 hex              = { workspace = true }

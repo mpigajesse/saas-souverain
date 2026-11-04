@@ -10,6 +10,7 @@ mod cmd;
 mod config;
 mod enrolement;
 mod patroni;
+mod recuperation;
 mod relay_client;
 mod sauvegarde;
 mod web;
@@ -60,6 +61,13 @@ enum Commands {
     },
     /// Sauvegarder maintenant les bases, chiffrées par la DEK, sur le relais
     Sauvegarder,
+    /// Reconstituer la DEK après une perte totale : passphrase du gérant et
+    /// deux parts papier sur trois (ADR-010). Interactif : `docker exec -it`
+    Recuperer {
+        /// Saisir le bloc imprimé au lieu de lire le blob sur le relais
+        #[arg(long)]
+        bloc: bool,
+    },
     /// Restaurer une base depuis sa sauvegarde chiffrée sur le relais
     Restaurer {
         /// Base à restaurer : amane ou application
@@ -120,6 +128,9 @@ async fn main() -> Result<()> {
         }
         Commands::Sauvegarder => {
             cmd::sauvegarder::run(&config_path).await?;
+        }
+        Commands::Recuperer { bloc } => {
+            cmd::recuperer::run(bloc, &config_path).await?;
         }
         Commands::Restaurer { base, jour } => {
             cmd::sauvegarder::restaurer_base(&base, jour, &config_path).await?;

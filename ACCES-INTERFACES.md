@@ -172,6 +172,7 @@ La racine relaie l'application du SaaS externe (`amane-application`), avec ses p
 | Accueil (état de l'application hébergée) | `/amane/` | connecté |
 | Administration, état du cluster (Patroni) | `/amane/admin` | administrateur |
 | **Enrôlement** d'un serveur | `/amane/admin/enrolement` | administrateur |
+| **Récupération** des données : passphrase du gérant, trois feuilles à imprimer, report consigné (ADR-010). Le premier login administrateur y mène tant qu'elle n'est ni configurée ni reportée | `/amane/admin/recuperation` | administrateur |
 | Utilisateurs | `/amane/admin/utilisateurs` (+ `nouveau`, `<id>/toggle`, `<id>/mdp`) | administrateur |
 | API d'enrôlement | `/amane/api/enrolement` (POST) | authentifiée par le seul code à usage unique |
 
@@ -188,6 +189,7 @@ docker logs ss-node | grep -A5 "PREMIER DÉMARRAGE"
 | `docker exec ss-node ss-node enroler --depuis http://<serveur enrôlé>:9001 --code <code>` | Reçoit la DEK, scellée pour la clé de cette machine (code généré dans `/amane/admin/enrolement`), puis `docker restart ss-node` |
 | `docker exec ss-node ss-node sauvegarder` | Sauvegarde immédiate des bases, chiffrée, sur le relais |
 | `docker exec ss-node ss-node restaurer --base amane\|application --jour 1..7` | Restauration depuis le relais (1 = lundi) |
+| `docker exec -it ss-node ss-node recuperer [--bloc]` | Après la perte de tous les serveurs : reconstitue la DEK avec la passphrase du gérant et deux parts papier sur trois (blob lu sur le relais, ou bloc imprimé avec `--bloc`), puis `docker restart ss-node` et `restaurer` |
 | `docker exec ss-node ss-node adduser --username … --name … --role admin\|employee --password …` | Compte de la console |
 
 ### 5.4 pgAdmin — `http://<IP_PME>:5050`

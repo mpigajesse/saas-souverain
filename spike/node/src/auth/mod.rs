@@ -19,6 +19,8 @@ pub struct AppState {
     pub dek: Option<std::sync::Arc<ss_crypto::Dek>>,
     /// Codes d'enrôlement émis par ce nœud.
     pub invitations: std::sync::Arc<crate::enrolement::Invitations>,
+    /// Relais où déposer le blob de récupération (étape 8, ADR-010).
+    pub relais: Option<crate::recuperation::Relais>,
 }
 
 // ── User model ────────────────────────────────────────────────────────────────

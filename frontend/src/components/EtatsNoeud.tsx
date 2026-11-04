@@ -1,5 +1,6 @@
 // Pastilles des états V3 annoncés par un nœud : témoin etcd (ADR-005), santé
-// de l'application hébergée (étape 3), chiffrement du disque (ADR-008).
+// de l'application hébergée (étape 3), chiffrement du disque (ADR-008),
+// récupération de la DEK (ADR-010).
 // Rien n'est affiché pour un état inconnu ou non annoncé.
 
 import type React from 'react'
@@ -13,7 +14,11 @@ const pastille: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-export default function EtatsNoeud({ device }: { device: Pick<Device, 'node_kind' | 'etat_application' | 'chiffrement_disque'> }) {
+export default function EtatsNoeud({
+  device,
+}: {
+  device: Pick<Device, 'node_kind' | 'etat_application' | 'chiffrement_disque'> & Partial<Pick<Device, 'recuperation'>>
+}) {
   const elements: React.ReactNode[] = []
   if (device.node_kind === 'temoin') {
     elements.push(
@@ -45,6 +50,25 @@ export default function EtatsNoeud({ device }: { device: Pick<Device, 'node_kind
     elements.push(
       <span key="disque" style={{ ...pastille, background: '#E0F2FE', color: '#075985' }} title="Disque chiffré (BitLocker ou LUKS)">
         Disque chiffré
+      </span>,
+    )
+  }
+  if (device.recuperation === 'non_configuree' || device.recuperation === 'reportee') {
+    elements.push(
+      <span key="recuperation" style={{ ...pastille, background: '#FEE2E2', color: '#991B1B' }} title="Récupération de la DEK non configurée : si tous les serveurs étaient perdus, les sauvegardes seraient illisibles">
+        Récupération {device.recuperation === 'reportee' ? 'reportée' : 'non configurée'}
+      </span>,
+    )
+  } else if (device.recuperation === 'dek_differente') {
+    elements.push(
+      <span key="recuperation" style={{ ...pastille, background: '#FEE2E2', color: '#991B1B' }} title="Cluster réinstallé : le relais protège une autre DEK, sauvegardes suspendues jusqu'à ss-node recuperer">
+        Récupération en attente
+      </span>,
+    )
+  } else if (device.recuperation === 'configuree') {
+    elements.push(
+      <span key="recuperation" style={{ ...pastille, background: '#D1FAE5', color: '#065F46' }} title="Récupération de la DEK configurée (passphrase et parts papier)">
+        Récupération configurée
       </span>,
     )
   }

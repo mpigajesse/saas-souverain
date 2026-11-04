@@ -564,6 +564,48 @@ class ChiffrementDisqueTests(InstalleursTests):
         self.assertEqual(r.status_code, 400)
 
 
+# ── Étape 8 : récupération de la DEK (ADR-010) ──────────────────────────────
+
+class RecuperationTests(BasePile):
+    """Le portail reçoit l'état de la récupération et alerte la PME."""
+
+    def annoncer(self, installation_id, **champs):
+        return self.client.post('/api/devices/register/', {
+            'tenant_token': str(self.tenant.registration_token),
+            'installation_id': installation_id, **champs,
+        }, content_type='application/json', HTTP_HOST=HOTE)
+
+    def test_etat_enregistre_et_mis_a_jour(self):
+        iid = 'eeeeeeee-0000-4000-8000-000000000001'
+        self.assertEqual(self.annoncer(iid, recuperation='non_configuree').status_code, 201)
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'non_configuree')
+        self.annoncer(iid, recuperation='configuree')
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'configuree')
+        # Une annonce sans le champ ne l'efface pas.
+        self.annoncer(iid)
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'configuree')
+
+    def test_valeur_invalide_refusee(self):
+        self.assertEqual(self.annoncer('eeeeeeee-0000-4000-8000-000000000002', recuperation='peut-etre').status_code, 400)
+
+    def test_pire_etat_du_cluster_dans_l_espace_pme(self):
+        moi = lambda: self.client.get('/api/tenants/me/', HTTP_HOST=HOTE).json()
+        self.assertIsNone(moi()['etat_recuperation'])
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000003', recuperation='configuree')
+        self.assertEqual(moi()['etat_recuperation'], 'configuree')
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000004', recuperation='reportee')
+        self.assertEqual(moi()['etat_recuperation'], 'reportee')
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000004', recuperation='dek_differente')
+        self.assertEqual(moi()['etat_recuperation'], 'dek_differente')
+        self.assertIn('recuperation', moi()['devices'][0])
+
+    def test_le_temoin_ne_compte_pas(self):
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000006', recuperation='configuree')
+        Device.objects.create(tenant=self.tenant, installation_id='eeeeeeee-0000-4000-8000-000000000007',
+                              node_kind='temoin', recuperation='non_configuree')
+        self.assertEqual(self.client.get('/api/tenants/me/', HTTP_HOST=HOTE).json()['etat_recuperation'], 'configuree')
+
+
 # ── Étape 5 : application rattachée à la licence ────────────────────────────
 
 class PileDepuisLeCatalogueTests(BasePile):

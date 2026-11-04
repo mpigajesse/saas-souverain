@@ -157,7 +157,9 @@ Décrite par un **manifeste** validé (`tenants/manifeste.py`), créée et valid
 ```
 AK (X25519, identité réseau/accès)   ≠   DEK (symétrique, chiffrement disque)
 DEK ── sealed box par serveur enrôlé (code à usage unique, console /amane/admin/enrolement + ss-node enroler)
-    └─ emballée sous KEK ── Shamir SSS K=2/N=3 (socle disponible, pas encore branché dans la pile Docker)
+    └─ scellée pour la clé de récupération (ADR-010) ← KEK = BLAKE2b(K_s, Argon2id(passphrase du gérant))
+                                                          K_s : Shamir 2 sur 3 (vsss-rs), parts imprimées
+       blob sur le relais (clé `recuperation`) et sur papier ; console /amane/admin/recuperation, `ss-node recuperer`
 ```
 
 Seul le premier serveur génère la DEK ; elle chiffre le journal du nœud et les sauvegardes déposées sur le relais (`spike/node/src/sauvegarde.rs`). Le chiffrement au repos est délégué au disque (BitLocker, LUKS), vérifié par l'installeur.

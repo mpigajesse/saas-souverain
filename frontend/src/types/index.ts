@@ -58,6 +58,8 @@ export interface Device {
   etat_application: 'ok' | 'ko' | ''
   /** Chiffrement du disque constaté par l'installeur (ADR-008). */
   chiffrement_disque: 'oui' | 'non' | 'inconnu' | ''
+  /** Récupération de la DEK après perte totale (ADR-010), commune au cluster. */
+  recuperation: EtatRecuperation | ''
   /** IP:port annoncée par le nœud (ex : 192.168.200.130:9001). */
   node_addr: string
   /** IP:port de l'interface web PME (ex : 192.168.200.130:3000). */
@@ -252,6 +254,10 @@ export interface PgAdminAcces {
   email: string
 }
 
+/** Récupération de la DEK (ADR-010) : `dek_differente` = cluster réinstallé
+ * dont les sauvegardes sont suspendues en attendant `ss-node recuperer`. */
+export type EtatRecuperation = 'configuree' | 'reportee' | 'non_configuree' | 'dek_differente'
+
 export interface EspacePme {
   tenant: Tenant
   active_license: License | null
@@ -261,6 +267,8 @@ export interface EspacePme {
   /** Deux serveurs et aucun témoin : la panne de l'un bloquerait les écritures. */
   besoin_temoin: boolean
   etat_cluster: EtatCluster | null
+  /** Pire état de la récupération remonté par les serveurs, null sans remontée. */
+  etat_recuperation: EtatRecuperation | null
   /** Application externe hébergée, null si aucune (ADR-009). */
   application: ApplicationResume | null
   relay_url: string

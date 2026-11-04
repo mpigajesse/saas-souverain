@@ -55,13 +55,15 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     let (canal_etat, recepteur_etat) = watch::channel(String::new());
     // État de l'application hébergée (`ok` / `ko`), si le cluster en héberge une.
     let (canal_app, recepteur_app) = watch::channel(String::new());
+    // État de la récupération de la DEK (ADR-010), lu dans la base `amane`.
+    let (canal_recuperation, recepteur_recuperation) = watch::channel(String::new());
     let application = crate::application::Application::depuis_env().map(std::sync::Arc::new);
     if let Some(app) = &application {
         crate::application::lancer_sonde(app.clone(), canal_app);
     }
 
     // Enregistrement SaaS en premier — fonctionne même si le nœud n'est pas encore enrôlé.
-    if let Some(name) = annoncer_au_saas(config.node_id, "", "", "", true).await.tenant_name {
+    if let Some(name) = annoncer_au_saas(config.node_id, "", "", "", "", true).await.tenant_name {
         if config.tenant_name.as_deref() != Some(name.as_str()) {
             config.tenant_name = Some(name);
             let _ = config.save(config_path);
@@ -71,7 +73,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     // Battement de cœur SaaS — indépendant de PostgreSQL et de Patroni. Sans
     // lui, `Device.last_seen` n'est jamais rafraîchi et un nœud sain apparaît
     // « hors ligne » au bout de 2 minutes.
-    lancer_heartbeat_saas(config.node_id, recepteur_role, recepteur_etat, recepteur_app);
+    lancer_heartbeat_saas(config.node_id, recepteur_role, recepteur_etat, recepteur_app, recepteur_recuperation);
 
     // Journal chiffré, si le nœud détient la DEK. Un serveur qui n'est pas le
     // premier du cluster démarre sans DEK : il attend son enrôlement, sans
@@ -100,6 +102,9 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
         if let Err(e) = crate::auth::run_migrations(&pool).await {
             println!("  Auth     : migration impossible — {} (primaire indisponible ?)", e);
         }
+        if let Err(e) = crate::recuperation::migrer(&pool).await {
+            println!("  Récupération : migration impossible — {}", e);
+        }
         if let Err(e) = crate::auth::ensure_default_admin(&pool).await {
             println!("  Auth     : création admin impossible — {}", e);
         }
@@ -110,12 +115,22 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
         if application.is_some() {
             println!("  Application : interface relayée à la racine du port {web_port} ; console du nœud sous /amane");
         }
-        tokio::spawn(crate::web::serve(web_port, config.node_id, pool.clone(), web_tenant, application, dek.clone()));
+        let relais = crate::recuperation::Relais::depuis_env(&config.relay_url, config.tenant_id);
+        lancer_suivi_recuperation(pool.clone(), dek.clone(), relais.clone(), canal_recuperation);
+        tokio::spawn(crate::web::serve(
+            web_port,
+            config.node_id,
+            pool.clone(),
+            web_tenant,
+            application,
+            dek.clone(),
+            relais.clone(),
+        ));
 
         match std::env::var("PATRONI_URL") {
             Ok(base) if !base.is_empty() => {
                 let sauvegardes = match (&dek, crate::sauvegarde::cible_depuis_env(&config.relay_url, config.tenant_id)) {
-                    (Some(dek), Ok(cible)) => Some((dek.clone(), cible)),
+                    (Some(dek), Ok(cible)) => Some(Sauvegardes { dek: dek.clone(), cible, pool: pool.clone() }),
                     (None, _) => {
                         println!("  Sauvegardes : DEK absente sur cette machine — enrôlez-la pour qu'elle puisse sauvegarder");
                         None
@@ -225,6 +240,42 @@ fn decider(role_local: RoleLocal, timeline_locale: Option<u64>, epoque_max: u64,
     }
 }
 
+/// Ce qu'il faut au primaire pour sauvegarder : DEK, relais et bases, et la
+/// base `amane` pour l'état de la récupération.
+#[derive(Clone)]
+struct Sauvegardes {
+    dek: std::sync::Arc<Dek>,
+    cible: crate::sauvegarde::Cible,
+    pool: PgPool,
+}
+
+/// Lit l'état de la récupération toutes les minutes et le transmet au
+/// battement de cœur (ADR-010, garde-fou : alerte au portail).
+fn lancer_suivi_recuperation(
+    pool: PgPool,
+    dek: Option<std::sync::Arc<Dek>>,
+    relais: Option<crate::recuperation::Relais>,
+    canal: watch::Sender<String>,
+) {
+    tokio::spawn(async move {
+        let mut dernier = String::new();
+        loop {
+            if let Some(code) = crate::recuperation::code_pour_portail(&pool, dek.as_deref(), relais.as_ref()).await {
+                if code != dernier {
+                    match code {
+                        "configuree" => println!("  Récupération : configurée"),
+                        "dek_differente" => println!("  Récupération : le relais protège une AUTRE DEK — sauvegardes suspendues, lancez `ss-node recuperer`"),
+                        _ => println!("  Récupération : non configurée — /amane/admin/recuperation (ADR-010)"),
+                    }
+                    dernier = code.to_string();
+                }
+                let _ = canal.send(code.to_string());
+            }
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        }
+    });
+}
+
 /// Boucle de supervision : lit Patroni, classe le cluster, fait respecter
 /// l'époque, remonte rôle et état au portail. Ne décide aucune bascule.
 async fn boucle_supervision(
@@ -233,7 +284,7 @@ async fn boucle_supervision(
     node_id: Uuid,
     canal_role: watch::Sender<String>,
     canal_etat: watch::Sender<String>,
-    sauvegardes: Option<(std::sync::Arc<Dek>, crate::sauvegarde::Cible)>,
+    sauvegardes: Option<Sauvegardes>,
 ) {
     println!("  Patroni  : supervision en lecture ({base}) — la bascule appartient à etcd/Patroni");
     // Sauvegardes chiffrées (étape 4) : faites par le primaire autorisé à
@@ -271,7 +322,7 @@ async fn boucle_supervision(
             // prochain battement de cœur (jusqu'à 60 s) qu'elle n'est plus
             // protégée — ou qu'elle l'est de nouveau.
             let role = canal_role.borrow().clone();
-            annoncer_au_saas(node_id, &role, quorum.code(), "", false).await;
+            annoncer_au_saas(node_id, &role, quorum.code(), "", "", false).await;
         }
 
         if d.fence && !fence_signale {
@@ -293,7 +344,7 @@ async fn boucle_supervision(
         }
         ecrivait = d.ecriture_autorisee;
 
-        if let Some((dek, cible)) = &sauvegardes {
+        if let Some(sauvegardes) = &sauvegardes {
             let maintenant = std::time::Instant::now();
             match (d.ecriture_autorisee, prochaine_sauvegarde) {
                 (false, _) => prochaine_sauvegarde = None,
@@ -302,11 +353,25 @@ async fn boucle_supervision(
                 }
                 (true, Some(echeance)) if maintenant >= echeance => {
                     prochaine_sauvegarde = Some(maintenant + duree_env("AMANE_SAUVEGARDE_PERIODE_S", 86_400));
-                    let (dek, cible, tx) = (dek.clone(), cible.clone(), tx.clone());
+                    let (s, tx) = (sauvegardes.clone(), tx.clone());
                     tokio::spawn(async move {
+                        let relais = crate::recuperation::Relais::depuis_cible(&s.cible);
+                        // Un cluster réinstallé après une perte totale n'écrase
+                        // pas les anciennes sauvegardes (ADR-010, décision 7).
+                        if let Err(e) = crate::recuperation::garde_sauvegarde(&s.dek, &relais).await {
+                            let _ = tx.send(("toutes les bases".to_string(), Err(e.to_string())));
+                            return;
+                        }
                         for base in crate::sauvegarde::bases_a_sauvegarder() {
-                            let res = crate::sauvegarde::sauvegarder(&dek, &cible, base).await.map_err(|e| e.to_string());
+                            let res = crate::sauvegarde::sauvegarder(&s.dek, &s.cible, base).await.map_err(|e| e.to_string());
                             let _ = tx.send((base.to_string(), res));
+                        }
+                        // Blob de récupération rescellé et redéposé : le relais
+                        // le retrouve même s'il l'avait perdu (décision 5).
+                        match crate::recuperation::republier(&s.pool, &s.dek, &relais).await {
+                            Ok(true) => println!("  Récupération : blob redéposé sur le relais"),
+                            Ok(false) => println!("  Récupération : NON CONFIGURÉE — /amane/admin/recuperation (ADR-010)"),
+                            Err(e) => println!("  Récupération : dépôt du blob impossible — {e}"),
                         }
                     });
                 }
@@ -399,7 +464,7 @@ fn appliquer_role(canal: &watch::Sender<String>, role: &str) -> bool {
 /// le battement de cœur ; ici on ne paie un aller-retour HTTP que sur bascule.
 async fn majr_role(canal: &watch::Sender<String>, node_id: Uuid, role: &str, etat_quorum: &str) {
     if appliquer_role(canal, role) {
-        annoncer_au_saas(node_id, role, etat_quorum, "", true).await;
+        annoncer_au_saas(node_id, role, etat_quorum, "", "", true).await;
     }
 }
 
@@ -452,6 +517,7 @@ fn lancer_heartbeat_saas(
     recepteur_role: watch::Receiver<String>,
     recepteur_etat: watch::Receiver<String>,
     recepteur_app: watch::Receiver<String>,
+    recepteur_recuperation: watch::Receiver<String>,
 ) {
     let periode = match periode_heartbeat(std::env::var("SAAS_HEARTBEAT_SECS").ok().as_deref()) {
         Some(p) => p,
@@ -476,10 +542,11 @@ fn lancer_heartbeat_saas(
             let role = recepteur_role.borrow().clone();
             let etat = recepteur_etat.borrow().clone();
             let app = recepteur_app.borrow().clone();
+            let recuperation = recepteur_recuperation.borrow().clone();
             let a_loguer = !premier_succes_logue || en_echec;
             // Une panne du SaaS ne doit jamais arrêter la boucle : `annoncer_au_saas`
             // absorbe et logue ses propres erreurs.
-            if annoncer_au_saas(node_id, &role, &etat, &app, a_loguer).await.reussi {
+            if annoncer_au_saas(node_id, &role, &etat, &app, &recuperation, a_loguer).await.reussi {
                 premier_succes_logue = true;
                 en_echec = false;
             } else {
@@ -513,6 +580,7 @@ async fn annoncer_au_saas(
     node_role: &str,
     etat_quorum: &str,
     etat_application: &str,
+    recuperation: &str,
     logger_succes: bool,
 ) -> Annonce {
     let saas_url = match std::env::var("SAAS_URL") {
@@ -557,6 +625,11 @@ async fn annoncer_au_saas(
     }
     if !etat_application.is_empty() {
         body["etat_application"] = etat_application.into();
+    }
+    // Récupération de la DEK (ADR-010) : configurée, reportée, non configurée,
+    // ou DEK différente de celle que protège le relais.
+    if !recuperation.is_empty() {
+        body["recuperation"] = recuperation.into();
     }
     // Chiffrement du disque constaté par l'installeur (ADR-008).
     if let Ok(c) = std::env::var("CHIFFREMENT_DISQUE") {

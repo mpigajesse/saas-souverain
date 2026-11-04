@@ -48,6 +48,9 @@ def tenant_me(request):
         },
         'besoin_temoin': ctx['besoin_temoin'],
         'etat_cluster': tenant.etat_cluster,
+        # Garde-fou d'ADR-010 : « installation incomplète » tant que la
+        # récupération de la DEK n'est pas configurée.
+        'etat_recuperation': tenant.etat_recuperation,
         # Application externe hébergée (étape 5) : None si aucune.
         'application': (ApplicationResumeSerializer(app).data
                         if (app := application_hebergee(tenant)) else None),
