@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.6
+version: 2.7
 date: 2026-11-04
 branche: main3
-statut: Étapes 1 à 7 terminées et poussées — chaîne de soumission vérifiée, banc sur Tailscale ; étapes 8 et 9 en attente
+statut: Étapes 1 à 8 terminées — étape 9 (jeton du relais) avant le banc
 ---
 
 # Fiche du document
@@ -35,6 +35,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.4 | 2026-10-29 | main3 | Étapes 1 à 7 poussées sur `origin/main3` ; parcours de bout en bout V3 ; analyse de la récupération de la DEK (briques du socle, manques, Shamir maison) et proposition ; jeton du relais et blobs non liés à leur nom ; étapes 8 à 11 avant le banc ; images V3 reconstruites et publiées |
 | 2.5 | 2026-11-04 | main3 | Étape 11 en partie : banc sur Tailscale, adresse des machines prise sur la route vers le portail (installeurs Linux et Windows), chaîne de soumission d'une application vérifiée de bout en bout côté éditeur avec l'application d'exemple ; démarche de soumission confirmée (image et manifeste, ADR-009) ; application de gestion de stock et de facturation attendue de l'équipe |
 | 2.6 | 2026-11-04 | main3 | Faille corrigée : l'application hébergée lisait les secrets du cluster (mot de passe du superutilisateur PostgreSQL) ; volume `secrets-application` dédié, orchestrateur republié ; test Go qui rejoignait l'etcd de développement corrigé ; procédure de test V3 sur 5 machines ; refus de licence sans effet sur le cluster ajouté aux points ouverts |
+| 2.7 | 2026-11-04 | main3 | ADR-010 et étape 8 : récupération de la DEK après perte totale (passphrase du gérant et parts papier, Shamir par vsss-rs à la place du code maison, garde-fou, protection des anciennes sauvegardes) ; régression de la sauvegarde de la base `application` corrigée |
 
 # 1. Objet de la refonte
 
@@ -100,6 +101,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-007 | Hébergement de l'application externe : lancement, interface, base, injection des identifiants | Acceptée (décidée seule) | 2026-10-29 |
 | ADR-008 | Confinement et chiffrement : réseau sans sortie, enrôlement, sauvegardes, chiffrement au repos, mesh reporté | Acceptée (décidée seule) | 2026-10-29 |
 | ADR-009 | Catalogue des applications hébergées : modèle, cycle de vie, rattachement à la licence | Acceptée (décidée seule) | 2026-10-29 |
+| ADR-010 | Récupération de la DEK après perte totale : passphrase et parts papier, vsss-rs, garde-fou, protection des anciennes sauvegardes | Acceptée (décisions 1 à 3 de l'utilisateur) | 2026-11-04 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -245,6 +247,23 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Conséquences.** Le portail ne stocke que des manifestes (aucune donnée de PME, aucun secret de base : ils sont générés dans le cluster, ADR-007). La publication de l'image du SaaS externe dans le registre reste une opération de l'éditeur AMANE (comme pour la pile, `scripts/publier-pile.sh`). Une machine déjà installée ne reçoit la nouvelle version qu'en régénérant sa pile.
 
+## ADR-010 — Récupération de la DEK après perte totale
+
+**Contexte.** Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés. Si tous sont perdus, les sauvegardes déposées sur le relais deviennent illisibles (constat de l'étape 7, analyse du 29/10). Le socle contenait des briques (Argon2id, KEK, Shamir 2 sur 3, scellement X25519), mais aucune n'était branchée dans la pile, et le Shamir était écrit à la main, contrairement à la règle n° 1. Décisions 1 à 3 prises par l'utilisateur le 2026-11-04 ; décisions 4 à 8 prises pour les mettre en œuvre.
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Mode de récupération | **Deux facteurs, tous deux exigés** : la passphrase du gérant (ce qu'il sait) et 2 parts papier sur 3 (ce qu'il détient) | Passphrase seule : une passphrase faible ou divulguée suffirait. Parts seules : deux feuilles volées suffiraient |
+| 2 | Partage de Shamir | **Bibliothèque vsss-rs 6.0.1** (partage octet par octet sur GF(256), Rust pur, conçue pour éviter branchements et tables dépendant du secret, audits annoncés). Elle remplace l'arithmétique de `shamir.rs` | Dérogation écrite pour le code maison ; `blahaj` (moins utilisée, aucun audit annoncé) ; `shamirsecretsharing` (secret figé à 64 octets, parts de 113 octets à recopier) |
+| 3 | Garde-fou | **Contraindre l'installation, jamais l'activité.** À sa première connexion à la console du nœud, l'administrateur est envoyé sur la page de récupération ; il la configure ou la reporte, et le report est consigné. Tant qu'elle n'est pas configurée : « installation incomplète » et alerte dans l'espace PME, pastille dans la console de l'éditeur, bandeau dans la console du nœud. L'application et les sauvegardes ne sont jamais bloquées | Alerte seule (facile à ignorer) ; blocage de l'état « prêt », de l'application ou des sauvegardes (bloque l'activité, pousse à une passphrase faible, et des sauvegardes bloquées aggravent une perte) |
+| 4 | Construction | `K_p = Argon2id(passphrase, sel)` ; `K_s` aléatoire de 32 octets, découpé en 3 parts dont 2 suffisent ; `KEK = BLAKE2b-256` à clé `K_s` sur une étiquette et `K_p` ; une paire X25519 de récupération est dérivée de la KEK ; la DEK est scellée pour sa clé publique (sealed box existante de `ss-crypto`). Tout est composé dans `ss-crypto`, sans primitive maison | La KEK emballant directement la DEK : toute republication du blob exigerait la passphrase |
+| 5 | Republication | La clé publique de récupération est gardée dans la base `amane`, répliquée sur tous les serveurs. Tout serveur qui détient la DEK peut **resceller et republier** le blob sans la passphrase, par exemple si le relais l'a perdu | Blob créé une seule fois, au moment de la configuration |
+| 6 | Où vit le blob | Sur le relais (clé `recuperation`), et **imprimé sur chaque feuille**. La récupération ne dépend donc pas de la disponibilité de l'éditeur | Relais seul (l'éditeur deviendrait indispensable) ; feuille seule |
+| 7 | Anciennes sauvegardes | Le blob porte une **empreinte de la DEK** (BLAKE2b à clé, qui ne révèle rien de la DEK). Un primaire dont la DEK ne correspond pas à l'empreinte du blob présent sur le relais ne dépose aucune sauvegarde et le signale : c'est un cluster réinstallé après une perte totale, qui écraserait sinon les sauvegardes du jour par une base vide. `ss-node recuperer` remplace alors la DEK neuve par la DEK récupérée et met de côté le journal local, chiffré par la DEK neuve | Laisser la nouvelle installation écraser les sauvegardes ; ne rien vérifier |
+| 8 | Parts papier et passphrase | Une part fait 33 octets (identifiant + 32), écrits en base32 par groupes de 4, suivis d'une somme de contrôle liée au jeu de parts : une faute de frappe ou une part d'un autre jeu est signalée dès la saisie. Passphrase d'au moins 12 caractères, saisie deux fois, jamais stockée ni transmise. Argon2id en réglage RFC 9106 (64 Mio, 3 passes, 4 voies), paramètres inscrits dans le blob pour pouvoir évoluer | Parts en hexadécimal (plus longues) ; aucune somme de contrôle (erreur découverte seulement à la reconstitution) |
+
+**Conséquences.** La configuration est une opération humaine, comme l'enrôlement : ni le portail ni le relais ne voient la passphrase, les parts ou la KEK. Le relais ne stocke que du chiffré et une empreinte. Reconfigurer (nouvelle passphrase, nouvelles parts) **n'invalide pas** les anciennes feuilles : leur bloc imprimé contient la même DEK, scellée sous l'ancienne clé. Elles doivent être détruites ; seule une rotation de la DEK, non prévue à ce jour, les rendrait inutilisables. Le point ouvert « Paramètres Argon2id » est clos : les valeurs du socle correspondent à la deuxième recommandation de RFC 9106.
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -303,7 +322,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
 | 6 | Console React : page Applications, mise à jour Architecture | Terminée |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | Terminée |
-| 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir), blob sur le relais, commande `ss-node recuperer` ; ADR-010 à rédiger après les trois décisions du § 6 | À faire — décisions attendues |
+| 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir, vsss-rs), blob sur le relais et sur papier, commande `ss-node recuperer`, garde-fou (ADR-010) | Terminée le 2026-11-04 (banc à faire) |
 | 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) | À faire |
 | 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits | Réalisée le 2026-10-29 (à refaire après les étapes 8 et 9) |
 | 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | Réalisée côté éditeur le 2026-11-04 (banc sur Tailscale) ; reste l'application de l'équipe |
@@ -881,13 +900,51 @@ Le test annonce désormais `192.0.2.1` (RFC 5737, jamais routée).
 
 Le test G3 y vérifie cette correction.
 
+## Étape 8 — Récupération de la DEK après perte totale (2026-11-04)
+
+**Décisions.** ADR-010. L'utilisateur a choisi : deux facteurs (passphrase du gérant **et** deux parts papier sur trois), la bibliothèque vsss-rs pour le partage de Shamir, et un garde-fou qui contraint l'installation sans jamais bloquer l'activité.
+
+**Ce qui a été fait.**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Socle | `ss-crypto/src/shamir.rs`, `recovery.rs`, `Cargo.toml` | Arithmétique GF(256) maison retirée : partage par vsss-rs 6.0.1 (`split_secret`, `reconstruct_secret`, seuil et nombre réglables). `deriver_kek` (BLAKE2b-256 à clé), `paire_de_recuperation` (X25519), `empreinte_dek`, `somme_controle_part`, paramètres Argon2id de RFC 9106 conservés dans le blob. vsss-rs suit rand_core 0.10 : l'aléa du système lui est fourni par `getrandom` 0.4 |
+| Nœud | `spike/node/src/recuperation.rs` | Blob binaire de 119 octets (version, sel, paramètres, empreinte, DEK scellée) ; parts et bloc en base32 par groupes de 4 avec somme de contrôle liée au jeu ; table `recuperation` de la base `amane` (configurée ou reportée, par qui, quand, clé publique) ; dépôt et lecture sur le relais (clé `recuperation`) ; garde des sauvegardes ; republication |
+| Console du nœud | `auth/routes.rs`, `web.rs` | Page `/amane/admin/recuperation` : passphrase saisie deux fois (12 caractères au moins), Argon2id hors de la boucle asynchrone, trois feuilles imprimables (une part chacune, le bloc, la marche à suivre) affichées une seule fois ; bouton « Plus tard » consigné ; premier login administrateur redirigé tant que rien n'est fait ; bandeau « Installation incomplète » ; lien dans la barre latérale |
+| Commande | `cmd/recuperer.rs`, `main.rs` | `ss-node recuperer [--bloc]` : blob lu sur le relais ou bloc imprimé ressaisi, passphrase masquée au terminal, parts redemandées en cas de faute de frappe ; la DEK récupérée remplace la DEK neuve, scellée pour la machine, et le journal local chiffré par la DEK neuve est mis de côté |
+| Supervision | `cmd/run.rs` | Le primaire ne sauvegarde pas si le relais protège une autre DEK ; après chaque sauvegarde, le blob est rescellé et redéposé ; l'état de la récupération est lu chaque minute et joint au battement de cœur |
+| Portail | `devices` (migration 0010), `tenants/models.py`, `api_espace.py` | `Device.recuperation` (`configuree`, `reportee`, `non_configuree`, `dek_differente`) ; `etat_recuperation` de l'espace PME, pire état des serveurs actifs (témoins exclus) |
+| Console React | `EtatsNoeud.tsx`, `MonEspacePage.tsx`, `ArchitecturePage.tsx`, `types/index.ts` | Pastille « Récupération » sur chaque serveur ; alerte « Installation incomplète » ou « Récupération en attente : sauvegardes suspendues » dans l'espace PME ; hiérarchie des clés à jour |
+| Documentation | `CONTRAT-API.md`, `ACCES-INTERFACES.md`, `Architecture_SaaS_Souverain_Trois_Acteurs.md`, `CLAUDE.md` | Champs, page, commande et parcours de récupération ; les mentions « pas encore branché » sont retirées |
+
+**Défauts trouvés en cours de route.**
+
+- **Régression de la sauvegarde de l'application** (`ac4e022`). Introduite par la correction de la faille des secrets (`5646992`) : le nœud décidait de sauvegarder la base `application` d'après la présence de `/amane/secrets/application.env`, déplacé dans le volume dédié qu'il ne monte pas. La pile lui annonce désormais la base par `AMANE_APP_BASE`, et un test Rust ainsi qu'un test Django le vérifient.
+- **Une erreur dans l'ADR, corrigée avant la publication.** Il était écrit que reconfigurer la récupération invalide les anciennes feuilles. C'est faux : leur bloc imprimé contient la même DEK, scellée sous l'ancienne clé. La console et l'ADR demandent désormais de détruire les anciennes feuilles. Seule une rotation de la DEK, non prévue, les rendrait inutilisables (§ 7).
+
+**Vérifications.**
+
+- `ss-crypto` : 29 tests réussis, dont le parcours complet (passphrase et deux parts quelconques), les refus (mauvaise passphrase, parts d'un autre jeu, une seule part, part en double) et un partage 3 sur 5.
+- Nœud : 36 tests réussis, dont 7 pour la récupération : aller-retour du blob, saisie tolérante mais contrôlée, rescellement, refus d'une passphrase courte, aucune donnée secrète dans le blob. Le reste de l'espace de travail `spike` et le SDK `core-rust` passent aussi.
+- Django : 124 tests réussis, dont 4 sur l'état de la récupération (enregistrement, mise à jour, refus d'une valeur invalide, pire état du cluster, témoin exclu). Console React : `tsc`, `eslint` et `vite build` réussis.
+- **Essai de bout en bout** avec l'image du nœud reconstruite, PostgreSQL 17 et le relais du poste éditeur, scénario par scénario :
+
+| Scénario | Vérification | Résultat |
+|---|---|---|
+| Installation | Premier login administrateur redirigé vers `/amane/admin/recuperation` ; bandeau « Installation incomplète » | Réussi |
+| Configuration | Passphrase courte refusée ; trois feuilles affichées ; blob de 119 octets déposé sur le relais, sans la passphrase ni une part ; bandeau et redirection disparus ; état « configurée » suivi par le nœud | Réussi |
+| Perte totale | Conteneurs et base supprimés, nœud réinstallé avec une DEK neuve : la garde détecte que le relais protège une autre DEK | Réussi |
+| Reconstitution | Faute de frappe détectée par la somme de contrôle ; mauvaise passphrase refusée ; DEK récupérée avec les parts 3 et 1 ; journal de la DEK neuve mis de côté ; après redémarrage, la DEK est celle que protège le relais | Réussi |
+| Sans relais | DEK récupérée sur un troisième nœud depuis le bloc imprimé et les parts 2 et 3 | Réussi |
+
+Bilan : 16 vérifications sur 16. Non rejoué dans cet essai : la restauration des bases après récupération, qui passe par HAProxy et le superutilisateur de la pile complète. Elle utilise le même chemin que l'essai de l'étape 4, avec la DEK d'origine, et sera vérifiée sur le banc (test R4). Images republiées : nœud `307b8192…`, orchestrateur `4186b1b7…` (reconstruit par le script de publication, sans changement de code).
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
-| **Récupération de la DEK après perte totale** (prioritaire) | Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : s'ils sont tous perdus, les sauvegardes du relais sont irrécupérables. Proposition et trois décisions attendues au § 6 (séance du 2026-10-29 après-midi) ; étape 8 | ADR-003, ADR-008, futur ADR-010 |
-| **Shamir implémenté à la main** | `shamir.rs` contrevient à la règle n° 1 (aucune primitive maison) et n'est pas à temps constant contrairement à son commentaire. Remplacer par une bibliothèque reconnue ou consigner une dérogation, avant de brancher la récupération | Règle n° 1, étape 8 |
-| Paramètres Argon2id | 64 Mio, 3 passes : réglages du spike, à revoir pour une passphrase qui protège toute la DEK d'un client | Étape 8 |
+| Rotation de la DEK | Aucune rotation n'est prévue : d'anciennes feuilles de récupération, d'anciens serveurs retirés et d'anciennes sauvegardes gardent la même DEK. La rotation exige de rechiffrer les sauvegardes du relais et de resceller pour chaque serveur ; la clé publique de récupération permet déjà de republier le blob sans la passphrase | ADR-010 |
+| Blob de récupération supprimable | Tant que le relais n'exige pas de jeton propre au tenant, quiconque connaît l'identifiant du tenant peut supprimer le blob `recuperation` ; le bloc imprimé et la republication à chaque sauvegarde en limitent l'effet. Étape 9 | ADR-010, étape 9 |
 | Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
 | Mises à jour de l'application | Une nouvelle version est validée par l'éditeur AMANE (ADR-009) ; reste : signature des images (cosign) en plus du digest, et propagation aux machines installées (régénération de la pile aujourd'hui) | ADR-002, ADR-009 |
