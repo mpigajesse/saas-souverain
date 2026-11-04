@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.4
-date: 2026-10-29
+version: 2.6
+date: 2026-11-04
 branche: main3
-statut: Étapes 1 à 7 terminées et poussées — étapes 8 à 11 avant la validation sur le banc
+statut: Étapes 1 à 7 terminées et poussées — chaîne de soumission vérifiée, banc sur Tailscale ; étapes 8 et 9 en attente
 ---
 
 # Fiche du document
@@ -33,6 +33,8 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.2 | 2026-10-29 | main3 | Étape 6 : console React — page Applications, application rattachée aux licences, états V3 des machines, page Architecture réécrite pour la V3 |
 | 2.3 | 2026-10-29 | main3 | Étape 7 : documentation V3 (README, CLAUDE.md, accès, architecture, agents IA), `pme-deploy/` retiré ; absence de récupération de la DEK en cas de perte totale identifiée comme premier point ouvert ; procédure du banc complétée |
 | 2.4 | 2026-10-29 | main3 | Étapes 1 à 7 poussées sur `origin/main3` ; parcours de bout en bout V3 ; analyse de la récupération de la DEK (briques du socle, manques, Shamir maison) et proposition ; jeton du relais et blobs non liés à leur nom ; étapes 8 à 11 avant le banc ; images V3 reconstruites et publiées |
+| 2.5 | 2026-11-04 | main3 | Étape 11 en partie : banc sur Tailscale, adresse des machines prise sur la route vers le portail (installeurs Linux et Windows), chaîne de soumission d'une application vérifiée de bout en bout côté éditeur avec l'application d'exemple ; démarche de soumission confirmée (image et manifeste, ADR-009) ; application de gestion de stock et de facturation attendue de l'équipe |
+| 2.6 | 2026-11-04 | main3 | Faille corrigée : l'application hébergée lisait les secrets du cluster (mot de passe du superutilisateur PostgreSQL) ; volume `secrets-application` dédié, orchestrateur republié ; test Go qui rejoignait l'etcd de développement corrigé ; procédure de test V3 sur 5 machines ; refus de licence sans effet sur le cluster ajouté aux points ouverts |
 
 # 1. Objet de la refonte
 
@@ -304,7 +306,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir), blob sur le relais, commande `ss-node recuperer` ; ADR-010 à rédiger après les trois décisions du § 6 | À faire — décisions attendues |
 | 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) | À faire |
 | 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits | Réalisée le 2026-10-29 (à refaire après les étapes 8 et 9) |
-| 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | À faire |
+| 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | Réalisée côté éditeur le 2026-11-04 (banc sur Tailscale) ; reste l'application de l'équipe |
 | Banc | Validation sur machines réelles (annexe) : installation, bascule, application hébergée, enrôlement, sauvegarde, récupération après perte totale | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
 
@@ -788,6 +790,97 @@ Le `Dockerfile` du nœud n'a pas de couche de cache des dépendances : une modif
 5. Étape 11 : préparer la séance (IP du jour dans `RELAY_URL`, relais démarré, anciennes machines d'AMANE Test désactivées, application d'exemple poussée, validée et rattachée).
 6. Dérouler l'annexe sur le banc, étapes 1 à 16.
 
+## Séance du 2026-11-04 — préparation de l'essai d'une application hébergée
+
+**Objectif.** Être prêt à soumettre à AMANE l'application d'un éditeur tiers et à obtenir les installeurs qui enrôlent les machines d'une PME. L'application visée est une gestion de stock et de facturation, développée par d'autres membres du groupe ; en l'attendant, toute la chaîne est vérifiée avec l'application d'exemple.
+
+**Décisions de l'utilisateur.**
+
+| Sujet | Décision |
+|---|---|
+| Soumission d'un SaaS | **Démarche actuelle conservée** (ADR-009) : l'éditeur tiers construit son image à partir de son Dockerfile, la pousse dans le registre de l'éditeur AMANE et la déclare avec son manifeste. AMANE ne construit rien. Écartés : un script de soumission (build, push et déclaration en une commande) et un envoi du Dockerfile par la console, qui ferait compiler du code tiers par le portail |
+| Réseau du banc | **Tailscale** : le portail, le registre et le relais sont joints par `100.65.0.5` |
+
+**Défaut corrigé : l'adresse annoncée par l'installeur Linux.** L'installeur retenait l'adresse de la machine qui partage les trois premiers octets avec le portail, et à défaut la première interface venue. Sur Tailscale, les adresses des machines (`100.x.y.z`, plage `100.64.0.0/10`) ne partagent pas ce préfixe avec le portail : l'installeur serait retombé sur une interface quelconque (`docker0`, réseau local), et etcd et Patroni se seraient annoncés sur une adresse injoignable pour les autres machines. L'installeur Windows retenait l'adresse au plus long préfixe : Tailscale (`/32`) l'emportait, par chance. Les deux installeurs prennent désormais **l'adresse source de la route vers le portail** (`ip -4 route get`, `Find-NetRoute`), qui est par construction l'interface par laquelle les machines de la PME se joignent, en réseau local comme sur Tailscale. L'ancienne détection reste en repli.
+
+**Chaîne vérifiée côté éditeur.**
+
+| Étape | Résultat |
+|---|---|
+| Stack de développement | Redémarrée : PostgreSQL et etcd du portail s'étaient arrêtés avec Docker Desktop, le backend redémarrait en boucle |
+| `RELAY_URL` | `http://100.65.0.5:8080` (`.env` sans BOM) ; backend reconstruit pour servir les installeurs corrigés |
+| Image | `ha-lab/application-exemple` construite et poussée : `localhost:5000/editeurs/exemple-compteur:1.0`, digest `sha256:0f483d31…` |
+| Catalogue | « Compteur (exemple) » 1.0 créé, puis **validé contre le vrai registre** (200) : premier contrôle réel, il n'avait été testé qu'avec des réponses simulées |
+| Licence | Application rattachée à la licence d'AMANE Test |
+| Pile serveur | Téléchargée par `100.65.0.5:8000` avec le jeton du tenant : toutes les images viennent de `100.65.0.5:5000` et sont épinglées par digest ; service `amane-application` sur le réseau `internal`, avec HAProxy et le nœud pour seuls voisins ; modèle de `DATABASE_URL` transmis au lanceur ; relais en `100.65.0.5` |
+| Pile témoin | Sans application |
+| Installeurs | Les quatre (Windows et Linux, serveur et témoin) pointent portail, relais et registre sur `100.65.0.5` ; le bloc de détection d'adresse de l'installeur Windows, exécuté tel quel, donne `100.65.0.5` ; celui de Linux, dans un conteneur, donne l'interface de la route |
+| Joignabilité | Portail, registre (`/v2/`) et relais (`/health`) répondent sur `100.65.0.5` depuis le poste éditeur ; à confirmer depuis un poste du banc (pare-feu Windows de l'éditeur) |
+
+**Vérifications.** Django : 118 tests réussis, dont la détection d'adresse par la route dans les deux installeurs (serveur et témoin).
+
+**Ce que l'application de l'équipe doit respecter** pour entrer dans AMANE sans modification :
+
+- un seul conteneur, qui sert une interface HTTP sur un port fixe et répond sur un chemin de santé ;
+- PostgreSQL seulement, lu depuis une variable d'environnement (par exemple `DATABASE_URL`) ; l'application crée ses tables elle-même au démarrage ;
+- aucun accès à Internet pendant le fonctionnement (pas de CDN, de police distante, d'API externe ni de vérification de licence en ligne) ;
+- pas de WebSocket ;
+- des chemins relatifs, ou qui supportent un relais (`X-Forwarded-*`), puisque l'interface est servie par le nœud sur le port 9001 ;
+- les fichiers à conserver dans des dossiers déclarés comme volumes ;
+- une commande de démarrage connue, à reporter dans le manifeste.
+
+**Risques propres à Tailscale, à observer sur le banc.** Docker Desktop doit joindre les adresses `100.x` depuis ses conteneurs (etcd, Patroni) et son démon (registre) ; le pare-feu Windows du poste éditeur doit laisser entrer 8000, 5000 et 8080 par l'interface Tailscale ; les délais de bascule mesurés passeront par un réseau chiffré plutôt qu'un réseau local.
+
+## Faille corrigée le 2026-11-04 — l'application hébergée lisait les secrets du cluster
+
+**Constat.** En rédigeant la procédure de test sur 5 machines (test de confinement G3), il est apparu que le conteneur `amane-application` montait **tout le volume `secrets`** de la machine, en lecture seule. Ce volume contient `postgresql.env`, écrit en mode 0644 par l'orchestrateur : mot de passe du superutilisateur PostgreSQL (`PGPASSWORD_SUPERUSER`), de la réplication, du rôle `amane` du nœud et de pgAdmin. Le lanceur n'avait besoin que de `application.env`.
+
+**Gravité.** Élevée : la promesse d'ADR-003 et d'ADR-008 (« le code de l'éditeur tiers est confiné ») ne tenait pas. Le réseau de l'application est sans sortie, mais HAProxy y est attaché et mène au primaire PostgreSQL. Une application malveillante ou compromise pouvait donc :
+
+- se connecter en superutilisateur et lire ou modifier la base `amane` du nœud (comptes de la console, journal) ;
+- exécuter des commandes dans le conteneur PostgreSQL (`COPY … TO PROGRAM`, réservé au superutilisateur). Ce conteneur est sur le réseau `amane`, qui a une sortie : c'était une voie d'évasion du confinement réseau ;
+- remplacer le mot de passe de réplication ou celui du rôle `amane` et perturber le cluster.
+
+Aucune PME n'était exposée : la V3 n'est installée sur aucune machine réelle.
+
+**Correction.**
+
+| Élément | Avant | Après |
+|---|---|---|
+| Identifiants de l'application | `/amane/secrets/application.env`, dans le volume du cluster | `/amane/secrets-application/application.env`, dans un volume dédié `secrets-application` |
+| Volumes de `amane-application` | `secrets:/amane/secrets:ro` (tout le cluster) | `secrets-application:/amane/secrets-application:ro` (ses seuls identifiants) |
+| Accès en écriture au nouveau volume | — | `amane-init` (prépare le dossier pour l'uid de l'orchestrateur) et `amane-orchestrateur` (écrit le fichier) ; aucun autre service ne le monte |
+| Orchestrateur | — | `init -dossier-secrets-application` (`cmd/orchestrator/pme.go`) ; chemin par défaut du lanceur mis à jour (`lancer.go`) |
+| Pile sans application ou sans base | Inchangée | Inchangée : le volume n'existe que si l'application a une base |
+
+Options écartées : rendre `postgresql.env` illisible par un autre utilisateur (mode 0600) ; l'application peut tourner en root dans son image, et ce mode ne la protégerait donc pas. Retirer le superutilisateur de la portée de HAProxy (`pg_hba`) : utile en défense en profondeur, mais sans effet sur les autres mots de passe du fichier. Ce point reste à étudier (§ 7).
+
+**Vérifications.**
+
+- Django : 120 tests réussis, dont un nouveau test. Il vérifie que l'application ne monte aucun volume `secrets` et monte `secrets-application` en lecture seule, que seuls l'amorçage et l'orchestrateur écrivent dans ce volume, et que la pile sans base n'en a pas.
+- Go : `cmd/orchestrator`, `bootstrap` et `lanceur` réussis, dont un nouveau test de préparation du dossier par `init`.
+- Docker réel, avec l'image publiée : `init` prépare `/amane/secrets-application` pour l'uid 10001 de l'orchestrateur ; l'orchestrateur y écrit ; un autre utilisateur, en lecture seule, n'y voit que `application.env`.
+- Pile servie au tenant AMANE Test : application sur `secrets-application` en lecture seule, orchestrateur `c15cef0b…`.
+- Images : orchestrateur reconstruit et pile republiée (`scripts/publier-pile.sh localhost:5000`) ; les cinq autres digests sont inchangés.
+
+**Incident pendant la vérification.** Lancés sur le poste de développement sans `AMANE_TEST_ETCD`, les tests Go de l'orchestrateur ont joint l'etcd de la stack compose. En cause, `TestCmdInitPairsDuPortailInjoignables` : il annonçait un pair en `127.0.0.1`, dont l'amorçage déduisait `127.0.0.1:2379`, l'etcd du portail. L'amorçage s'y est fait ajouter comme membre fictif (`192.168.1.10`). Avec un membre injoignable sur deux, etcd a perdu son quorum, et Patroni a passé les deux PostgreSQL du portail en lecture seule. C'est aussi ce qui expliquait un premier échec intermittent de la suite.
+
+Réparation :
+
+1. sauvegarde du volume etcd ;
+2. un redémarrage d'etcd avec `--force-new-cluster`, qui garde les données et revient à un seul membre ;
+3. réélection du primaire Patroni.
+
+Le test annonce désormais `192.0.2.1` (RFC 5737, jamais routée).
+
+**Procédure de test.** La procédure sur 5 machines a été rédigée (doc Claude « AMANE V3 — Procédure de test sur 5 machines »). Elle comprend :
+
+- quatre paliers : 2 serveurs + témoin, puis 3 serveurs, puis refus de licence, puis 4 serveurs + témoin ;
+- la fiche « préparer son SaaS pour AMANE » destinée à l'équipe ;
+- une grille de suivi.
+
+Le test G3 y vérifie cette correction.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -811,6 +904,8 @@ Le `Dockerfile` du nœud n'a pas de couche de cache des dépendances : une modif
 | Taille des sauvegardes | L'export est chiffré en mémoire en un seul bloc (limite pratique : quelques centaines de Mo). Au-delà : chiffrement par morceaux en flux | ADR-008 |
 | Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes, un relais qui ne l'exige pas laisse supprimer les blobs. Jeton propre au tenant (HMAC) : étape 9 | ADR-008, étape 9 |
 | Blobs non liés à leur nom | Une sauvegarde déplacée (autre jour, autre base) se déchiffre sans erreur : restauration silencieuse d'anciennes données. Lier tenant, base et jour au chiffrement : étape 9 | ADR-008, étape 9 |
+| **Refus de licence sans effet sur le cluster** | Un serveur au-delà du nombre de postes est refusé et désactivé par le portail (`devices/api_register.py`), mais ni le nœud ni l'orchestrateur n'agissent sur ce refus : l'amorçage le fait entrer dans etcd et Patroni, et il sert l'application. À confirmer sur le banc (test E1), puis faire respecter le refus par l'amorçage | Licences, ADR-005 |
+| Superutilisateur joignable depuis le réseau de l'application | HAProxy, attaché au réseau de l'application, mène au primaire pour tous les rôles. Défense en profondeur : restreindre par `pg_hba` le réseau de l'application au seul rôle `application` | ADR-008 |
 | Sauvegarde sur un serveur non enrôlé | Un primaire sans DEK ne sauvegarde pas (il le signale dans ses journaux). Alerter le portail ? | ADR-008 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
