@@ -21,8 +21,10 @@ use uuid::Uuid;
 
 /// Fichier des secrets PostgreSQL de la machine (pile V3).
 pub const SECRETS_PG: &str = "/amane/secrets/postgresql.env";
-/// Présent si le cluster héberge une application avec base (étape 3).
-pub const SECRETS_APPLICATION: &str = "/amane/secrets/application.env";
+/// Variable posée par la pile quand l'application hébergée a une base
+/// (étape 3) : son nom. Le nœud ne lit pas les identifiants de l'application,
+/// réservés à son conteneur (volume `secrets-application`).
+pub const VARIABLE_BASE_APPLICATION: &str = "AMANE_APP_BASE";
 
 /// Où se trouvent les bases et le relais.
 #[derive(Clone)]
@@ -53,8 +55,12 @@ pub fn cible_depuis_env(relais: &str, tenant_id: Option<Uuid>) -> Result<Cible> 
 /// Bases à sauvegarder : celle du nœud, et celle de l'application hébergée
 /// si le cluster en a une.
 pub fn bases_a_sauvegarder() -> Vec<&'static str> {
+    bases_pour(std::env::var(VARIABLE_BASE_APPLICATION).ok().as_deref())
+}
+
+fn bases_pour(base_application: Option<&str>) -> Vec<&'static str> {
     let mut bases = vec!["amane"];
-    if std::path::Path::new(SECRETS_APPLICATION).exists() {
+    if base_application == Some("application") {
         bases.push("application");
     }
     bases
@@ -161,6 +167,14 @@ pub fn url_superutilisateur(fichier_secrets: &str, hote: &str) -> Result<String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn base_de_l_application_sauvegardee_si_la_pile_l_annonce() {
+        assert_eq!(bases_pour(None), vec!["amane"]);
+        assert_eq!(bases_pour(Some("application")), vec!["amane", "application"]);
+        // Aucun autre nom : la variable ne choisit pas une base arbitraire.
+        assert_eq!(bases_pour(Some("postgres")), vec!["amane"]);
+    }
 
     #[test]
     fn cles_tournantes() {

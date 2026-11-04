@@ -492,6 +492,9 @@ class PileAvecApplicationTests(BasePile):
         env = self.doc['services']['ss-node']['environment']
         self.assertEqual(env['AMANE_APP_URL'], 'http://amane-application:8080')
         self.assertEqual(env['AMANE_APP_SANTE'], '/sante')
+        # Sa base est sauvegardée avec celle du nœud, sans que le nœud lise ses identifiants.
+        self.assertEqual(env['AMANE_APP_BASE'], 'application')
+        self.assertFalse([v for v in self.doc['services']['ss-node']['volumes'] if v.startswith('secrets-application')])
 
     def test_le_temoin_n_heberge_jamais_l_application(self):
         self.assertNotIn('amane-application', corps(self.compose('temoin')))
@@ -505,6 +508,7 @@ class PileAvecApplicationTests(BasePile):
         self.assertNotIn('amane-bin', doc['volumes'])
         self.assertNotIn('-application-secrets=/amane/secrets-application/application.env', doc['services']['amane-orchestrateur']['command'])
         self.assertNotIn('secrets-application', doc['volumes'])
+        self.assertNotIn('AMANE_APP_BASE', doc['services']['ss-node']['environment'])
 
 
 # ── Étape 4 : confinement et chiffrement ────────────────────────────────────

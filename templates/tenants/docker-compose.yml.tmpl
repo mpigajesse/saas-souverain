@@ -203,6 +203,9 @@ services:
       # éditeur l'a conçue ; console du nœud sous /amane (étape 3, ADR-007).
       AMANE_APP_URL: http://amane-application:{{ application.port }}
       AMANE_APP_SANTE: "{{ application.sante }}"
+{% endif %}{% if application.base %}      # Base de l'application, sauvegardée avec celle du nœud (ADR-008). Le nœud
+      # ne lit pas les identifiants de l'application (volume secrets-application).
+      AMANE_APP_BASE: "application"
 {% endif %}      HOSTNAME: "${NODE_HOSTNAME}"
       # Chiffrement du disque de la machine, constaté par l'installeur
       # (oui / non / inconnu) et signalé au portail (ADR-008).
