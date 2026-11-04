@@ -57,12 +57,14 @@ services:
       - -dossier-haproxy=/amane/haproxy
 {% if application.base %}      # Lanceur statique de l'application (identifiants de sa base, étape 3).
       - -copier-binaire=/amane/bin
+      - -dossier-secrets-application=/amane/secrets-application
 {% endif %}    volumes:
       - etcd-data:/etcd-data
       - etcd-conf:/amane/etcd
       - secrets:/amane/secrets
       - haproxy:/amane/haproxy
 {% if application.base %}      - amane-bin:/amane/bin
+      - secrets-application:/amane/secrets-application
 {% endif %}
   amane-etcd:
     image: {{ images.etcd }}
@@ -98,13 +100,14 @@ services:
       # Mode synchrone strict à partir de 3 serveurs (ADR-004, décision 2).
       - -synchrone-auto
 {% if application.base %}      # Rôle, base et identifiants de l'application hébergée (étape 3).
-      - -application-secrets=/amane/secrets/application.env
+      - -application-secrets=/amane/secrets-application/application.env
 {% endif %}    environment:
       AMANE_NODE_ID: "${NODE_HOSTNAME}"
     volumes:
       - secrets:/amane/secrets
       - haproxy:/amane/haproxy
-    depends_on:
+{% if application.base %}      - secrets-application:/amane/secrets-application
+{% endif %}    depends_on:
       amane-etcd: { condition: service_healthy }
 
   amane-postgresql:
@@ -220,13 +223,16 @@ services:
     networks: [amane-application]
 {% if application.base %}    # Point d'entrée : le lanceur AMANE compose les variables de la base
     # (manifeste) puis exécute la commande d'origine de l'image.
-    entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets/application.env", "--"]
+    entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets-application/application.env", "--"]
     command: {{ application.commande }}
 {% endif %}{% if application.environnement %}    environment:
 {% for nom, valeur in application.environnement %}      {{ nom }}: {{ valeur }}
 {% endfor %}{% endif %}    volumes:
-{% if application.base %}      - amane-bin:/amane/bin:ro
-      - secrets:/amane/secrets:ro
+{% if application.base %}      # Ses seuls identifiants : jamais le volume `secrets` du cluster, qui
+      # contient le mot de passe du superutilisateur PostgreSQL (joignable par
+      # HAProxy depuis le réseau de l'application).
+      - amane-bin:/amane/bin:ro
+      - secrets-application:/amane/secrets-application:ro
 {% endif %}{% for v in application.volumes %}      - {{ v.cle }}:{{ v.chemin }}
 {% endfor %}{% if not application.base and not application.volumes %}      []
 {% endif %}    depends_on: [amane-orchestrateur, amane-haproxy]
@@ -259,5 +265,6 @@ volumes:
   node-data:
   pgadmin-data:
 {% if application.base %}  amane-bin:
+  secrets-application:
 {% endif %}{% for v in application.volumes %}  {{ v.cle }}:
 {% endfor %}{% endautoescape %}

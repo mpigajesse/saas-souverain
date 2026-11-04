@@ -43,6 +43,10 @@ func cmdInit(args []string) int {
 	donnees := fs.String("donnees-etcd", "/etcd-data", "dossier de données etcd (volume partagé avec etcd)")
 	config := fs.String("config-etcd", "/amane/etcd/etcd.env", "fichier de configuration etcd produit")
 	secrets := fs.String("dossier-secrets", "", "dossier des secrets à préparer (serveur uniquement)")
+	// Dossier distinct, seul monté dans le conteneur de l'application hébergée :
+	// elle n'y lit que ses propres identifiants, jamais ceux du cluster
+	// (superutilisateur PostgreSQL, réplication, pgAdmin, rôle amane).
+	secretsApplication := fs.String("dossier-secrets-application", "", "dossier des identifiants de l'application hébergée à préparer (serveur avec application)")
 	copier := fs.String("copier-binaire", "", "dossier où déposer le binaire statique de l'orchestrateur (lanceur de l'application, étape 3)")
 	temoin := fs.String("dossier-temoin", "", "dossier de l'identifiant du témoin à préparer (témoin uniquement)")
 	dossierHAProxy := fs.String("dossier-haproxy", "", "dossier HAProxy à préparer (serveur uniquement)")
@@ -54,7 +58,7 @@ func cmdInit(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := bootstrap.PreparerDossiers([]string{*secrets, *temoin}, *dossierHAProxy, *uid); err != nil {
+	if err := bootstrap.PreparerDossiers([]string{*secrets, *secretsApplication, *temoin}, *dossierHAProxy, *uid); err != nil {
 		logger.Error("préparation des dossiers impossible", "err", err)
 		return 1
 	}

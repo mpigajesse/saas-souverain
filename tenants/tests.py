@@ -464,8 +464,29 @@ class PileAvecApplicationTests(BasePile):
 
     def test_aucun_secret_de_l_application_dans_la_pile(self):
         self.assertNotIn('AMANE_APP_DB_MOT_DE_PASSE', self.texte)
-        self.assertIn('-application-secrets=/amane/secrets/application.env', self.doc['services']['amane-orchestrateur']['command'])
+        self.assertIn('-application-secrets=/amane/secrets-application/application.env', self.doc['services']['amane-orchestrateur']['command'])
         self.assertIn('-copier-binaire=/amane/bin', self.doc['services']['amane-init']['command'])
+        self.assertIn('-dossier-secrets-application=/amane/secrets-application', self.doc['services']['amane-init']['command'])
+
+    def test_l_application_ne_voit_pas_les_secrets_du_cluster(self):
+        # Le volume `secrets` porte le mot de passe du superutilisateur
+        # PostgreSQL, joignable par HAProxy depuis le réseau de l'application :
+        # elle ne monte que ses propres identifiants (faille du 2026-11-04).
+        app = self.doc['services']['amane-application']
+        self.assertNotIn('secrets:/amane/secrets:ro', app['volumes'])
+        self.assertFalse([v for v in app['volumes'] if v.startswith('secrets:')], app['volumes'])
+        self.assertIn('secrets-application:/amane/secrets-application:ro', app['volumes'])
+        self.assertIn('-secrets=/amane/secrets-application/application.env', app['entrypoint'])
+        self.assertIn('secrets-application', self.doc['volumes'])
+        # Seuls l'amorçage et l'orchestrateur, qui l'écrit, y ont accès en écriture.
+        for service, conf in self.doc['services'].items():
+            montages = [v for v in conf.get('volumes', []) if v.startswith('secrets-application:')]
+            if service in ('amane-init', 'amane-orchestrateur'):
+                self.assertEqual(montages, ['secrets-application:/amane/secrets-application'], service)
+            elif service == 'amane-application':
+                self.assertEqual(montages, ['secrets-application:/amane/secrets-application:ro'])
+            else:
+                self.assertEqual(montages, [], service)
 
     def test_le_noeud_sert_l_application(self):
         env = self.doc['services']['ss-node']['environment']
@@ -482,7 +503,8 @@ class PileAvecApplicationTests(BasePile):
         app = doc['services']['amane-application']
         self.assertNotIn('entrypoint', app)
         self.assertNotIn('amane-bin', doc['volumes'])
-        self.assertNotIn('-application-secrets=/amane/secrets/application.env', doc['services']['amane-orchestrateur']['command'])
+        self.assertNotIn('-application-secrets=/amane/secrets-application/application.env', doc['services']['amane-orchestrateur']['command'])
+        self.assertNotIn('secrets-application', doc['volumes'])
 
 
 # ── Étape 4 : confinement et chiffrement ────────────────────────────────────

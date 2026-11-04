@@ -66,10 +66,26 @@ func TestCmdInitPremiereMachine(t *testing.T) {
 	}
 }
 
+func TestCmdInitPrepareLesSecretsDeLApplication(t *testing.T) {
+	// Dossier distinct du volume `secrets` du cluster : seul monté dans le
+	// conteneur de l'application hébergée.
+	dossier := filepath.Join(t.TempDir(), "secrets-application")
+	args, _ := argsInit(t, "-dossier-secrets-application", dossier)
+	if code := cmdInit(args); code != 0 {
+		t.Fatalf("code de sortie %d", code)
+	}
+	if info, err := os.Stat(dossier); err != nil || !info.IsDir() {
+		t.Fatalf("dossier des secrets de l'application non préparé : %v", err)
+	}
+}
+
 func TestCmdInitPairsDuPortailInjoignables(t *testing.T) {
 	// Le portail annonce une autre machine, qui ne répond pas : refus.
+	// 192.0.2.1 (RFC 5737, jamais routée) et surtout pas 127.0.0.1 : sur un
+	// poste de développement, 127.0.0.1:2379 est l'etcd de la stack compose,
+	// que l'amorçage rejoindrait (member add) en lui faisant perdre son quorum.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"active_nodes": [{"node_addr": "127.0.0.1:9001"}]}`))
+		w.Write([]byte(`{"active_nodes": [{"node_addr": "192.0.2.1:9001"}]}`))
 	}))
 	defer srv.Close()
 	args, config := argsInit(t, "-portail", srv.URL, "-delai", "1ms")
