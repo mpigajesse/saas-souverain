@@ -149,11 +149,11 @@ def tableau(lignes, largeur):
     return t
 
 
-def liste(elements, numerotee):
+def liste(elements, numerotee, debut=1):
     items = [ListItem(Paragraph(inline(e), STYLES["corps"]), leftIndent=14)
              for e in elements]
     return ListFlowable(items, bulletType="1" if numerotee else "bullet",
-                        start="1" if numerotee else "•", leftIndent=14,
+                        start=str(debut) if numerotee else "•", leftIndent=14,
                         bulletFontName=TEXTE, bulletFontSize=9,
                         bulletColor=BLEU)
 
@@ -217,11 +217,14 @@ def convertir(lignes, largeur):
             story.append(Spacer(1, 8))
         elif re.match(r"^(- |\d+\. )", l):
             numerotee = bool(re.match(r"^\d+\. ", l))
+            # Une liste numérotée coupée par un paragraphe reprend à son
+            # propre numéro (annexe du banc : étapes 4 à 13).
+            debut = int(l.split(".")[0]) if numerotee else 1
             elements = []
             while i < len(lignes) and re.match(r"^(- |\d+\. )", lignes[i]):
                 elements.append(re.sub(r"^(- |\d+\. )", "", lignes[i].strip()))
                 i += 1
-            story.append(liste(elements, numerotee))
+            story.append(liste(elements, numerotee, debut))
             story.append(Spacer(1, 4))
         else:
             bloc = []
