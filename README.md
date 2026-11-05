@@ -2,6 +2,9 @@
 
 **Framework de souveraineté des données pour logiciels métier distribués.**
 
+**Démo en ligne : [saas-souverain.eu.cc/login](https://saas-souverain.eu.cc/login/)**
+Portail éditeur avec des PME fictives : les identifiants de démonstration sont affichés sur la page de connexion. La démo tourne sur une offre gratuite et met environ 50 secondes à se réveiller au premier accès.
+
 Les données métier d'une PME restent sur ses propres machines. Elles ne sortent du périmètre
 de l'entreprise que **chiffrées**, sous une clé que l'éditeur ne détient pas. L'éditeur gère les
 comptes et les licences ; il ne peut, à aucun moment et par aucun moyen technique, lire les
