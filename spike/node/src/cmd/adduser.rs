@@ -11,8 +11,10 @@ pub async fn run(
     password: &str,
     config_path: &Path,
 ) -> Result<()> {
-    let config = NodeConfig::load(config_path)
+    let mut config = NodeConfig::load(config_path)
         .with_context(|| format!("Impossible de lire la config : {}", config_path.display()))?;
+    // Comme run/failover/delist : PG_URL (Docker) prime sur config.toml.
+    config.apply_env_overrides();
 
     let pg_url = config.pg_url.as_deref().unwrap_or("postgres://pme:pme@localhost:5432/pme_db");
     let pool = sqlx::PgPool::connect(pg_url)

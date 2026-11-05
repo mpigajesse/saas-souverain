@@ -21,6 +21,9 @@ DEMO_PASSWORD = config('DEMO_PASSWORD', default='')
 DEMO_PUBLIQUE = bool(DEMO_PASSWORD)
 # URL publique du nœud PME de démonstration (spike/demo/), ouvert par « Lancer le logiciel ».
 DEMO_LOGICIEL_URL = config('DEMO_LOGICIEL_URL', default='').rstrip('/')
+# Jeton d'enregistrement fixe de la PME de démo « Atlas Distribution » : le nœud
+# hébergé (spike/demo/) s'enregistre avec lui et apparaît dans le parc éditeur.
+DEMO_REGISTRATION_TOKEN = config('DEMO_REGISTRATION_TOKEN', default='')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

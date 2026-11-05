@@ -6,7 +6,7 @@ set -e
 PGBIN=$(ls -d /usr/lib/postgresql/*/bin | head -1)
 PGDATA=/tmp/pgdata
 
-mkdir -p "$PGDATA" /data && chown -R postgres "$PGDATA" /data
+mkdir -p "$PGDATA" "$SS_NODE_DIR" && chown -R postgres "$PGDATA"
 su postgres -c "$PGBIN/initdb -D $PGDATA -A trust -U postgres" >/dev/null
 su postgres -c "$PGBIN/pg_ctl -D $PGDATA -o '-c listen_addresses=127.0.0.1' -w start" >/dev/null
 psql -h 127.0.0.1 -U postgres -qc "CREATE USER metier PASSWORD 'metier';"
@@ -17,6 +17,9 @@ export WEB_PORT="${PORT:-3000}"
 export RELAY_URL="${RELAY_URL:-http://127.0.0.1:9}"   # relais absent en démo
 
 ss-node init --first >/dev/null
+# Nom affiché dans l'interface, même si le portail éditeur dort encore au
+# démarrage (l'enregistrement auprès du SaaS le fournit sinon).
+echo "tenant_name = \"${TENANT_NAME:-Atlas Distribution}\"" >> "$SS_NODE_DIR/config.toml"
 ss-node adduser --username admin --name "Direction (démo)" --role admin --password "$DEMO_PASSWORD"
 ss-node adduser --username employe --name "Magasinier (démo)" --role employee --password "$DEMO_PASSWORD"
 

@@ -74,10 +74,13 @@ class Command(BaseCommand):
 
         maintenant = timezone.now()
         for nom, email, ville, employes, plan, postes, machines in PME_FICTIVES:
+            champs: dict[str, Any] = {}
+            if nom == "Atlas Distribution" and settings.DEMO_REGISTRATION_TOKEN:
+                champs["registration_token"] = uuid.UUID(settings.DEMO_REGISTRATION_TOKEN)
             tenant = Tenant.objects.create(
                 name=nom, email=email, address=f"{ville} (adresse fictive)",
                 phone="+000 00 00 00 00", employee_count=employes,
-                user=pme if nom == "Atlas Distribution" else None,
+                user=pme if nom == "Atlas Distribution" else None, **champs,
             )
             License.objects.create(
                 tenant=tenant, plan=plan, seats=postes,
