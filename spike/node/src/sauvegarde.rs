@@ -8,12 +8,18 @@
 //!
 //! Rotation sur 7 jours sans liste ni suppression côté relais : la clé du
 //! blob porte le jour de la semaine (`sauvegarde-<base>-<1..7>`).
+//!
+//! Chaque blob est lié à son nom (étape 9, ADR-011) : il commence par un
+//! en-tête en clair `amane-sauvegarde/1 <tenant> <base> <date>`, que le
+//! chiffrement authentifie comme donnée associée. La restauration refuse un
+//! blob déplacé (autre jour, autre base, autre tenant) au lieu de rendre
+//! silencieusement d'anciennes données, et affiche la date de la sauvegarde.
 
 use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 use ss_crypto::Dek;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -31,7 +37,8 @@ pub const VARIABLE_BASE_APPLICATION: &str = "AMANE_APP_BASE";
 pub struct Cible {
     /// URL du relais (ex. `http://relais:8080`).
     pub relais: String,
-    /// Jeton du relais (`RELAY_AUTH_TOKEN`), vide si le relais n'en exige pas.
+    /// Jeton du relais propre au tenant (`RELAY_AUTH_TOKEN`, ADR-011), vide
+    /// si le relais est en mode ouvert.
     pub jeton_relais: String,
     pub tenant_id: Uuid,
     /// Connexion superutilisateur au primaire, sans base : `postgres://u:p@h:port`.
@@ -46,7 +53,7 @@ pub fn cible_depuis_env(relais: &str, tenant_id: Option<Uuid>) -> Result<Cible> 
     let hote = std::env::var("AMANE_PG_PRIMAIRE").unwrap_or_else(|_| "amane-haproxy:5000".into());
     Ok(Cible {
         relais: relais.to_string(),
-        jeton_relais: std::env::var("RELAY_AUTH_TOKEN").unwrap_or_default(),
+        jeton_relais: crate::relay_client::jeton_depuis_env(),
         tenant_id,
         pg_base_url: url_superutilisateur(SECRETS_PG, &hote)?,
     })
@@ -77,9 +84,63 @@ pub fn cle_blob(base: &str, jour: u32) -> Result<String> {
     Ok(format!("sauvegarde-{base}-{jour}"))
 }
 
-/// Jour de la semaine courant (UTC), 1 = lundi.
-pub fn jour_courant() -> u32 {
-    Utc::now().weekday().number_from_monday()
+// ── Liaison du blob à son nom (ADR-011) ───────────────────────────────────────
+
+/// Format des blobs de sauvegarde ; les blobs antérieurs à l'étape 9 n'ont
+/// pas d'en-tête et sont refusés.
+const FORMAT: &str = "amane-sauvegarde/1";
+/// Longueur maximale de l'en-tête : format, UUID, nom de base, date.
+const ENTETE_MAX: usize = 160;
+
+fn entete(tenant_id: Uuid, base: &str, date: NaiveDate) -> String {
+    format!("{FORMAT} {tenant_id} {base} {date}\n")
+}
+
+/// Blob déposé sur le relais : en-tête en clair, puis l'export chiffré par la
+/// DEK avec l'en-tête pour donnée associée.
+pub fn emballer(dek: &Dek, tenant_id: Uuid, base: &str, date: NaiveDate, export: &[u8]) -> Result<Vec<u8>> {
+    let entete = entete(tenant_id, base, date);
+    let chiffre = dek
+        .encrypt_avec_contexte(export, entete.as_bytes())
+        .map_err(|e| anyhow!("chiffrement : {e:?}"))?;
+    let mut blob = Vec::with_capacity(entete.len() + chiffre.len());
+    blob.extend_from_slice(entete.as_bytes());
+    blob.extend_from_slice(&chiffre);
+    Ok(blob)
+}
+
+/// Vérifie que le blob est bien la sauvegarde attendue (tenant, base, jour de
+/// sa clé) et le déchiffre. Renvoie la date de la sauvegarde et l'export.
+pub fn deballer(dek: &Dek, blob: &[u8], tenant_id: Uuid, base: &str, jour: u32) -> Result<(NaiveDate, Vec<u8>)> {
+    let fin = blob
+        .iter()
+        .take(ENTETE_MAX)
+        .position(|&o| o == b'\n')
+        .ok_or_else(|| anyhow!("blob sans en-tête : format antérieur à l'étape 9, ou blob corrompu"))?;
+    let (entete, chiffre) = blob.split_at(fin + 1);
+    let texte = std::str::from_utf8(&entete[..fin]).map_err(|_| anyhow!("en-tête de sauvegarde illisible"))?;
+    let champs: Vec<&str> = texte.split(' ').collect();
+    let [format, tenant, base_lue, date] = champs[..] else {
+        bail!("en-tête de sauvegarde mal formé : {texte:?}");
+    };
+    if format != FORMAT {
+        bail!("format de sauvegarde inconnu : {format:?}");
+    }
+    if tenant != tenant_id.to_string() {
+        bail!("blob d'un autre tenant ({tenant}) : refusé");
+    }
+    if base_lue != base {
+        bail!("blob de la base {base_lue:?} déposé sous le nom de la base {base:?} : refusé");
+    }
+    let date: NaiveDate = date.parse().map_err(|_| anyhow!("date de sauvegarde illisible : {date:?}"))?;
+    let jour_lu = date.weekday().number_from_monday();
+    if jour_lu != jour {
+        bail!("sauvegarde du {date} (jour {jour_lu}) déposée sous le nom du jour {jour} : refusée");
+    }
+    let export = dek
+        .decrypt_avec_contexte(chiffre, entete)
+        .map_err(|e| anyhow!("déchiffrement impossible (mauvaise DEK, ou en-tête modifié) : {e:?}"))?;
+    Ok((date, export))
 }
 
 fn url_base(cible: &Cible, base: &str) -> String {
@@ -96,7 +157,8 @@ fn client() -> Result<reqwest::Client> {
 
 /// Exporte, chiffre et dépose une base. Renvoie la clé et la taille du blob.
 pub async fn sauvegarder(dek: &Dek, cible: &Cible, base: &str) -> Result<(String, usize)> {
-    let cle = cle_blob(base, jour_courant())?;
+    let date = Utc::now().date_naive();
+    let cle = cle_blob(base, date.weekday().number_from_monday())?;
     let sortie = Command::new("pg_dump")
         .args(["--format=custom", "--no-owner", "--dbname", &url_base(cible, base)])
         .stdout(Stdio::piped())
@@ -107,24 +169,20 @@ pub async fn sauvegarder(dek: &Dek, cible: &Cible, base: &str) -> Result<(String
     if !sortie.status.success() {
         bail!("pg_dump {base} : {}", String::from_utf8_lossy(&sortie.stderr).trim());
     }
-    let chiffre = dek.encrypt(&sortie.stdout).map_err(|e| anyhow!("chiffrement : {e:?}"))?;
-    let taille = chiffre.len();
-    let mut req = client()?.put(url_blob(cible, &cle)).body(chiffre);
-    if !cible.jeton_relais.is_empty() {
-        req = req.header("x-relay-token", &cible.jeton_relais);
-    }
-    req.send().await.context("relais injoignable")?.error_for_status().context("dépôt refusé par le relais")?;
+    let blob = emballer(dek, cible.tenant_id, base, date, &sortie.stdout)?;
+    let taille = blob.len();
+    let req = client()?.put(url_blob(cible, &cle)).body(blob);
+    crate::relay_client::avec_jeton(req, &cible.jeton_relais)
+        .send().await.context("relais injoignable")?.error_for_status().context("dépôt refusé par le relais")?;
     Ok((cle, taille))
 }
 
-/// Récupère, déchiffre et restaure une base depuis le relais.
-pub async fn restaurer(dek: &Dek, cible: &Cible, base: &str, jour: u32) -> Result<()> {
+/// Récupère, vérifie, déchiffre et restaure une base depuis le relais.
+/// Renvoie la date de la sauvegarde restaurée.
+pub async fn restaurer(dek: &Dek, cible: &Cible, base: &str, jour: u32) -> Result<NaiveDate> {
     let cle = cle_blob(base, jour)?;
-    let mut req = client()?.get(url_blob(cible, &cle));
-    if !cible.jeton_relais.is_empty() {
-        req = req.header("x-relay-token", &cible.jeton_relais);
-    }
-    let chiffre = req
+    let req = client()?.get(url_blob(cible, &cle));
+    let blob = crate::relay_client::avec_jeton(req, &cible.jeton_relais)
         .send()
         .await
         .context("relais injoignable")?
@@ -132,7 +190,7 @@ pub async fn restaurer(dek: &Dek, cible: &Cible, base: &str, jour: u32) -> Resul
         .with_context(|| format!("sauvegarde {cle} introuvable sur le relais"))?
         .bytes()
         .await?;
-    let export = dek.decrypt(&chiffre).map_err(|e| anyhow!("déchiffrement impossible (mauvaise DEK ?) : {e:?}"))?;
+    let (date, export) = deballer(dek, &blob, cible.tenant_id, base, jour)?;
 
     let mut enfant = Command::new("pg_restore")
         .args(["--clean", "--if-exists", "--no-owner", "--dbname", &url_base(cible, base)])
@@ -147,7 +205,7 @@ pub async fn restaurer(dek: &Dek, cible: &Cible, base: &str, jour: u32) -> Resul
     if !fin.status.success() {
         bail!("pg_restore {base} : {}", String::from_utf8_lossy(&fin.stderr).trim());
     }
-    Ok(())
+    Ok(date)
 }
 
 /// Connexion superutilisateur au primaire, à partir du fichier de secrets de
@@ -184,7 +242,6 @@ mod tests {
         assert!(cle_blob("amane", 8).is_err());
         assert!(cle_blob("../x", 1).is_err());
         assert!(cle_blob("", 1).is_err());
-        assert!((1..=7).contains(&jour_courant()));
     }
 
     #[test]
@@ -213,14 +270,58 @@ mod tests {
         );
     }
 
+    fn date(s: &str) -> NaiveDate {
+        s.parse().unwrap()
+    }
+
     #[test]
     fn le_blob_depose_est_illisible_sans_la_dek() {
         // Ce que le relais stocke : un chiffré que seule la DEK du cluster ouvre.
         let dek = Dek::generate();
+        let tenant = Uuid::new_v4();
         let export = b"PGDMP export de la base".to_vec();
-        let chiffre = dek.encrypt(&export).unwrap();
-        assert!(!chiffre.windows(5).any(|w| w == b"PGDMP"));
-        assert_eq!(dek.decrypt(&chiffre).unwrap(), export);
-        assert!(Dek::generate().decrypt(&chiffre).is_err());
+        let lundi = date("2026-11-02");
+        let blob = emballer(&dek, tenant, "amane", lundi, &export).unwrap();
+        assert!(!blob.windows(5).any(|w| w == b"PGDMP"));
+        assert_eq!(deballer(&dek, &blob, tenant, "amane", 1).unwrap(), (lundi, export));
+        assert!(deballer(&Dek::generate(), &blob, tenant, "amane", 1).is_err());
+    }
+
+    #[test]
+    fn blob_deplace_refuse() {
+        let dek = Dek::generate();
+        let tenant = Uuid::new_v4();
+        // Export du lundi 2 novembre 2026, base amane.
+        let blob = emballer(&dek, tenant, "amane", date("2026-11-02"), b"PGDMP lundi").unwrap();
+        // Déposé sous le nom du jeudi, d'une autre base ou d'un autre tenant.
+        let jeudi = deballer(&dek, &blob, tenant, "amane", 4).unwrap_err().to_string();
+        assert!(jeudi.contains("jour 1") && jeudi.contains("jour 4"), "{jeudi}");
+        assert!(deballer(&dek, &blob, tenant, "application", 1).unwrap_err().to_string().contains("base"));
+        assert!(deballer(&dek, &blob, Uuid::new_v4(), "amane", 1).unwrap_err().to_string().contains("tenant"));
+    }
+
+    #[test]
+    fn en_tete_falsifie_refuse() {
+        // Réécrire l'en-tête pour qu'il corresponde au nouveau nom ne suffit
+        // pas : il est authentifié par le chiffrement.
+        let dek = Dek::generate();
+        let tenant = Uuid::new_v4();
+        let blob = emballer(&dek, tenant, "amane", date("2026-11-02"), b"PGDMP lundi").unwrap();
+        let ancien = entete(tenant, "amane", date("2026-11-02"));
+        let faux = entete(tenant, "amane", date("2026-11-05"));
+        assert_eq!(ancien.len(), faux.len());
+        let mut falsifie = faux.into_bytes();
+        falsifie.extend_from_slice(&blob[ancien.len()..]);
+        let erreur = deballer(&dek, &falsifie, tenant, "amane", 4).unwrap_err().to_string();
+        assert!(erreur.contains("déchiffrement impossible"), "{erreur}");
+    }
+
+    #[test]
+    fn ancien_format_refuse() {
+        // Blob d'avant l'étape 9 : chiffré nu, sans en-tête.
+        let dek = Dek::generate();
+        let ancien = dek.encrypt(&[0u8; 400]).unwrap();
+        assert!(deballer(&dek, &ancien, Uuid::new_v4(), "amane", 1).is_err());
+        assert!(deballer(&dek, b"", Uuid::new_v4(), "amane", 1).is_err());
     }
 }

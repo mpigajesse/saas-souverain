@@ -786,6 +786,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest",
+]
+
+[[package]]
 name = "http"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1648,10 +1657,12 @@ dependencies = [
  "chrono",
  "getrandom 0.4.3",
  "hex",
+ "hmac",
  "rand",
  "rand_core 0.10.1",
  "rand_core 0.6.4",
  "serde",
+ "sha2",
  "thiserror 2.0.20",
  "vsss-rs",
  "x25519-dalek",

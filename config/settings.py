@@ -203,6 +203,10 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Relais éditeur (ss-relay) — URL accessible depuis les conteneurs PME
 RELAY_URL = config('RELAY_URL', default='http://host.docker.internal:8080')
+# Secret partagé avec le relais (sa variable RELAY_SECRET), dont dérive le
+# jeton propre à chaque tenant remis à sa pile (ADR-011, tenants/relais.py).
+# Vide : piles sans jeton, pour un relais de laboratoire en mode ouvert.
+RELAY_SECRET = config('RELAY_SECRET', default='')
 
 # Registre Docker de l'éditeur (service compose `registry`). Les machines PME y
 # tirent l'image du nœud. Seul le PORT est configuré : l'hôte est toujours

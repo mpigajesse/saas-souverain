@@ -18,6 +18,7 @@ from licenses.models import License
 from .models import Tenant
 from .manifeste import pour_compose
 from .pile import images_pile
+from .relais import jeton_relais
 
 # Types de machine d'un cluster PME (ADR-005).
 TYPES_MACHINE = ('serveur', 'temoin')
@@ -189,6 +190,9 @@ def build_compose_response(request, tenant: Tenant, type_machine: str = 'serveur
         # Application externe hébergée (étape 3) : None si le tenant n'en a pas.
         'application': pour_compose(manifeste, registre) if manifeste else None,
         'relay_url': getattr(settings, 'RELAY_URL', 'http://localhost:8080'),
+        # Jeton du relais propre au tenant (ADR-011) : seul le serveur, qui
+        # sauvegarde, en a l'usage ; le témoin ne joint pas le relais.
+        'jeton_relais': jeton_relais(tenant.id) if type_machine == 'serveur' else '',
         'generated_at': datetime.now().strftime('%d/%m/%Y à %H:%M'),
     }).content.decode('utf-8')
 

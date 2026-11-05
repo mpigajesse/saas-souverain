@@ -205,9 +205,11 @@ Aucune page web — API seulement. Le relais ne voit jamais de clair.
 | Endpoint | Méthode |
 | :--- | :--- |
 | `/health` | GET |
-| `/api/nodes/announce` | POST |
-| `/api/nodes` | GET |
-| `/api/blobs/<tenant_id>/<clé>` | GET · PUT · DELETE (jeton `x-relay-token` si `RELAY_AUTH_TOKEN` est défini) |
+| `/api/nodes/announce` | POST (jeton du tenant) |
+| `/api/nodes` | GET (jeton du tenant) |
+| `/api/blobs/<tenant_id>/<clé>` | GET · PUT · DELETE (jeton du tenant) |
+
+Le jeton d'un tenant (en-tête `x-relay-token`) est `HMAC-SHA256(RELAY_SECRET, "amane-relais/v1/<tenant>")`, calculé par le portail et remis à la pile serveur (`RELAY_AUTH_TOKEN`) ; le relais le recalcule, sans base (ADR-011). Le relais et le portail partagent `RELAY_SECRET` ; sans lui, le relais refuse de démarrer, sauf `RELAY_SANS_AUTHENTIFICATION=1` (laboratoire). `/health` indique `authentification: true|false`.
 
 À consulter depuis la page **`/relay`** de la console React.
 

@@ -37,15 +37,29 @@ struct NodesResponse {
     nodes: Vec<NodeInfo>,
 }
 
+/// Jeton du relais propre au tenant, remis par le portail dans la pile
+/// (`RELAY_AUTH_TOKEN`, ADR-011) ; vide si le relais est en mode ouvert.
+/// Il ouvre les blobs et la topologie de ce seul tenant.
+pub fn jeton_depuis_env() -> String {
+    std::env::var("RELAY_AUTH_TOKEN").unwrap_or_default().trim().to_string()
+}
+
+/// Ajoute l'en-tête `x-relay-token` quand un jeton est connu.
+pub fn avec_jeton(r: reqwest::RequestBuilder, jeton: &str) -> reqwest::RequestBuilder {
+    if jeton.is_empty() { r } else { r.header("x-relay-token", jeton) }
+}
+
 pub struct RelayClient {
     base_url: String,
+    jeton: String,
     client: reqwest::Client,
 }
 
 impl RelayClient {
-    pub fn new(base_url: impl Into<String>) -> Self {
+    pub fn new(base_url: impl Into<String>, jeton: impl Into<String>) -> Self {
         Self {
             base_url: base_url.into(),
+            jeton: jeton.into(),
             client: reqwest::Client::new(),
         }
     }
@@ -53,8 +67,7 @@ impl RelayClient {
     /// Annonce ce nœud au relais. Silencieux si le relais est injoignable (non bloquant).
     pub async fn announce(&self, req: &AnnounceRequest) -> Result<()> {
         let url = format!("{}/api/nodes/announce", self.base_url);
-        self.client
-            .post(&url)
+        avec_jeton(self.client.post(&url), &self.jeton)
             .json(req)
             .send()
             .await
@@ -67,9 +80,7 @@ impl RelayClient {
     /// Récupère les pairs du cluster pour ce tenant.
     pub async fn get_peers(&self, tenant_id: Uuid) -> Result<Vec<NodeInfo>> {
         let url = format!("{}/api/nodes", self.base_url);
-        let resp: NodesResponse = self
-            .client
-            .get(&url)
+        let resp: NodesResponse = avec_jeton(self.client.get(&url), &self.jeton)
             .query(&[("tenant_id", tenant_id.to_string())])
             .send()
             .await

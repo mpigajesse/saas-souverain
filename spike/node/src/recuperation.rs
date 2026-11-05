@@ -336,7 +336,7 @@ impl Relais {
     pub fn depuis_env(url: &str, tenant_id: Option<Uuid>) -> Option<Self> {
         Some(Self {
             url: url.to_string(),
-            jeton: std::env::var("RELAY_AUTH_TOKEN").unwrap_or_default(),
+            jeton: crate::relay_client::jeton_depuis_env(),
             tenant_id: tenant_id?,
         })
     }
@@ -351,7 +351,7 @@ impl Relais {
     }
 
     fn requete(&self, r: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        if self.jeton.is_empty() { r } else { r.header("x-relay-token", &self.jeton) }
+        crate::relay_client::avec_jeton(r, &self.jeton)
     }
 
     fn client() -> Result<reqwest::Client> {

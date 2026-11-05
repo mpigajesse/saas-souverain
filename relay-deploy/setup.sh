@@ -61,6 +61,14 @@ if [ ! -f "$ENV_FILE" ]; then
 else
     echo "      .env existant conservé."
 fi
+# Secret partagé avec le portail (ADR-011) : généré s'il manque.
+if ! grep -qE '^RELAY_SECRET=.{32,}' "$ENV_FILE"; then
+    SECRET=$(openssl rand -hex 32)
+    sed -i '/^RELAY_SECRET=/d' "$ENV_FILE"
+    echo "RELAY_SECRET=$SECRET" >> "$ENV_FILE"
+    echo "      RELAY_SECRET généré dans $ENV_FILE"
+fi
+RELAY_SECRET=$(grep -E '^RELAY_SECRET=' "$ENV_FILE" | cut -d= -f2-)
 
 # ── Étape 4 : Build ───────────────────────────────────────
 echo "[4/5] Build de ss-relay (compilation Rust — 3 à 5 min)..."
@@ -91,6 +99,8 @@ if curl -sf "http://localhost:8080/health" >/dev/null 2>&1; then
     echo ""
     echo "  Mettre a jour le .env du SaaS editeur :"
     echo "  RELAY_URL=http://$RELAY_IP:8080"
+    echo "  RELAY_SECRET=$RELAY_SECRET"
+    echo "  (puis retelecharger la pile des PME pour leur remettre leur jeton)"
     echo "========================================================"
 else
     echo "AVERTISSEMENT : health check echoue — logs :"

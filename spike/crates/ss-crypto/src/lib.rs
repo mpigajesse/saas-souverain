@@ -5,6 +5,7 @@ mod crl;
 mod shamir;
 mod device_key;
 mod recovery;
+mod jeton_relais;
 
 pub use error::CryptoError;
 pub use dek::Dek;
@@ -16,3 +17,4 @@ pub use recovery::{
     derive_recovery_key, derive_recovery_key_avec, deriver_kek, empreinte_dek, generate_salt,
     paire_de_recuperation, somme_controle_part, ParametresArgon2,
 };
+pub use jeton_relais::{jeton_relais, verifier_jeton_relais};

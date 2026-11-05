@@ -624,3 +624,59 @@ class PileDepuisLeCatalogueTests(BasePile):
         self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose('temoin')))['services'])
         Application.objects.filter(pk=app.pk).update(statut=Application.RETIREE)
         self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose()))['services'])
+
+
+# ── Étape 9 : jeton du relais propre au tenant (ADR-011) ────────────────────
+
+SECRET_RELAIS = 'secret-de-test-du-relais-amane-0123456789'
+
+
+class JetonRelaisTests(BasePile):
+    """Le portail calcule le jeton comme le relais le vérifie, et le remet à
+    la seule pile serveur du tenant."""
+
+    def test_vecteur_commun_avec_le_relais(self):
+        # Même valeur que `ss-crypto` (jeton_relais.rs, vecteur_commun_avec_le_portail).
+        from tenants.relais import jeton_relais
+        with override_settings(RELAY_SECRET=SECRET_RELAIS):
+            self.assertEqual(
+                jeton_relais('00000000-0000-0000-0000-000000000000'),
+                '1122cac8a5f6cce94d90f49b21d7aee4cb844f27725ab56a57ae4f80764df4a5',
+            )
+            autre = Tenant.objects.create(name='Autre', email='autre@x.fr', employee_count=1,
+                                          user=User.objects.create_user(username='autre', password='x'))
+            self.assertNotEqual(jeton_relais(self.tenant.id), jeton_relais(autre.id))
+
+    def test_jeton_dans_la_pile_serveur_seulement(self):
+        from tenants.relais import jeton_relais
+        with override_settings(RELAY_SECRET=SECRET_RELAIS):
+            attendu = jeton_relais(self.tenant.id)
+            env = yaml.safe_load(corps(self.compose()))['services']['ss-node']['environment']
+            self.assertEqual(env['RELAY_AUTH_TOKEN'], attendu)
+            self.assertEqual(len(attendu), 64)
+            self.assertNotIn(attendu, corps(self.compose('temoin')))
+            # Ni le jeton d'enregistrement ni le secret ne figurent dans la pile.
+            texte = corps(self.compose())
+            self.assertNotIn(SECRET_RELAIS, texte)
+            self.assertNotIn(str(self.tenant.registration_token), texte)
+
+    def test_sans_secret_pas_de_jeton(self):
+        with override_settings(RELAY_SECRET=''):
+            env = yaml.safe_load(corps(self.compose()))['services']['ss-node']['environment']
+            self.assertEqual(env['RELAY_AUTH_TOKEN'], '')
+
+    def test_tableau_de_bord_lit_la_topologie_avec_le_jeton(self):
+        from unittest import mock
+        from dashboard import relay
+        from tenants.relais import jeton_relais
+        vus = {}
+
+        def faux_fetch(url, timeout=5, headers=None):
+            vus[url] = headers or {}
+            return {'nodes': []}
+
+        with override_settings(RELAY_SECRET=SECRET_RELAIS, RELAY_URL='http://relais:8080'), \
+                mock.patch.object(relay, '_fetch_json', side_effect=faux_fetch):
+            relay.build_relay_status()
+            url = f'http://relais:8080/api/nodes?tenant_id={self.tenant.id}'
+            self.assertEqual(vus[url], {'x-relay-token': jeton_relais(self.tenant.id)})

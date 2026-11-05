@@ -140,7 +140,7 @@ Le contexte de build est la **racine du workspace `spike/`** (obligatoire pour l
 
 ### Trois acteurs, une frontière de confiance
 
-SaaS éditeur (voit comptes, licences, manifestes) · Relais zero-knowledge (ne voit **jamais** de clair, stocke des sauvegardes chiffrées) · Éditeur du SaaS hébergé (ne voit **jamais** de clair : son application tourne sur un réseau Docker `internal`, sans sortie) · Cluster PME (seul périmètre en clair). Le relais tient la topologie du cluster (metadata), pas les données. Découverte réseau = annonce HTTP au relais au démarrage (pas de mDNS — Docker le masque).
+SaaS éditeur (voit comptes, licences, manifestes) · Relais zero-knowledge (ne voit **jamais** de clair, stocke des sauvegardes chiffrées) · Éditeur du SaaS hébergé (ne voit **jamais** de clair : son application tourne sur un réseau Docker `internal`, sans sortie) · Cluster PME (seul périmètre en clair). Le relais tient la topologie du cluster (metadata), pas les données. Chaque route du relais (blobs, topologie) exige le **jeton du tenant**, `HMAC-SHA256(RELAY_SECRET, "amane-relais/v1/<tenant>")` (`ss-crypto`, `tenants/relais.py`), remis à la pile serveur (`RELAY_AUTH_TOKEN`) ; sans `RELAY_SECRET`, le relais refuse de démarrer (ADR-011). Les sauvegardes portent un en-tête `tenant base date` authentifié : un blob déplacé est refusé à la restauration. Découverte réseau = annonce HTTP au relais au démarrage (pas de mDNS — Docker le masque).
 
 ### L'application hébergée (ADR-007, ADR-009)
 

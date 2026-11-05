@@ -25,7 +25,7 @@ pub async fn restaurer_base(base: &str, jour: u32, config_path: &Path) -> Result
     config.apply_env_overrides();
     let dek = ouvrir_dek(&config)?.ok_or_else(|| anyhow!("DEK absente : enrôlez d'abord cette machine (ss-node enroler)"))?;
     let cible = cible_depuis_env(&config.relay_url, config.tenant_id)?;
-    restaurer(&dek, &cible, base, jour).await?;
-    println!("Base {base} restaurée depuis la sauvegarde du jour {jour}");
+    let date = restaurer(&dek, &cible, base, jour).await?;
+    println!("Base {base} restaurée depuis la sauvegarde du {date} (jour {jour})");
     Ok(())
 }

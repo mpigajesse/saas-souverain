@@ -153,7 +153,7 @@ pub async fn run(mode: RunMode, config_path: &Path) -> Result<()> {
     }
 
     // Sans PostgreSQL : annonce au relais toutes les 30 s.
-    let relay = crate::relay_client::RelayClient::new(&config.relay_url);
+    let relay = crate::relay_client::RelayClient::new(&config.relay_url, crate::relay_client::jeton_depuis_env());
     println!("  PostgreSQL non configuré — boucle d'annonce au relais (30 s).");
     loop {
         if let Some(tid) = config.tenant_id {

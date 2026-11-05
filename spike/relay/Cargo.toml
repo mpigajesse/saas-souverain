@@ -8,6 +8,7 @@ name = "ss-relay"
 path = "src/main.rs"
 
 [dependencies]
+ss-crypto = { workspace = true }
 tokio     = { workspace = true }
 serde     = { workspace = true }
 serde_json = { workspace = true }

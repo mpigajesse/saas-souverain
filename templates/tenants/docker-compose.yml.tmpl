@@ -194,6 +194,10 @@ services:
       TENANT_ID: "${TENANT_ID:-{{ tenant.id }}}"
       REGISTRATION_TOKEN: "${REGISTRATION_TOKEN}"
       RELAY_URL: "${RELAY_URL:-{{ relay_url }}}"
+      # Jeton du relais propre au tenant (ADR-011) : il ouvre ses seuls blobs
+      # et sa seule topologie. Fixé par le portail : retélécharger la pile
+      # suffit à le renouveler.
+      RELAY_AUTH_TOKEN: "{{ jeton_relais }}"
       SAAS_URL: "${SAAS_URL}"
       NODE_ADDR: "${NODE_IP}:${WEB_PORT:-9001}"
       # active = premier serveur : génère la DEK au premier démarrage.

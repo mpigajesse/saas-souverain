@@ -7,10 +7,12 @@ from datetime import datetime, timezone
 from django.conf import settings
 
 from tenants.models import Tenant
+from tenants.relais import entetes_relais
 
 
-def _fetch_json(url: str, timeout: int = 5) -> dict:
-    with urllib.request.urlopen(url, timeout=timeout) as resp:
+def _fetch_json(url: str, timeout: int = 5, headers: dict | None = None) -> dict:
+    requete = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(requete, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
@@ -77,7 +79,8 @@ def build_relay_status() -> dict:
     for tenant in Tenant.objects.order_by("name"):
         nodes = []
         try:
-            result = _fetch_json(f"{relay_url}/api/nodes?tenant_id={tenant.id}")
+            # Topologie lue avec le jeton du tenant (ADR-011).
+            result = _fetch_json(f"{relay_url}/api/nodes?tenant_id={tenant.id}", headers=entetes_relais(tenant.id))
             nodes = [
                 {
                     **n,
