@@ -344,6 +344,19 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
         Some(msg) => format!(r#"<div class="login-err">⚠️ {}</div>"#, esc(msg)),
         None => String::new(),
     };
+    // Démo publique uniquement (spike/demo/) : DEMO_PASSWORD n'existe pas dans
+    // un déploiement PME réel, où aucun identifiant n'est jamais affiché.
+    let demo_block = match std::env::var("DEMO_PASSWORD") {
+        Ok(pw) if !pw.is_empty() => format!(
+            r#"<div style="margin-top:16px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;font-size:.85rem;line-height:1.6">
+    <strong>Démonstration — données fictives</strong><br>
+    Identifiant : <code>admin</code> (direction) ou <code>employe</code> (magasinier)<br>
+    Mot de passe : <code>{}</code>
+  </div>"#,
+            esc(&pw)
+        ),
+        _ => String::new(),
+    };
     format!(
         r#"<!DOCTYPE html>
 <html lang="fr">
@@ -385,6 +398,7 @@ fn login_html(tenant: &str, error: Option<&str>) -> String {
       <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">Se connecter</button>
     </div>
   </form>
+  {demo_block}
 </div>
 </body>
 </html>"#
