@@ -31,6 +31,13 @@
         Se connecter
       </button>
     </form>
+    {% if demo_password %}
+      <div class="alert" style="margin-top:1rem; text-align:left;">
+        <strong>Démonstration — données fictives</strong><br>
+        Éditeur : <code>editeur</code> · PME : <code>pme</code><br>
+        Mot de passe : <code>{{ demo_password }}</code>
+      </div>
+    {% endif %}
   </div>
 </div>
 </body>
