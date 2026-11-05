@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.8
+version: 2.9
 date: 2026-11-05
 branche: main3
-statut: Étapes 1 à 9 terminées — étape 10 (images, relais) avant le banc
+statut: Étapes 1 à 10 terminées — banc à faire (éditeur en 100.64.0.6 sur Tailscale)
 ---
 
 # Fiche du document
@@ -37,6 +37,7 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.6 | 2026-11-04 | main3 | Faille corrigée : l'application hébergée lisait les secrets du cluster (mot de passe du superutilisateur PostgreSQL) ; volume `secrets-application` dédié, orchestrateur republié ; test Go qui rejoignait l'etcd de développement corrigé ; procédure de test V3 sur 5 machines ; refus de licence sans effet sur le cluster ajouté aux points ouverts |
 | 2.7 | 2026-11-04 | main3 | ADR-010 et étape 8 : récupération de la DEK après perte totale (passphrase du gérant et parts papier, Shamir par vsss-rs à la place du code maison, garde-fou, protection des anciennes sauvegardes) ; régression de la sauvegarde de la base `application` corrigée |
 | 2.8 | 2026-11-05 | main3 | Étapes 1 à 8 poussées sur `origin/main3` ; ADR-011 et étape 9 : jeton du relais propre à chaque tenant (HMAC d'un secret partagé entre portail et relais), exigé pour les blobs et la topologie ; relais qui refuse de démarrer sans secret ; sauvegardes liées à leur nom (tenant, base, date authentifiés) |
+| 2.9 | 2026-11-05 | main3 | Étape 10 : relais reconstruit et redémarré avec son secret, nœud et pile republiés, portail reconstruit ; adresse Tailscale de l'éditeur passée à `100.64.0.6` ; sauvegarde et restauration vérifiées de bout en bout contre le relais réel |
 
 # 1. Objet de la refonte
 
@@ -341,7 +342,7 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | Terminée |
 | 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir, vsss-rs), blob sur le relais et sur papier, commande `ss-node recuperer`, garde-fou (ADR-010) | Terminée le 2026-11-04 (banc à faire) |
 | 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) (ADR-011) | Terminée le 2026-11-05 (banc à faire) |
-| 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits ; relais reconstruit et redémarré avec `RELAY_SECRET`, le même secret dans le `.env` du portail | Réalisée le 2026-10-29 (à refaire après les étapes 8 et 9) |
+| 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits ; relais reconstruit et redémarré avec `RELAY_SECRET`, le même secret dans le `.env` du portail | Refaite le 2026-11-05 après les étapes 8 et 9 |
 | 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | Réalisée côté éditeur le 2026-11-04 (banc sur Tailscale) ; reste l'application de l'équipe |
 | Banc | Validation sur machines réelles (annexe) : installation, bascule, application hébergée, enrôlement, sauvegarde, récupération après perte totale | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
@@ -985,6 +986,35 @@ Bilan : 16 vérifications sur 16. Non rejoué dans cet essai : la restauration d
 
 **À faire à l'étape 10.** Le relais du poste éditeur tourne encore sur l'image du 29/10, ouverte. Reconstruit, il refusera de démarrer tant que `RELAY_SECRET` ne lui est pas donné : générer le secret, le placer dans l'environnement du relais **et** dans le `.env` du portail (puis reconstruire le backend), reconstruire et republier le nœud, puis retélécharger la pile des machines déjà installées pour leur remettre leur jeton.
 
+## Étape 10 — Images, relais et portail reconstruits (2026-11-05)
+
+**Préalable.** Les commits de l'étape 9 sont poussés sur `origin/main3` à la demande de l'utilisateur, avec ceux de cette étape. Il a demandé que le secret du relais soit généré sans lui : 64 caractères hexadécimaux tirés par `secrets.token_hex(32)`, écrits dans le `.env` du portail et dans `relay-deploy/.env`, tous deux ignorés par git. Le secret ne figure ni dans le dépôt, ni dans ce journal.
+
+**Adresse de l'éditeur.** Relevée avec `tailscale ip -4` à la demande de l'utilisateur : le poste éditeur est désormais en **`100.64.0.6`** sur Tailscale ; `100.65.0.5` est caduque. `RELAY_URL` du portail mis à jour. L'hôte du registre et du portail dans les installeurs et la pile n'est pas configuré : il est repris de la requête, et suit donc la nouvelle adresse sans autre changement.
+
+| Composant | Ce qui a été fait | Vérification |
+|---|---|---|
+| Pile de développement | Relancée : PostgreSQL et etcd du portail s'étaient arrêtés avec un redémarrage de Docker Desktop | Backend démarré, migrations à jour |
+| Relais | Image reconstruite (Rust 1.88 : le `Dockerfile` modifié à l'étape 9 est validé), poussée en `localhost:5000/ss-relay:dev` ; conteneur `ss-relay` recréé à l'identique (port 8080, volume `relay_blobs`, `restart: unless-stopped`) avec `--env-file relay-deploy/.env`. Retour arrière possible : `ss-relay:v3-essai` (image du 29/10) | `/health` : `authentification: true` ; requête sans jeton : 401. Le volume ne contenait que des dossiers vides, restes d'essais |
+| Portail | Backend et frontend reconstruits ; backend recréé après le changement d'adresse | Depuis le conteneur, pour AMANE Test et PME Pilote AMANE : topologie refusée sans jeton (401), accordée avec le jeton calculé par le portail (200) ; la page Relais joint le relais |
+| Nœud | `spike\build-node.ps1 -Version v3` : `localhost:5000/ss-node:v3` poussé, archive `ss-node-v3.tar.gz` | Image utilisée par l'essai ci-dessous |
+| Pile | `scripts/publier-pile.sh localhost:5000` | Nœud `cea1862c…`, orchestrateur `6a082c40…` ; PostgreSQL, etcd, HAProxy et pgAdmin inchangés. L'orchestrateur change de digest sans changement de code : sa construction n'est pas reproductible octet pour octet |
+| Pile d'AMANE Test | Téléchargée par la voie PME (`100.64.0.6:8000`) | Toutes les images en `100.64.0.6:5000/…@sha256:`, présentes dans le registre (200) ; `RELAY_URL` en `100.64.0.6:8080` ; `RELAY_AUTH_TOKEN` de 64 caractères dans le service `ss-node`, absent de la pile témoin ; application d'exemple incluse. Installeurs Linux et Windows : portail, registre et relais en `100.64.0.6` |
+
+**Essai de bout en bout.** Image du nœud publiée, PostgreSQL 17 jetable, relais réel joint par `100.64.0.6:8080`, tenant AMANE Test, jeton calculé par le portail :
+
+| Scénario | Résultat |
+|---|---|
+| Sauvegarde sans jeton | Refusée par le relais (401) |
+| Sauvegarde avec le jeton | Déposée (`sauvegarde-amane-4`, 1 456 octets) ; le blob commence par `amane-sauvegarde/1 ea49c4c4-… amane 2026-11-05` |
+| Lecture du blob sans jeton | 401 |
+| Données modifiées puis restauration | « Base amane restaurée depuis la sauvegarde du 2026-11-05 (jour 4) » ; la quantité revient de 0 à 40 |
+| Blob copié sous le nom du jour 5 | Restauration refusée : « sauvegarde du 2026-11-05 (jour 4) déposée sous le nom du jour 5 » |
+
+Les blobs de l'essai ont été supprimés du relais, la base et le volume jetables aussi.
+
+**Avant la séance de banc.** Relever l'adresse Tailscale du jour, qui peut encore changer. Les machines installées avant ce jour gardent une pile sans jeton : leurs sauvegardes seront refusées (401) jusqu'à ce que leur pile soit retéléchargée (`docker compose up -d` après téléchargement), sans relancer l'installeur.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
@@ -998,6 +1028,7 @@ Bilan : 16 vérifications sur 16. Non rejoué dans cet essai : la restauration d
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
+| Reconstruction du nœud | La construction de l'image recompile tout l'espace de travail Rust à chaque fois (une vingtaine de minutes le 2026-11-05, dont le téléchargement des crates) : une couche de cache des dépendances (cargo-chef) la raccourcirait | Étape 10 |
 | Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire), en y ajoutant l'enrôlement et une sauvegarde | Étapes 3, 4 |
 | Console React non parcourue | Les pages des étapes 5 et 6 ont été vérifiées par compilation, lint et build, pas dans un navigateur contre un portail réel | Étape 6, banc |
 | WebSockets | Le relais du nœud ne relaie pas encore les connexions WebSocket | ADR-007 |
