@@ -19,6 +19,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # administration Django désactivée. Vide = comportement normal.
 DEMO_PASSWORD = config('DEMO_PASSWORD', default='')
 DEMO_PUBLIQUE = bool(DEMO_PASSWORD)
+# URL publique du nœud PME de démonstration (spike/demo/), ouvert par « Lancer le logiciel ».
+DEMO_LOGICIEL_URL = config('DEMO_LOGICIEL_URL', default='').rstrip('/')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

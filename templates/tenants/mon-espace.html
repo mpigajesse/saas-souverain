@@ -263,6 +263,21 @@
     </div>
     {% endif %}
 
+    {% if demo_logiciel_url %}
+    <!-- Démo en ligne : pas d'accès pgAdmin, la base vit dans le logiciel hébergé -->
+    <div class="creds-card">
+      <h3>Démonstration en ligne</h3>
+      <p class="creds-warning" style="margin-top:0">
+        En production, le logiciel et sa base PostgreSQL tournent sur <strong>vos</strong> machines :
+        l'éditeur ne les voit jamais. Pour cette démo, une instance du logiciel est hébergée avec
+        des articles fictifs — connectez-vous avec <code>admin</code> ou <code>employe</code>
+        et le même mot de passe que sur ce portail.
+      </p>
+      <a href="{{ demo_logiciel_url }}/login" target="_blank" rel="noopener" class="btn-launch" style="display:inline-flex; margin-top:8px;">
+        Lancer le logiciel de démonstration
+      </a>
+    </div>
+    {% else %}
     <!-- Credentials pgAdmin -->
     <div class="creds-card">
       <h3>
@@ -303,6 +318,8 @@
         Le mot de passe DB est celui à saisir dans pgAdmin quand il vous le demande — cochez "Save Password".
       </p>
     </div>
+
+    {% endif %}
 
     <!-- Machines -->
     <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">
@@ -355,7 +372,14 @@
         </div>
 
         <div class="machine-actions">
-          {% if device.web_addr %}
+          {% if demo_logiciel_url %}
+          <a href="{{ demo_logiciel_url }}/login" target="_blank" rel="noopener" class="btn-launch">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M6 3.5l5 4.5-5 4.5V3.5z"/>
+            </svg>
+            Lancer le logiciel
+          </a>
+          {% elif device.web_addr %}
           <a href="http://{{ device.web_addr }}/" target="_blank" rel="noopener" class="btn-launch">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <path d="M6 3.5l5 4.5-5 4.5V3.5z"/>

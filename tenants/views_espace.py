@@ -1,5 +1,6 @@
 import hashlib
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.utils.text import slugify
@@ -43,4 +44,7 @@ def mon_espace(request):
         'active_license': active_license,
         'devices': devices,
         'pgadmin': pgadmin,
+        # Démo en ligne : les machines fictives n'ont pas d'adresse joignable ;
+        # « Lancer le logiciel » ouvre alors le nœud PME hébergé pour la démo.
+        'demo_logiciel_url': settings.DEMO_LOGICIEL_URL,
     })
