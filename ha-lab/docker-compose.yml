@@ -207,3 +207,80 @@ services:
     environment:
       AMANE_NODE_ID: pg-m3
     depends_on: [pg-m3]
+
+  # ── Profil apps-test : micro-SaaS de validation Phase 1 ─────────────────────
+  # Ces services s'exécutent sur le réseau lan pour tester l'intégration
+  # avec le cluster HA (bascule, egress, migrations)
+  
+  app-migrations:
+    image: amane/app-migrations:dev
+    profiles: [apps-test]
+    container_name: app-migrations
+    networks: [lan]
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      AMANE_APP_DB_UTILISATEUR: postgres
+      AMANE_APP_DB_MOT_DE_PASSE: postgres
+      AMANE_APP_DB_HOTE: "10.77.0.12"
+      AMANE_APP_DB_PORT: "5432"
+      AMANE_APP_DB_BASE: "amane"
+    depends_on:
+      pg-m1: { condition: service_started }
+
+  app-multi-web:
+    image: amane/app-multi:dev
+    profiles: [apps-test]
+    container_name: app-multi-web
+    networks: [lan]
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      AMANE_APP_DB_UTILISATEUR: postgres
+      AMANE_APP_DB_MOT_DE_PASSE: postgres
+      AMANE_APP_DB_HOTE: "10.77.0.12"
+      AMANE_APP_DB_PORT: "5432"
+      AMANE_APP_DB_BASE: "amane"
+      REDIS_URL: "redis://redis-apps:6379"
+      MODE: "web"
+    depends_on:
+      pg-m1: { condition: service_started }
+      redis-apps: { condition: service_started }
+
+  app-multi-worker:
+    image: amane/app-multi:dev
+    profiles: [apps-test]
+    container_name: app-multi-worker
+    networks: [lan]
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      AMANE_APP_DB_UTILISATEUR: postgres
+      AMANE_APP_DB_MOT_DE_PASSE: postgres
+      AMANE_APP_DB_HOTE: "10.77.0.12"
+      AMANE_APP_DB_PORT: "5432"
+      AMANE_APP_DB_BASE: "amane"
+      REDIS_URL: "redis://redis-apps:6379"
+      MODE: "worker"
+    depends_on:
+      pg-m1: { condition: service_started }
+      redis-apps: { condition: service_started }
+
+  app-egress:
+    image: amane/app-egress:dev
+    profiles: [apps-test]
+    container_name: app-egress
+    networks: [lan]
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      AMANE_APP_DB_UTILISATEUR: postgres
+      AMANE_APP_DB_MOT_DE_PASSE: postgres
+      AMANE_APP_DB_HOTE: "10.77.0.12"
+      AMANE_APP_DB_PORT: "5432"
+      AMANE_APP_DB_BASE: "amane"
+    depends_on:
+      pg-m1: { condition: service_started }
+
+  redis-apps:
+    image: redis:7-alpine
+    profiles: [apps-test]
+    container_name: redis-apps
+    networks: [lan]
+    command: ["redis-server", "--appendonly", "yes"]

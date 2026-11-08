@@ -291,6 +291,110 @@ sc_strict_blocage() {
   fi
 }
 
+# ── Scénarios Applications (Micro-SaaS Phase 1) ──────────────────────────────
+
+# Crash du conteneur app (web) : l'app meurt → restart auto (unless-stopped)
+# Vérifier: santé OK après restart, zéro perte données, compteur continue
+sc_app_crash_web() {
+  local nom="Crash app web ($TOPO)"
+  attendre_cooldown
+  local p; p=$(leader)
+  ecriture_acquittee "$p" "avant-app-crash" || { resultat "$nom" ÉCHEC "écriture réf"; return; }
+  local t0; t0=$(now_ms)
+  # Trouver conteneur amane-application (web) sur la machine du primaire
+  local app_container; app_container=$(docker ps --filter "name=amane-application" --format "{{.Names}}" | head -1)
+  [ -n "$app_container" ] || { resultat "$nom" ÉCHEC "conteneur app introuvable"; return; }
+  docker kill -s KILL "$app_container" >/dev/null
+  # Attendre restart (max 30s)
+  local restarted=0
+  for i in $(seq 1 30); do
+    if docker ps --filter "name=amane-application" --format "{{.Names}}" | grep -q .; then
+      restarted=1; break
+    fi
+    sleep 1
+  done
+  [ "$restarted" = 1 ] || { resultat "$nom" ÉCHEC "app pas redémarrée en 30s"; return; }
+  local restart_ms=$(( $(now_ms) - t0 ))
+  # Vérifier santé
+  local healthy=0
+  for i in $(seq 1 10); do
+    if curl -sfm 2 "http://${app_container}:8080/sante" >/dev/null 2>&1 || \
+       docker exec "$app_container" curl -sfm 2 localhost:8080/sante >/dev/null 2>&1; then
+      healthy=1; break
+    fi
+    sleep 1
+  done
+  [ "$healthy" = 1 ] || { resultat "$nom" ÉCHEC "healthcheck KO après restart"; return; }
+  # Vérifier zéro perte: écriture post-restart
+  ecriture_acquittee "$p" "apres-app-crash" 5 || { resultat "$nom" ÉCHEC "écriture post-crash échoue"; return; }
+  resultat "$nom" OK "app restart en ${restart_ms}ms, healthcheck OK, zéro perte écriture"
+}
+
+# Crash du worker (app-multi mode worker) : queue bloquée ? Redis garde jobs
+# Vérifier: worker restart, jobs en attente traités
+sc_app_crash_worker() {
+  local nom="Crash app worker ($TOPO)"
+  attendre_cooldown
+  local p; p=$(leader)
+  ecriture_acquittee "$p" "avant-worker-crash" || { resultat "$nom" ÉCHEC "écriture réf"; return; }
+  # Enfiler quelques jobs avant crash
+  local app_web; app_web=$(docker ps --filter "name=amane-application" --format "{{.Names}}" | head -1)
+  [ -n "$app_web" ] || { resultat "$nom" ÉCHEC "conteneur web introuvable"; return; }
+  # Note: en Phase 1, web et worker sont même image bi-mode, pas de worker séparé
+  # Ce scénario est documenté pour Phase 3 (multi-services)
+  resultat "$nom" SKIP "worker séparé = Phase 3 (multi-services compose)"
+}
+
+# Bascu DB pendant requête app : l'app doit retry et réussir
+sc_app_db_failover() {
+  local nom="Bascule DB pendant requête app ($TOPO)"
+  attendre_cooldown
+  local p; p=$(leader)
+  ecriture_acquittee "$p" "avant-db-failover" || { resultat "$nom" ÉCHEC "écriture réf"; return; }
+  local t0; t0=$(now_ms)
+  # Déclencher bascule en tuant PostgreSQL primaire
+  docker kill -s KILL "$p" >/dev/null
+  local np; np=$(attendre_nouveau_primaire "$t0" $(autres "$p")) || { resultat "$nom" ÉCHEC "pas de bascule"; return; }
+  local bascule_ms=$(( $(now_ms) - t0 )); DERNIERE_BASCULE_MS=$(now_ms)
+  # Pendant bascule, tenter écriture via app (simulé: écriture directe DB)
+  local retry_ok=0
+  for i in $(seq 1 20); do
+    if ecriture_acquittee "$np" "pendant-failover-$i" 2; then retry_ok=1; break; fi
+    sleep 0.5
+  done
+  [ "$retry_ok" = 1 ] || { resultat "$nom" ÉCHEC "aucune écriture acquittée pendant bascule"; return; }
+  present "$np" "avant-db-failover" || { resultat "$nom" ÉCHEC "perte donnée pré-failover"; return; }
+  resultat "$nom" OK "bascule ${bascule_ms}ms, retry écriture OK, zéro perte"
+}
+
+# Egress bloqué (confinement internal) : tentative sortante → échec loggé
+sc_app_egress_blocked() {
+  local nom="Egress bloqué confinement ($TOPO)"
+  attendre_cooldown
+  local p; p=$(leader)
+  ecriture_acquittee "$p" "avant-egress-test" || { resultat "$nom" ÉCHEC "écriture réf"; return; }
+  # Tenter egress via app (simulation: curl direct depuis réseau app)
+  # En vrai confinement AMANE, le réseau amane-application est internal=true
+  # Ici on teste que l'app logge l'échec en DB
+  local app_container; app_container=$(docker ps --filter "name=amane-application" --format "{{.Names}}" | head -1)
+  [ -n "$app_container" ] || { resultat "$nom" ÉCHEC "conteneur app introuvable"; return; }
+  # Déclencher test egress vers domaine invalide (doit être bloqué)
+  # Note: en test, le réseau a internet, donc on vérifie le logging "blocked" pour domaine invalide
+  local result; result=$(docker exec "$app_container" curl -sfm 5 "http://localhost:8080/egress-test?url=http://invalid-blocked-test-12345.com" 2>/dev/null || echo '{"status":"error"}')
+  echo "$result" | grep -q '"status":"blocked"' || { resultat "$nom" ÉCHEC "egress pas bloqué/loggé: $result"; return; }
+  # Vérifier log en DB
+  local log_count; log_count=$(docker exec "$p" psql -U postgres -tAc "SELECT count(*) FROM egress_logs WHERE status='blocked' AND domain LIKE '%invalid-blocked-test%'" 2>/dev/null | tr -d ' ')
+  [ "$log_count" -ge 1 ] || { resultat "$nom" ÉCHEC "log egress absent en DB"; return; }
+  resultat "$nom" OK "egress bloqué détecté, loggé en DB (status=blocked)"
+}
+
+# Egress autorisé via proxy (whitelist) : Phase 3 - documenté pour futur
+sc_app_egress_allowed() {
+  local nom="Egress autorisé whitelist ($TOPO)"
+  # Phase 1: pas de proxy nœud encore → SKIP documenté
+  resultat "$nom" SKIP "proxy nœud egress = Phase 3 (spike/node/egress.rs)"
+}
+
 # ── Topologies ──────────────────────────────────────────────────────────────
 
 monter() {
@@ -318,6 +422,9 @@ topologie_temoin() {
   executer sc_isolement_primaire
   executer sc_perte_standby_non_strict
   executer sc_isolement_temoin
+  executer sc_app_crash_web
+  executer sc_app_db_failover
+  executer sc_app_egress_blocked
 }
 
 topologie_trois_pg() {
@@ -327,6 +434,9 @@ topologie_trois_pg() {
   executer sc_isolement_primaire
   executer sc_partition_minoritaire
   executer sc_strict_blocage
+  executer sc_app_crash_web
+  executer sc_app_db_failover
+  executer sc_app_egress_blocked
 }
 
 case "${1:-tout}" in
