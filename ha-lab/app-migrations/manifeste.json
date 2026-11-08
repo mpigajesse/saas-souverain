@@ -1,7 +1,9 @@
 {
   "type_artefact": "docker",
   "image": "amane/app-migrations@sha256:39aa4a0b15dbc2f0255697be689ad44bcde250a5cadd495761e3d3e100fde0a0",
-  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application"],
+  "commande": [
+    "/application"
+  ],
   "port": 8080,
   "sante": "/sante",
   "variables": {
@@ -13,7 +15,12 @@
     }
   },
   "hooks": {
-    "pre_start": "pre_start.sh"
+    "pre_start": [
+      [
+        "/bin/sh",
+        "/pre_start.sh"
+      ]
+    ]
   },
   "volumes": [
     {

@@ -1,7 +1,11 @@
 {
   "type_artefact": "docker",
   "image": "amane/app-multi@sha256:8fd783461d5d16b039468de2a8ac08463eb19c9e6750befd4e4672995e6acba1",
-  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application --mode ${MODE:-web} --port ${PORT:-8080} --redis ${REDIS_URL:-redis://redis:6379}"],
+  "commande": [
+    "/bin/sh",
+    "-c",
+    "/application --mode ${MODE:-web} --port ${PORT:-8080} --redis ${REDIS_URL:-redis://redis:6379}"
+  ],
   "port": 8080,
   "sante": "/sante",
   "variables": {
@@ -16,7 +20,12 @@
     }
   },
   "hooks": {
-    "pre_start": "pre_start.sh"
+    "pre_start": [
+      [
+        "/bin/sh",
+        "/pre_start.sh"
+      ]
+    ]
   },
   "volumes": [
     {
@@ -27,22 +36,41 @@
   "services": {
     "web": {
       "image": "amane/app-multi@sha256:8fd783461d5d16b039468de2a8ac08463eb19c9e6750befd4e4672995e6acba1",
-      "commande": ["/application", "--mode", "web", "--port", "8080"],
+      "commande": [
+        "/application",
+        "--mode",
+        "web",
+        "--port",
+        "8080"
+      ],
       "port": 8080,
       "sante": "/sante",
-      "depends_on": ["redis"]
+      "depends_on": [
+        "redis"
+      ]
     },
     "worker": {
       "image": "amane/app-multi@sha256:8fd783461d5d16b039468de2a8ac08463eb19c9e6750befd4e4672995e6acba1",
-      "commande": ["/application", "--mode", "worker"],
-      "depends_on": ["web", "redis"]
+      "commande": [
+        "/application",
+        "--mode",
+        "worker"
+      ],
+      "depends_on": [
+        "web",
+        "redis"
+      ]
     },
     "redis": {
       "image": "amane/redis:7-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f"
     }
   },
   "networks": {
-    "app-internal": { "internal": true },
-    "app-data": { "internal": true }
+    "app-internal": {
+      "internal": true
+    },
+    "app-data": {
+      "internal": true
+    }
   }
 }

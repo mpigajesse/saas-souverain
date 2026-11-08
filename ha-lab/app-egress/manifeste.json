@@ -1,7 +1,9 @@
 {
   "type_artefact": "docker",
   "image": "amane/app-egress@sha256:4552b10b2a738d629605f174449bb99d114b9f9eba84f0a0ecadf09da27480c0",
-  "commande": ["/bin/sh", "-c", "/pre_start.sh && /application"],
+  "commande": [
+    "/application"
+  ],
   "port": 8080,
   "sante": "/sante",
   "variables": {
@@ -13,7 +15,12 @@
     }
   },
   "hooks": {
-    "pre_start": "pre_start.sh"
+    "pre_start": [
+      [
+        "/bin/sh",
+        "/pre_start.sh"
+      ]
+    ]
   },
   "volumes": [
     {
@@ -22,7 +29,10 @@
     }
   ],
   "egress": {
-    "allowed_domains": ["httpbin.org", "api.github.com"],
+    "allowed_domains": [
+      "httpbin.org",
+      "api.github.com"
+    ],
     "proxy_via_node": true
   }
 }
