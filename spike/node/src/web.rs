@@ -70,6 +70,7 @@ pub async fn serve(
     tenant_name: String,
     application: Option<Arc<Application>>,
     dek: Option<Arc<ss_crypto::Dek>>,
+    relais: Option<crate::recuperation::Relais>,
 ) {
     let state = Arc::new(AppState {
         pool,
@@ -78,6 +79,7 @@ pub async fn serve(
         web_port: port,
         dek,
         invitations: Arc::new(crate::enrolement::Invitations::default()),
+        relais,
     });
 
     // Public routes — no auth required
@@ -100,6 +102,12 @@ pub async fn serve(
             "/admin/enrolement",
             get(auth_routes::enrolement_page).post(auth_routes::enrolement_emettre),
         )
+        // Récupération de la DEK après perte totale (étape 8, ADR-010).
+        .route(
+            "/admin/recuperation",
+            get(auth_routes::recuperation_page).post(auth_routes::recuperation_configurer),
+        )
+        .route("/admin/recuperation/reporter", post(auth_routes::recuperation_reporter))
         .route("/admin/utilisateurs", get(auth_routes::users_list))
         .route(
             "/admin/utilisateurs/nouveau",

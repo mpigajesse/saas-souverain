@@ -88,7 +88,7 @@ pub async fn run(device_id_str: &str, config_path: &Path) -> Result<()> {
     // 6. Check cluster size after de-listing
     // In the spike we don't maintain a local roster — check via relay.
     if let Some(tenant_id) = config.tenant_id {
-        let relay = crate::relay_client::RelayClient::new(&config.relay_url);
+        let relay = crate::relay_client::RelayClient::new(&config.relay_url, crate::relay_client::jeton_depuis_env());
         match relay.get_peers(tenant_id).await {
             Ok(peers) => {
                 let remaining = peers.len();

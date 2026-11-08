@@ -301,6 +301,7 @@ Les compose ne référencent les images que par digest, lus dans `media/node-ima
   "pgadmin": {"url": "…", "email": "…"},
   "besoin_temoin": false,             // true : 2 serveurs actifs et aucun témoin
   "etat_cluster": "sain",             // sain | sous_le_seuil | perdu | "" — pire état annoncé par les serveurs
+  "etat_recuperation": "configuree",  // configuree | reportee | non_configuree | dek_differente | null — ADR-010
   "application": {                    // application externe hébergée, null si aucune (ADR-009)
     "id": "uuid", "nom": "Facturation", "editeur": "Éditions Lumière", "version": "1.0", "statut": "validee"
   },
@@ -377,6 +378,7 @@ Lecture seule : `id`, `tenant_name`, `application_nom`, `created_at`.
   "etat_quorum": "sain",              // sain | sous_le_seuil | perdu | "" (annoncé par le nœud)
   "etat_application": "ok",           // ok | ko | "" — santé de l'application hébergée
   "chiffrement_disque": "oui",        // oui | non | inconnu | "" — constaté par l'installeur (ADR-008)
+  "recuperation": "configuree",       // configuree | reportee | non_configuree | dek_differente | "" (ADR-010)
   "registered_at": "…", "last_seen": "…",
   "is_active": true, "is_within_license": true
 }
@@ -404,11 +406,14 @@ Appelés par le binaire `ss-node`, pas par la console : **pas de session**, donc
   "node_kind": "serveur",             // optionnel : serveur (défaut) | temoin
   "etat_quorum": "sain",              // optionnel : sain | sous_le_seuil | perdu
   "etat_application": "ok",           // optionnel : ok | ko
-  "chiffrement_disque": "oui"         // optionnel : oui | non | inconnu
+  "chiffrement_disque": "oui",        // optionnel : oui | non | inconnu
+  "recuperation": "configuree"        // optionnel : configuree | reportee | non_configuree | dek_differente
 }
 ```
 
-Un témoin (`node_kind: temoin`, annoncé par `orchestrator temoin`) ne consomme pas de poste : il n'est ni compté ni refusé pour dépassement de licence. `node_kind`, `etat_quorum`, `etat_application` ou `chiffrement_disque` invalide → `400`.
+Un témoin (`node_kind: temoin`, annoncé par `orchestrator temoin`) ne consomme pas de poste : il n'est ni compté ni refusé pour dépassement de licence. `node_kind`, `etat_quorum`, `etat_application`, `chiffrement_disque` ou `recuperation` invalide → `400`.
+
+`recuperation` (étape 8, ADR-010) est l'état, commun au cluster, de la récupération de la DEK après perte totale. `dek_differente` signale un cluster réinstallé : le relais protège une autre DEK, et le primaire suspend ses sauvegardes pour ne pas écraser les anciennes jusqu'à `ss-node recuperer`. L'espace PME en tire `etat_recuperation`, le pire état des serveurs actifs (témoins exclus).
 
 | Statut | Corps | Cas |
 | :--- | :--- | :--- |

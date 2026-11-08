@@ -272,7 +272,7 @@ export default function MonEspacePage() {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />
   if (!data) return null
 
-  const { tenant, active_license, devices, pgadmin, besoin_temoin, etat_cluster, application, relay_url } = data
+  const { tenant, active_license, devices, pgadmin, besoin_temoin, etat_cluster, etat_recuperation, application, relay_url } = data
   // Serveurs dont l'installeur a constaté un disque non chiffré (ADR-008).
   const disquesEnClair = devices.filter((d) => d.chiffrement_disque === 'non')
   const seatsUsedPercent =
@@ -484,6 +484,31 @@ export default function MonEspacePage() {
           {etat_cluster === 'perdu'
             ? "Aucun serveur primaire n'est disponible : rallumez ou reconnectez vos serveurs."
             : "Un seul serveur détient vos données : si celui-ci tombe, les écritures récentes peuvent être perdues. Rallumez ou reconnectez l'autre serveur."}
+        </div>
+      )}
+
+      {/* Garde-fou de la récupération de la DEK (ADR-010) : alerter, jamais bloquer */}
+      {etat_recuperation && etat_recuperation !== 'configuree' && (
+        <div
+          style={{
+            background: '#FEE8E8',
+            border: '1px solid var(--crimson)',
+            color: 'var(--crimson)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+            fontSize: '0.875rem',
+          }}
+        >
+          <strong style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <AlertCircle size={16} />
+            {etat_recuperation === 'dek_differente'
+              ? 'Récupération en attente : sauvegardes suspendues'
+              : 'Installation incomplète : récupération des données non configurée'}
+          </strong>
+          {etat_recuperation === 'dek_differente'
+            ? "Ce cluster a été réinstallé : le relais protège les sauvegardes de l'ancienne installation. Lancez « ss-node recuperer » avec la passphrase du gérant et deux feuilles, puis restaurez vos bases. Les nouvelles sauvegardes reprendront ensuite."
+            : "Si tous vos serveurs étaient perdus, vos sauvegardes seraient illisibles. Sur un serveur, ouvrez la console AMANE (/amane/admin/recuperation) : le gérant y choisit une passphrase et imprime trois feuilles à ranger dans trois lieux différents."}
         </div>
       )}
 

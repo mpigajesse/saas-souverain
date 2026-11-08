@@ -45,6 +45,19 @@ class Tenant(models.Model):
         return None
 
     @property
+    def etat_recuperation(self):
+        """Récupération de la DEK (étape 8, ADR-010), pire état remonté par les
+        serveurs actifs : « dek_differente » (cluster réinstallé, sauvegardes
+        suspendues), « non_configuree », « reportee » ou « configuree » ; None
+        sans remontée. L'état est commun au cluster (base `amane`)."""
+        etats = set(self.devices.filter(is_active=True, node_kind='serveur')
+                    .exclude(recuperation='').values_list('recuperation', flat=True))
+        for etat in ('dek_differente', 'non_configuree', 'reportee', 'configuree'):
+            if etat in etats:
+                return etat
+        return None
+
+    @property
     def licence_status(self):
         """Retourne un dict avec l'état de conformité licence."""
         active_license = self.licenses.filter(is_active=True).order_by('-created_at').first()

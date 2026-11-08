@@ -44,7 +44,13 @@ mkdir -p "${INSTALL_DIR}"
 
 # ── 1. Adresse réseau et nom de la machine ───────────────────────────────────
 echo "[1/8] Détection de l'adresse réseau..."
-MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read -r ip; do
+# Adresse source de la route vers le portail : c'est par cette interface que
+# les autres machines de la PME joignent celle-ci (réseau local ou Tailscale,
+# dont les adresses 100.x ne partagent pas de préfixe /24 avec le portail).
+SAAS_IP=$(getent ahostsv4 "{{ saas_host }}" 2>/dev/null | awk '{print $1; exit}')
+[ -z "$SAAS_IP" ] && SAAS_IP="{{ saas_host }}"
+MY_IP=$(ip -4 route get "$SAAS_IP" 2>/dev/null | grep -oP '(?<=src\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -1)
+[ -z "$MY_IP" ] && MY_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^169\.254\.' | while read -r ip; do
     prefix=$(echo "$ip" | cut -d. -f1-3)
     saas_prefix=$(echo "{{ saas_host }}" | cut -d. -f1-3)
     if [ "$prefix" = "$saas_prefix" ]; then echo "$ip"; break; fi

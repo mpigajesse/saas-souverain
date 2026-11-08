@@ -1,6 +1,6 @@
 use std::fmt;
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::{Aead, AeadCore, KeyInit, OsRng, Payload},
     XChaCha20Poly1305, Key, XNonce,
 };
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -68,6 +68,37 @@ impl Dek {
             .decrypt(nonce, ciphertext)
             .map_err(|_| CryptoError::DecryptionFailed)
     }
+
+    /// Comme `encrypt`, en authentifiant aussi `contexte` (données associées
+    /// de l'AEAD, non chiffrées et non incluses dans la sortie). Le chiffré ne
+    /// se déchiffre qu'avec le même contexte : il lie un blob à son nom
+    /// (refonte V3, étape 9, ADR-011).
+    pub fn encrypt_avec_contexte(&self, plaintext: &[u8], contexte: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.0));
+        let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let ciphertext = cipher
+            .encrypt(&nonce, Payload { msg: plaintext, aad: contexte })
+            .map_err(|_| CryptoError::EncryptionFailed)?;
+
+        let mut output = Vec::with_capacity(NONCE_LEN + ciphertext.len());
+        output.extend_from_slice(&nonce);
+        output.extend_from_slice(&ciphertext);
+        Ok(output)
+    }
+
+    /// Déchiffre un blob produit par `encrypt_avec_contexte` ; échoue si le
+    /// contexte diffère de celui du chiffrement.
+    pub fn decrypt_avec_contexte(&self, blob: &[u8], contexte: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        if blob.len() < NONCE_LEN {
+            return Err(CryptoError::InvalidCiphertext);
+        }
+        let (nonce_bytes, ciphertext) = blob.split_at(NONCE_LEN);
+        let nonce = XNonce::from_slice(nonce_bytes);
+        let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.0));
+        cipher
+            .decrypt(nonce, Payload { msg: ciphertext, aad: contexte })
+            .map_err(|_| CryptoError::DecryptionFailed)
+    }
 }
 
 #[cfg(test)]
@@ -114,6 +145,19 @@ mod tests {
         let ct1 = dek.encrypt(b"hello").unwrap();
         let ct2 = dek.encrypt(b"hello").unwrap();
         assert_ne!(ct1, ct2);
+    }
+
+    #[test]
+    fn contexte_lie_au_chiffre() {
+        let dek = Dek::generate();
+        let ct = dek.encrypt_avec_contexte(b"export", b"tenant base lundi").unwrap();
+        assert_eq!(dek.decrypt_avec_contexte(&ct, b"tenant base lundi").unwrap(), b"export");
+        assert!(dek.decrypt_avec_contexte(&ct, b"tenant base jeudi").is_err());
+        assert!(dek.decrypt_avec_contexte(&ct, b"").is_err());
+        // Un chiffré sans contexte n'est pas accepté avec un contexte, ni l'inverse.
+        assert!(dek.decrypt(&ct).is_err());
+        let sans = dek.encrypt(b"export").unwrap();
+        assert!(dek.decrypt_avec_contexte(&sans, b"tenant base lundi").is_err());
     }
 
     #[test]

@@ -289,7 +289,8 @@ export default function ArchitecturePage() {
             <div style={{ paddingLeft: '14px' }}>├▶ chiffre le journal du nœud et les sauvegardes</div>
             <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>sealed box X25519</strong></div>
             <div style={{ paddingLeft: '28px' }}>└▶ une par serveur enrôlé</div>
-            <div style={{ paddingLeft: '14px', color: 'var(--text-muted)' }}>récupération après perte totale (code PME, Shamir) : à venir</div>
+            <div style={{ paddingLeft: '14px' }}>└▶ <strong style={{ color: '#059669' }}>scellée pour la clé de récupération</strong> (perte totale)</div>
+            <div style={{ paddingLeft: '28px' }}>└▶ passphrase du gérant + 2 feuilles sur 3 (Shamir)</div>
           </div>
           <div style={{ marginTop: '14px', fontFamily: 'monospace', fontSize: '.76rem', lineHeight: 2, color: 'var(--text-secondary)' }}>
             <div><strong style={{ color: '#4F46E5' }}>Enrôlement d'un nouveau serveur</strong> (opération humaine)</div>

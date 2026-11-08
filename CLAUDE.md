@@ -140,7 +140,7 @@ Le contexte de build est la **racine du workspace `spike/`** (obligatoire pour l
 
 ### Trois acteurs, une frontière de confiance
 
-SaaS éditeur (voit comptes, licences, manifestes) · Relais zero-knowledge (ne voit **jamais** de clair, stocke des sauvegardes chiffrées) · Éditeur du SaaS hébergé (ne voit **jamais** de clair : son application tourne sur un réseau Docker `internal`, sans sortie) · Cluster PME (seul périmètre en clair). Le relais tient la topologie du cluster (metadata), pas les données. Découverte réseau = annonce HTTP au relais au démarrage (pas de mDNS — Docker le masque).
+SaaS éditeur (voit comptes, licences, manifestes) · Relais zero-knowledge (ne voit **jamais** de clair, stocke des sauvegardes chiffrées) · Éditeur du SaaS hébergé (ne voit **jamais** de clair : son application tourne sur un réseau Docker `internal`, sans sortie) · Cluster PME (seul périmètre en clair). Le relais tient la topologie du cluster (metadata), pas les données. Chaque route du relais (blobs, topologie) exige le **jeton du tenant**, `HMAC-SHA256(RELAY_SECRET, "amane-relais/v1/<tenant>")` (`ss-crypto`, `tenants/relais.py`), remis à la pile serveur (`RELAY_AUTH_TOKEN`) ; sans `RELAY_SECRET`, le relais refuse de démarrer (ADR-011). Les sauvegardes portent un en-tête `tenant base date` authentifié : un blob déplacé est refusé à la restauration. Découverte réseau = annonce HTTP au relais au démarrage (pas de mDNS — Docker le masque).
 
 ### L'application hébergée (ADR-007, ADR-009)
 
@@ -157,7 +157,9 @@ Décrite par un **manifeste** validé (`tenants/manifeste.py`), créée et valid
 ```
 AK (X25519, identité réseau/accès)   ≠   DEK (symétrique, chiffrement disque)
 DEK ── sealed box par serveur enrôlé (code à usage unique, console /amane/admin/enrolement + ss-node enroler)
-    └─ emballée sous KEK ── Shamir SSS K=2/N=3 (socle disponible, pas encore branché dans la pile Docker)
+    └─ scellée pour la clé de récupération (ADR-010) ← KEK = BLAKE2b(K_s, Argon2id(passphrase du gérant))
+                                                          K_s : Shamir 2 sur 3 (vsss-rs), parts imprimées
+       blob sur le relais (clé `recuperation`) et sur papier ; console /amane/admin/recuperation, `ss-node recuperer`
 ```
 
 Seul le premier serveur génère la DEK ; elle chiffre le journal du nœud et les sauvegardes déposées sur le relais (`spike/node/src/sauvegarde.rs`). Le chiffrement au repos est délégué au disque (BitLocker, LUKS), vérifié par l'installeur.

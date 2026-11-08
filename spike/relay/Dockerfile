@@ -1,4 +1,4 @@
-FROM rust:1.85-slim AS builder
+FROM rust:1.88-slim AS builder
 WORKDIR /app
 # Copier le workspace entier pour que Cargo résolve les dépendances locales
 COPY . .

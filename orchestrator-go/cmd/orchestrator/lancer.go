@@ -20,7 +20,7 @@ import (
 // d'origine de l'image.
 func cmdLancer(args []string) int {
 	fs := flag.NewFlagSet("lancer", flag.ExitOnError)
-	secrets := fs.String("secrets", "/amane/secrets/application.env", "fichier des identifiants de la base de l'application")
+	secrets := fs.String("secrets", "/amane/secrets-application/application.env", "fichier des identifiants de la base de l'application")
 	attente := fs.Duration("attente", 10*time.Minute, "attente maximale du fichier de secrets")
 	fs.Parse(args)
 	commande := fs.Args()

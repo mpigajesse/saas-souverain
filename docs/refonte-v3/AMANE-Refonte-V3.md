@@ -2,10 +2,10 @@
 titre: AMANE — Refonte V3
 sous-titre: Faire d'AMANE une enveloppe d'exécution souveraine pour SaaS externes
 document: Journal de refonte, décisions d'architecture et tri du dépôt
-version: 2.4
-date: 2026-10-29
+version: 2.9
+date: 2026-11-05
 branche: main3
-statut: Étapes 1 à 7 terminées et poussées — étapes 8 à 11 avant la validation sur le banc
+statut: Étapes 1 à 10 terminées — banc à faire (éditeur en 100.64.0.6 sur Tailscale)
 ---
 
 # Fiche du document
@@ -33,6 +33,11 @@ Il est mis à jour à chaque étape de la refonte. La source fait foi (`docs/ref
 | 2.2 | 2026-10-29 | main3 | Étape 6 : console React — page Applications, application rattachée aux licences, états V3 des machines, page Architecture réécrite pour la V3 |
 | 2.3 | 2026-10-29 | main3 | Étape 7 : documentation V3 (README, CLAUDE.md, accès, architecture, agents IA), `pme-deploy/` retiré ; absence de récupération de la DEK en cas de perte totale identifiée comme premier point ouvert ; procédure du banc complétée |
 | 2.4 | 2026-10-29 | main3 | Étapes 1 à 7 poussées sur `origin/main3` ; parcours de bout en bout V3 ; analyse de la récupération de la DEK (briques du socle, manques, Shamir maison) et proposition ; jeton du relais et blobs non liés à leur nom ; étapes 8 à 11 avant le banc ; images V3 reconstruites et publiées |
+| 2.5 | 2026-11-04 | main3 | Étape 11 en partie : banc sur Tailscale, adresse des machines prise sur la route vers le portail (installeurs Linux et Windows), chaîne de soumission d'une application vérifiée de bout en bout côté éditeur avec l'application d'exemple ; démarche de soumission confirmée (image et manifeste, ADR-009) ; application de gestion de stock et de facturation attendue de l'équipe |
+| 2.6 | 2026-11-04 | main3 | Faille corrigée : l'application hébergée lisait les secrets du cluster (mot de passe du superutilisateur PostgreSQL) ; volume `secrets-application` dédié, orchestrateur republié ; test Go qui rejoignait l'etcd de développement corrigé ; procédure de test V3 sur 5 machines ; refus de licence sans effet sur le cluster ajouté aux points ouverts |
+| 2.7 | 2026-11-04 | main3 | ADR-010 et étape 8 : récupération de la DEK après perte totale (passphrase du gérant et parts papier, Shamir par vsss-rs à la place du code maison, garde-fou, protection des anciennes sauvegardes) ; régression de la sauvegarde de la base `application` corrigée |
+| 2.8 | 2026-11-05 | main3 | Étapes 1 à 8 poussées sur `origin/main3` ; ADR-011 et étape 9 : jeton du relais propre à chaque tenant (HMAC d'un secret partagé entre portail et relais), exigé pour les blobs et la topologie ; relais qui refuse de démarrer sans secret ; sauvegardes liées à leur nom (tenant, base, date authentifiés) |
+| 2.9 | 2026-11-05 | main3 | Étape 10 : relais reconstruit et redémarré avec son secret, nœud et pile republiés, portail reconstruit ; adresse Tailscale de l'éditeur passée à `100.64.0.6` ; sauvegarde et restauration vérifiées de bout en bout contre le relais réel |
 
 # 1. Objet de la refonte
 
@@ -98,6 +103,8 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | ADR-007 | Hébergement de l'application externe : lancement, interface, base, injection des identifiants | Acceptée (décidée seule) | 2026-10-29 |
 | ADR-008 | Confinement et chiffrement : réseau sans sortie, enrôlement, sauvegardes, chiffrement au repos, mesh reporté | Acceptée (décidée seule) | 2026-10-29 |
 | ADR-009 | Catalogue des applications hébergées : modèle, cycle de vie, rattachement à la licence | Acceptée (décidée seule) | 2026-10-29 |
+| ADR-010 | Récupération de la DEK après perte totale : passphrase et parts papier, vsss-rs, garde-fou, protection des anciennes sauvegardes | Acceptée (décisions 1 à 3 de l'utilisateur) | 2026-11-04 |
+| ADR-011 | Jeton du relais propre à chaque tenant et sauvegardes liées à leur nom | Acceptée (correctif proposé le 29/10, mis en œuvre sur demande) | 2026-11-05 |
 
 ## ADR-001 — Haute disponibilité PME : etcd + Patroni piloté par l'orchestrateur Go
 
@@ -243,6 +250,38 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 
 **Conséquences.** Le portail ne stocke que des manifestes (aucune donnée de PME, aucun secret de base : ils sont générés dans le cluster, ADR-007). La publication de l'image du SaaS externe dans le registre reste une opération de l'éditeur AMANE (comme pour la pile, `scripts/publier-pile.sh`). Une machine déjà installée ne reçoit la nouvelle version qu'en régénérant sa pile.
 
+## ADR-010 — Récupération de la DEK après perte totale
+
+**Contexte.** Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés. Si tous sont perdus, les sauvegardes déposées sur le relais deviennent illisibles (constat de l'étape 7, analyse du 29/10). Le socle contenait des briques (Argon2id, KEK, Shamir 2 sur 3, scellement X25519), mais aucune n'était branchée dans la pile, et le Shamir était écrit à la main, contrairement à la règle n° 1. Décisions 1 à 3 prises par l'utilisateur le 2026-11-04 ; décisions 4 à 8 prises pour les mettre en œuvre.
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Mode de récupération | **Deux facteurs, tous deux exigés** : la passphrase du gérant (ce qu'il sait) et 2 parts papier sur 3 (ce qu'il détient) | Passphrase seule : une passphrase faible ou divulguée suffirait. Parts seules : deux feuilles volées suffiraient |
+| 2 | Partage de Shamir | **Bibliothèque vsss-rs 6.0.1** (partage octet par octet sur GF(256), Rust pur, conçue pour éviter branchements et tables dépendant du secret, audits annoncés). Elle remplace l'arithmétique de `shamir.rs` | Dérogation écrite pour le code maison ; `blahaj` (moins utilisée, aucun audit annoncé) ; `shamirsecretsharing` (secret figé à 64 octets, parts de 113 octets à recopier) |
+| 3 | Garde-fou | **Contraindre l'installation, jamais l'activité.** À sa première connexion à la console du nœud, l'administrateur est envoyé sur la page de récupération ; il la configure ou la reporte, et le report est consigné. Tant qu'elle n'est pas configurée : « installation incomplète » et alerte dans l'espace PME, pastille dans la console de l'éditeur, bandeau dans la console du nœud. L'application et les sauvegardes ne sont jamais bloquées | Alerte seule (facile à ignorer) ; blocage de l'état « prêt », de l'application ou des sauvegardes (bloque l'activité, pousse à une passphrase faible, et des sauvegardes bloquées aggravent une perte) |
+| 4 | Construction | `K_p = Argon2id(passphrase, sel)` ; `K_s` aléatoire de 32 octets, découpé en 3 parts dont 2 suffisent ; `KEK = BLAKE2b-256` à clé `K_s` sur une étiquette et `K_p` ; une paire X25519 de récupération est dérivée de la KEK ; la DEK est scellée pour sa clé publique (sealed box existante de `ss-crypto`). Tout est composé dans `ss-crypto`, sans primitive maison | La KEK emballant directement la DEK : toute republication du blob exigerait la passphrase |
+| 5 | Republication | La clé publique de récupération est gardée dans la base `amane`, répliquée sur tous les serveurs. Tout serveur qui détient la DEK peut **resceller et republier** le blob sans la passphrase, par exemple si le relais l'a perdu | Blob créé une seule fois, au moment de la configuration |
+| 6 | Où vit le blob | Sur le relais (clé `recuperation`), et **imprimé sur chaque feuille**. La récupération ne dépend donc pas de la disponibilité de l'éditeur | Relais seul (l'éditeur deviendrait indispensable) ; feuille seule |
+| 7 | Anciennes sauvegardes | Le blob porte une **empreinte de la DEK** (BLAKE2b à clé, qui ne révèle rien de la DEK). Un primaire dont la DEK ne correspond pas à l'empreinte du blob présent sur le relais ne dépose aucune sauvegarde et le signale : c'est un cluster réinstallé après une perte totale, qui écraserait sinon les sauvegardes du jour par une base vide. `ss-node recuperer` remplace alors la DEK neuve par la DEK récupérée et met de côté le journal local, chiffré par la DEK neuve | Laisser la nouvelle installation écraser les sauvegardes ; ne rien vérifier |
+| 8 | Parts papier et passphrase | Une part fait 33 octets (identifiant + 32), écrits en base32 par groupes de 4, suivis d'une somme de contrôle liée au jeu de parts : une faute de frappe ou une part d'un autre jeu est signalée dès la saisie. Passphrase d'au moins 12 caractères, saisie deux fois, jamais stockée ni transmise. Argon2id en réglage RFC 9106 (64 Mio, 3 passes, 4 voies), paramètres inscrits dans le blob pour pouvoir évoluer | Parts en hexadécimal (plus longues) ; aucune somme de contrôle (erreur découverte seulement à la reconstitution) |
+
+**Conséquences.** La configuration est une opération humaine, comme l'enrôlement : ni le portail ni le relais ne voient la passphrase, les parts ou la KEK. Le relais ne stocke que du chiffré et une empreinte. Reconfigurer (nouvelle passphrase, nouvelles parts) **n'invalide pas** les anciennes feuilles : leur bloc imprimé contient la même DEK, scellée sous l'ancienne clé. Elles doivent être détruites ; seule une rotation de la DEK, non prévue à ce jour, les rendrait inutilisables. Le point ouvert « Paramètres Argon2id » est clos : les valeurs du socle correspondent à la deuxième recommandation de RFC 9106.
+
+## ADR-011 — Jeton du relais propre à chaque tenant et sauvegardes liées à leur nom
+
+**Contexte.** Le relais acceptait un jeton global facultatif que la pile ne transmettait pas : en pratique (banc compris), quiconque connaissait l'identifiant d'un tenant pouvait lire, écraser ou supprimer ses blobs, sauvegardes et blob de récupération compris, et écrire de fausses adresses dans sa topologie. Indépendamment, une sauvegarde déplacée sous un autre nom (autre jour, autre base) se déchiffrait sans erreur : la restauration aurait rendu silencieusement d'anciennes données. Le correctif avait été proposé le 29/10 (§ 6, « Jeton du relais et intégrité des sauvegardes ») ; l'utilisateur a demandé de passer à l'étape 9 le 2026-11-05.
+
+| # | Sujet | Décision | Options écartées |
+|---|---|---|---|
+| 1 | Forme du jeton | **`HMAC-SHA256(RELAY_SECRET, "amane-relais/v1/" ‖ tenant)`** en hexadécimal. Le secret est partagé entre le portail et le relais ; le portail calcule le jeton, le relais le recalcule à chaque requête et le compare en temps constant. Aucune base côté relais. Fonction dans `ss-crypto` (`hmac` et `sha2` de RustCrypto) ; côté portail, `hmac` et `hashlib` de la bibliothèque standard ; un vecteur de test commun verrouille l'accord des deux | Jeton global unique : un tenant écraserait les blobs d'un autre. Jeton aléatoire par tenant stocké par le relais : une base à tenir et à synchroniser depuis le portail. Réutiliser le jeton d'enregistrement : le relais devrait interroger le portail, et ce jeton circule dans les URL des installeurs |
+| 2 | Portée | **Blobs et topologie** : `GET`, `PUT` et `DELETE` de `/api/blobs/<tenant>/…`, l'annonce (`POST /api/nodes/announce`) et la lecture (`GET /api/nodes`) exigent le jeton du tenant concerné. `/health` reste libre et indique `authentification: true` ou `false` | Blobs seuls : n'importe qui pourrait glisser de fausses adresses dans la topologie d'un tenant |
+| 3 | Remise à la pile | **Valeur fixée par le portail dans la pile serveur** (`RELAY_AUTH_TOKEN` du service `ss-node`), pas dans le `.env` écrit par l'installeur : retélécharger la pile suffit à la renouveler. Le témoin, qui ne joint pas le relais, n'en reçoit pas | `.env` de l'installeur : renouveler le jeton exigerait de relancer l'installeur |
+| 4 | Relais sans secret | **Refus de démarrer.** Le mode ouvert existe pour le laboratoire, mais doit être demandé (`RELAY_SANS_AUTHENTIFICATION=1`) ; un secret de moins de 32 caractères est refusé même dans ce mode. `relay-deploy/setup.sh` génère le secret (`openssl rand -hex 32`) et l'affiche pour le `.env` du portail | Relais ouvert par défaut (comportement antérieur) : c'est ainsi que le banc tournait sans protection sans que personne ne l'ait choisi |
+| 5 | Liaison au nom | Chaque blob de sauvegarde commence par un **en-tête en clair** `amane-sauvegarde/1 <tenant> <base> <date>`, que le chiffrement **authentifie comme donnée associée** (XChaCha20-Poly1305, `Dek::encrypt_avec_contexte`). La restauration vérifie que le tenant, la base et le jour de la semaine de la date correspondent au nom du blob, refuse sinon, et affiche la date de la sauvegarde restaurée. Un en-tête réécrit pour correspondre au nouveau nom fait échouer le déchiffrement | Données associées sans en-tête : la restauration devrait deviner la date. Jour seul au lieu de la date : l'opérateur ne verrait pas l'âge de la sauvegarde. Second MAC séparé : une clé de plus, pour ce que l'AEAD fait déjà |
+| 6 | Anciens blobs | Les blobs sans en-tête (antérieurs à l'étape 9) sont **refusés** à la restauration : aucune PME n'est en production, et la rotation sur 7 jours les remplace d'elle-même | Lecture de compatibilité : elle rouvrirait précisément le défaut corrigé |
+
+**Conséquences.** Le portail, donc l'éditeur AMANE, connaît les jetons : il peut lire et supprimer les blobs d'un tenant, ce que l'exploitant du relais pouvait déjà faire sur son disque. Le zero-knowledge n'en dépend pas : les blobs restent chiffrés par la DEK, que ni le portail ni le relais ne détiennent. L'en-tête révèle au relais le nom de la base et la date de la sauvegarde ; le nom du blob et l'heure du dépôt les lui donnaient déjà. Un détenteur du jeton peut encore remettre sous son nom une sauvegarde plus ancienne du même jour de la semaine (d'une semaine précédente) : elle est acceptée, mais sa date est affichée à la restauration. Renouveler le jeton d'un seul tenant exige aujourd'hui de changer le secret commun, donc de retélécharger la pile de tous les tenants (§ 7).
+
 # 4. Tri du dépôt
 
 ## 4.1 À garder intact
@@ -301,10 +340,10 @@ Chaque décision est consignée sous forme d'ADR (Architecture Decision Record) 
 | 5 | SaaS éditeur : modèle Application, soumission d'image par digest, génération des installeurs (ADR-009) | Terminée |
 | 6 | Console React : page Applications, mise à jour Architecture | Terminée |
 | 7 | Documentation : README, CLAUDE.md, accès, contrat d'API | Terminée |
-| 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir), blob sur le relais, commande `ss-node recuperer` ; ADR-010 à rédiger après les trois décisions du § 6 | À faire — décisions attendues |
-| 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) | À faire |
-| 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits | Réalisée le 2026-10-29 (à refaire après les étapes 8 et 9) |
-| 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | À faire |
+| 8 | Récupération de la DEK après perte totale : passphrase du gérant (Argon2id) et parts papier (Shamir, vsss-rs), blob sur le relais et sur papier, commande `ss-node recuperer`, garde-fou (ADR-010) | Terminée le 2026-11-04 (banc à faire) |
+| 9 | Jeton du relais propre à chaque tenant, transmis par la pile ; blobs de sauvegarde liés à leur nom (tenant, base, jour) (ADR-011) | Terminée le 2026-11-05 (banc à faire) |
+| 10 | Images V3 reconstruites et publiées (nœud, orchestrateur, pile) ; portail et console de l'éditeur reconstruits ; relais reconstruit et redémarré avec `RELAY_SECRET`, le même secret dans le `.env` du portail | Refaite le 2026-11-05 après les étapes 8 et 9 |
+| 11 | Préparation de la séance de banc : IP du jour, relais, anciennes machines désactivées, application d'exemple poussée, validée et rattachée à AMANE Test | Réalisée côté éditeur le 2026-11-04 (banc sur Tailscale) ; reste l'application de l'équipe |
 | Banc | Validation sur machines réelles (annexe) : installation, bascule, application hébergée, enrôlement, sauvegarde, récupération après perte totale | À faire |
 | Plus tard | Binaires Linux et .exe Windows (ADR-002) | Prévu |
 
@@ -788,13 +827,199 @@ Le `Dockerfile` du nœud n'a pas de couche de cache des dépendances : une modif
 5. Étape 11 : préparer la séance (IP du jour dans `RELAY_URL`, relais démarré, anciennes machines d'AMANE Test désactivées, application d'exemple poussée, validée et rattachée).
 6. Dérouler l'annexe sur le banc, étapes 1 à 16.
 
+## Séance du 2026-11-04 — préparation de l'essai d'une application hébergée
+
+**Objectif.** Être prêt à soumettre à AMANE l'application d'un éditeur tiers et à obtenir les installeurs qui enrôlent les machines d'une PME. L'application visée est une gestion de stock et de facturation, développée par d'autres membres du groupe ; en l'attendant, toute la chaîne est vérifiée avec l'application d'exemple.
+
+**Décisions de l'utilisateur.**
+
+| Sujet | Décision |
+|---|---|
+| Soumission d'un SaaS | **Démarche actuelle conservée** (ADR-009) : l'éditeur tiers construit son image à partir de son Dockerfile, la pousse dans le registre de l'éditeur AMANE et la déclare avec son manifeste. AMANE ne construit rien. Écartés : un script de soumission (build, push et déclaration en une commande) et un envoi du Dockerfile par la console, qui ferait compiler du code tiers par le portail |
+| Réseau du banc | **Tailscale** : le portail, le registre et le relais sont joints par `100.65.0.5` |
+
+**Défaut corrigé : l'adresse annoncée par l'installeur Linux.** L'installeur retenait l'adresse de la machine qui partage les trois premiers octets avec le portail, et à défaut la première interface venue. Sur Tailscale, les adresses des machines (`100.x.y.z`, plage `100.64.0.0/10`) ne partagent pas ce préfixe avec le portail : l'installeur serait retombé sur une interface quelconque (`docker0`, réseau local), et etcd et Patroni se seraient annoncés sur une adresse injoignable pour les autres machines. L'installeur Windows retenait l'adresse au plus long préfixe : Tailscale (`/32`) l'emportait, par chance. Les deux installeurs prennent désormais **l'adresse source de la route vers le portail** (`ip -4 route get`, `Find-NetRoute`), qui est par construction l'interface par laquelle les machines de la PME se joignent, en réseau local comme sur Tailscale. L'ancienne détection reste en repli.
+
+**Chaîne vérifiée côté éditeur.**
+
+| Étape | Résultat |
+|---|---|
+| Stack de développement | Redémarrée : PostgreSQL et etcd du portail s'étaient arrêtés avec Docker Desktop, le backend redémarrait en boucle |
+| `RELAY_URL` | `http://100.65.0.5:8080` (`.env` sans BOM) ; backend reconstruit pour servir les installeurs corrigés |
+| Image | `ha-lab/application-exemple` construite et poussée : `localhost:5000/editeurs/exemple-compteur:1.0`, digest `sha256:0f483d31…` |
+| Catalogue | « Compteur (exemple) » 1.0 créé, puis **validé contre le vrai registre** (200) : premier contrôle réel, il n'avait été testé qu'avec des réponses simulées |
+| Licence | Application rattachée à la licence d'AMANE Test |
+| Pile serveur | Téléchargée par `100.65.0.5:8000` avec le jeton du tenant : toutes les images viennent de `100.65.0.5:5000` et sont épinglées par digest ; service `amane-application` sur le réseau `internal`, avec HAProxy et le nœud pour seuls voisins ; modèle de `DATABASE_URL` transmis au lanceur ; relais en `100.65.0.5` |
+| Pile témoin | Sans application |
+| Installeurs | Les quatre (Windows et Linux, serveur et témoin) pointent portail, relais et registre sur `100.65.0.5` ; le bloc de détection d'adresse de l'installeur Windows, exécuté tel quel, donne `100.65.0.5` ; celui de Linux, dans un conteneur, donne l'interface de la route |
+| Joignabilité | Portail, registre (`/v2/`) et relais (`/health`) répondent sur `100.65.0.5` depuis le poste éditeur ; à confirmer depuis un poste du banc (pare-feu Windows de l'éditeur) |
+
+**Vérifications.** Django : 118 tests réussis, dont la détection d'adresse par la route dans les deux installeurs (serveur et témoin).
+
+**Ce que l'application de l'équipe doit respecter** pour entrer dans AMANE sans modification :
+
+- un seul conteneur, qui sert une interface HTTP sur un port fixe et répond sur un chemin de santé ;
+- PostgreSQL seulement, lu depuis une variable d'environnement (par exemple `DATABASE_URL`) ; l'application crée ses tables elle-même au démarrage ;
+- aucun accès à Internet pendant le fonctionnement (pas de CDN, de police distante, d'API externe ni de vérification de licence en ligne) ;
+- pas de WebSocket ;
+- des chemins relatifs, ou qui supportent un relais (`X-Forwarded-*`), puisque l'interface est servie par le nœud sur le port 9001 ;
+- les fichiers à conserver dans des dossiers déclarés comme volumes ;
+- une commande de démarrage connue, à reporter dans le manifeste.
+
+**Risques propres à Tailscale, à observer sur le banc.** Docker Desktop doit joindre les adresses `100.x` depuis ses conteneurs (etcd, Patroni) et son démon (registre) ; le pare-feu Windows du poste éditeur doit laisser entrer 8000, 5000 et 8080 par l'interface Tailscale ; les délais de bascule mesurés passeront par un réseau chiffré plutôt qu'un réseau local.
+
+## Faille corrigée le 2026-11-04 — l'application hébergée lisait les secrets du cluster
+
+**Constat.** En rédigeant la procédure de test sur 5 machines (test de confinement G3), il est apparu que le conteneur `amane-application` montait **tout le volume `secrets`** de la machine, en lecture seule. Ce volume contient `postgresql.env`, écrit en mode 0644 par l'orchestrateur : mot de passe du superutilisateur PostgreSQL (`PGPASSWORD_SUPERUSER`), de la réplication, du rôle `amane` du nœud et de pgAdmin. Le lanceur n'avait besoin que de `application.env`.
+
+**Gravité.** Élevée : la promesse d'ADR-003 et d'ADR-008 (« le code de l'éditeur tiers est confiné ») ne tenait pas. Le réseau de l'application est sans sortie, mais HAProxy y est attaché et mène au primaire PostgreSQL. Une application malveillante ou compromise pouvait donc :
+
+- se connecter en superutilisateur et lire ou modifier la base `amane` du nœud (comptes de la console, journal) ;
+- exécuter des commandes dans le conteneur PostgreSQL (`COPY … TO PROGRAM`, réservé au superutilisateur). Ce conteneur est sur le réseau `amane`, qui a une sortie : c'était une voie d'évasion du confinement réseau ;
+- remplacer le mot de passe de réplication ou celui du rôle `amane` et perturber le cluster.
+
+Aucune PME n'était exposée : la V3 n'est installée sur aucune machine réelle.
+
+**Correction.**
+
+| Élément | Avant | Après |
+|---|---|---|
+| Identifiants de l'application | `/amane/secrets/application.env`, dans le volume du cluster | `/amane/secrets-application/application.env`, dans un volume dédié `secrets-application` |
+| Volumes de `amane-application` | `secrets:/amane/secrets:ro` (tout le cluster) | `secrets-application:/amane/secrets-application:ro` (ses seuls identifiants) |
+| Accès en écriture au nouveau volume | — | `amane-init` (prépare le dossier pour l'uid de l'orchestrateur) et `amane-orchestrateur` (écrit le fichier) ; aucun autre service ne le monte |
+| Orchestrateur | — | `init -dossier-secrets-application` (`cmd/orchestrator/pme.go`) ; chemin par défaut du lanceur mis à jour (`lancer.go`) |
+| Pile sans application ou sans base | Inchangée | Inchangée : le volume n'existe que si l'application a une base |
+
+Options écartées : rendre `postgresql.env` illisible par un autre utilisateur (mode 0600) ; l'application peut tourner en root dans son image, et ce mode ne la protégerait donc pas. Retirer le superutilisateur de la portée de HAProxy (`pg_hba`) : utile en défense en profondeur, mais sans effet sur les autres mots de passe du fichier. Ce point reste à étudier (§ 7).
+
+**Vérifications.**
+
+- Django : 120 tests réussis, dont un nouveau test. Il vérifie que l'application ne monte aucun volume `secrets` et monte `secrets-application` en lecture seule, que seuls l'amorçage et l'orchestrateur écrivent dans ce volume, et que la pile sans base n'en a pas.
+- Go : `cmd/orchestrator`, `bootstrap` et `lanceur` réussis, dont un nouveau test de préparation du dossier par `init`.
+- Docker réel, avec l'image publiée : `init` prépare `/amane/secrets-application` pour l'uid 10001 de l'orchestrateur ; l'orchestrateur y écrit ; un autre utilisateur, en lecture seule, n'y voit que `application.env`.
+- Pile servie au tenant AMANE Test : application sur `secrets-application` en lecture seule, orchestrateur `c15cef0b…`.
+- Images : orchestrateur reconstruit et pile republiée (`scripts/publier-pile.sh localhost:5000`) ; les cinq autres digests sont inchangés.
+
+**Incident pendant la vérification.** Lancés sur le poste de développement sans `AMANE_TEST_ETCD`, les tests Go de l'orchestrateur ont joint l'etcd de la stack compose. En cause, `TestCmdInitPairsDuPortailInjoignables` : il annonçait un pair en `127.0.0.1`, dont l'amorçage déduisait `127.0.0.1:2379`, l'etcd du portail. L'amorçage s'y est fait ajouter comme membre fictif (`192.168.1.10`). Avec un membre injoignable sur deux, etcd a perdu son quorum, et Patroni a passé les deux PostgreSQL du portail en lecture seule. C'est aussi ce qui expliquait un premier échec intermittent de la suite.
+
+Réparation :
+
+1. sauvegarde du volume etcd ;
+2. un redémarrage d'etcd avec `--force-new-cluster`, qui garde les données et revient à un seul membre ;
+3. réélection du primaire Patroni.
+
+Le test annonce désormais `192.0.2.1` (RFC 5737, jamais routée).
+
+**Procédure de test.** La procédure sur 5 machines a été rédigée (doc Claude « AMANE V3 — Procédure de test sur 5 machines »). Elle comprend :
+
+- quatre paliers : 2 serveurs + témoin, puis 3 serveurs, puis refus de licence, puis 4 serveurs + témoin ;
+- la fiche « préparer son SaaS pour AMANE » destinée à l'équipe ;
+- une grille de suivi.
+
+Le test G3 y vérifie cette correction.
+
+## Étape 8 — Récupération de la DEK après perte totale (2026-11-04)
+
+**Décisions.** ADR-010. L'utilisateur a choisi : deux facteurs (passphrase du gérant **et** deux parts papier sur trois), la bibliothèque vsss-rs pour le partage de Shamir, et un garde-fou qui contraint l'installation sans jamais bloquer l'activité.
+
+**Ce qui a été fait.**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Socle | `ss-crypto/src/shamir.rs`, `recovery.rs`, `Cargo.toml` | Arithmétique GF(256) maison retirée : partage par vsss-rs 6.0.1 (`split_secret`, `reconstruct_secret`, seuil et nombre réglables). `deriver_kek` (BLAKE2b-256 à clé), `paire_de_recuperation` (X25519), `empreinte_dek`, `somme_controle_part`, paramètres Argon2id de RFC 9106 conservés dans le blob. vsss-rs suit rand_core 0.10 : l'aléa du système lui est fourni par `getrandom` 0.4 |
+| Nœud | `spike/node/src/recuperation.rs` | Blob binaire de 119 octets (version, sel, paramètres, empreinte, DEK scellée) ; parts et bloc en base32 par groupes de 4 avec somme de contrôle liée au jeu ; table `recuperation` de la base `amane` (configurée ou reportée, par qui, quand, clé publique) ; dépôt et lecture sur le relais (clé `recuperation`) ; garde des sauvegardes ; republication |
+| Console du nœud | `auth/routes.rs`, `web.rs` | Page `/amane/admin/recuperation` : passphrase saisie deux fois (12 caractères au moins), Argon2id hors de la boucle asynchrone, trois feuilles imprimables (une part chacune, le bloc, la marche à suivre) affichées une seule fois ; bouton « Plus tard » consigné ; premier login administrateur redirigé tant que rien n'est fait ; bandeau « Installation incomplète » ; lien dans la barre latérale |
+| Commande | `cmd/recuperer.rs`, `main.rs` | `ss-node recuperer [--bloc]` : blob lu sur le relais ou bloc imprimé ressaisi, passphrase masquée au terminal, parts redemandées en cas de faute de frappe ; la DEK récupérée remplace la DEK neuve, scellée pour la machine, et le journal local chiffré par la DEK neuve est mis de côté |
+| Supervision | `cmd/run.rs` | Le primaire ne sauvegarde pas si le relais protège une autre DEK ; après chaque sauvegarde, le blob est rescellé et redéposé ; l'état de la récupération est lu chaque minute et joint au battement de cœur |
+| Portail | `devices` (migration 0010), `tenants/models.py`, `api_espace.py` | `Device.recuperation` (`configuree`, `reportee`, `non_configuree`, `dek_differente`) ; `etat_recuperation` de l'espace PME, pire état des serveurs actifs (témoins exclus) |
+| Console React | `EtatsNoeud.tsx`, `MonEspacePage.tsx`, `ArchitecturePage.tsx`, `types/index.ts` | Pastille « Récupération » sur chaque serveur ; alerte « Installation incomplète » ou « Récupération en attente : sauvegardes suspendues » dans l'espace PME ; hiérarchie des clés à jour |
+| Documentation | `CONTRAT-API.md`, `ACCES-INTERFACES.md`, `Architecture_SaaS_Souverain_Trois_Acteurs.md`, `CLAUDE.md` | Champs, page, commande et parcours de récupération ; les mentions « pas encore branché » sont retirées |
+
+**Défauts trouvés en cours de route.**
+
+- **Régression de la sauvegarde de l'application** (`ac4e022`). Introduite par la correction de la faille des secrets (`5646992`) : le nœud décidait de sauvegarder la base `application` d'après la présence de `/amane/secrets/application.env`, déplacé dans le volume dédié qu'il ne monte pas. La pile lui annonce désormais la base par `AMANE_APP_BASE`, et un test Rust ainsi qu'un test Django le vérifient.
+- **Une erreur dans l'ADR, corrigée avant la publication.** Il était écrit que reconfigurer la récupération invalide les anciennes feuilles. C'est faux : leur bloc imprimé contient la même DEK, scellée sous l'ancienne clé. La console et l'ADR demandent désormais de détruire les anciennes feuilles. Seule une rotation de la DEK, non prévue, les rendrait inutilisables (§ 7).
+
+**Vérifications.**
+
+- `ss-crypto` : 29 tests réussis, dont le parcours complet (passphrase et deux parts quelconques), les refus (mauvaise passphrase, parts d'un autre jeu, une seule part, part en double) et un partage 3 sur 5.
+- Nœud : 36 tests réussis, dont 7 pour la récupération : aller-retour du blob, saisie tolérante mais contrôlée, rescellement, refus d'une passphrase courte, aucune donnée secrète dans le blob. Le reste de l'espace de travail `spike` et le SDK `core-rust` passent aussi.
+- Django : 124 tests réussis, dont 4 sur l'état de la récupération (enregistrement, mise à jour, refus d'une valeur invalide, pire état du cluster, témoin exclu). Console React : `tsc`, `eslint` et `vite build` réussis.
+- **Essai de bout en bout** avec l'image du nœud reconstruite, PostgreSQL 17 et le relais du poste éditeur, scénario par scénario :
+
+| Scénario | Vérification | Résultat |
+|---|---|---|
+| Installation | Premier login administrateur redirigé vers `/amane/admin/recuperation` ; bandeau « Installation incomplète » | Réussi |
+| Configuration | Passphrase courte refusée ; trois feuilles affichées ; blob de 119 octets déposé sur le relais, sans la passphrase ni une part ; bandeau et redirection disparus ; état « configurée » suivi par le nœud | Réussi |
+| Perte totale | Conteneurs et base supprimés, nœud réinstallé avec une DEK neuve : la garde détecte que le relais protège une autre DEK | Réussi |
+| Reconstitution | Faute de frappe détectée par la somme de contrôle ; mauvaise passphrase refusée ; DEK récupérée avec les parts 3 et 1 ; journal de la DEK neuve mis de côté ; après redémarrage, la DEK est celle que protège le relais | Réussi |
+| Sans relais | DEK récupérée sur un troisième nœud depuis le bloc imprimé et les parts 2 et 3 | Réussi |
+
+Bilan : 16 vérifications sur 16. Non rejoué dans cet essai : la restauration des bases après récupération, qui passe par HAProxy et le superutilisateur de la pile complète. Elle utilise le même chemin que l'essai de l'étape 4, avec la DEK d'origine, et sera vérifiée sur le banc (test R4). Images republiées : nœud `307b8192…`, orchestrateur `4186b1b7…` (reconstruit par le script de publication, sans changement de code).
+
+## Étape 9 — Jeton du relais et sauvegardes liées à leur nom (2026-11-05)
+
+**Préalable.** Les six commits locaux du 2026-11-04 (installeurs, faille des secrets, régression de la sauvegarde, étape 8, journal v2.5 à v2.7) ont été poussés sur `origin/main3` (`6e2281d..4e7d640`) à la demande de l'utilisateur, qui a demandé dans le même message de passer à l'étape 9.
+
+**Décisions.** ADR-011, correctif proposé le 29/10 et mis en œuvre tel quel ; décisions de détail (portée, remise par la pile, refus de démarrer, format de l'en-tête, anciens blobs) prises pour le réaliser et consignées dans l'ADR.
+
+**Ce qui a été fait.**
+
+| Domaine | Fichiers | Contenu |
+|---|---|---|
+| Socle | `ss-crypto/src/jeton_relais.rs`, `dek.rs`, `Cargo.toml` | `jeton_relais` et `verifier_jeton_relais` (HMAC-SHA256, RustCrypto, comparaison en temps constant) ; `Dek::encrypt_avec_contexte` et `decrypt_avec_contexte` (données associées de XChaCha20-Poly1305) |
+| Relais | `spike/relay/src/main.rs`, `Cargo.toml`, `Dockerfile` | Secret et dossier des blobs lus une fois au démarrage et gardés dans l'état ; jeton du tenant exigé sur les blobs et la topologie ; refus de démarrer sans secret, mode ouvert explicite ; `authentification` dans `/health`. Image construite avec Rust 1.88, que `ss-crypto` exige depuis vsss-rs |
+| Nœud | `relay_client.rs`, `sauvegarde.rs`, `recuperation.rs`, `cmd/run.rs`, `cmd/delist.rs`, `cmd/sauvegarder.rs` | Un seul point de lecture du jeton (`RELAY_AUTH_TOKEN`) et d'ajout de l'en-tête, pour les sauvegardes, le blob de récupération et la topologie (l'annonce ne l'envoyait pas) ; en-tête de sauvegarde authentifié ; `ss-node restaurer` vérifie le nom et affiche la date de la sauvegarde |
+| Portail | `tenants/relais.py`, `services.py`, `config/settings.py`, `dashboard/relay.py`, `.env.example` | `RELAY_SECRET` ; jeton calculé pour la pile serveur ; la page Relais lit la topologie de chaque tenant avec son jeton ; sans secret, avertissement unique dans les journaux et piles sans jeton |
+| Pile | `templates/tenants/docker-compose.yml.tmpl` | `RELAY_AUTH_TOKEN` du service `ss-node`, fixé par le portail |
+| Déploiement | `relay-deploy/` (`.env.example`, `docker-compose.yml`, `setup.sh`), `spike/docker-compose.yml` | `RELAY_SECRET` à la place de `RELAY_AUTH_TOKEN`, généré par `setup.sh` ; laboratoire en mode ouvert explicite |
+| Documentation | `ACCES-INTERFACES.md`, `CLAUDE.md` | Jeton exigé sur chaque route du relais, calcul, variables |
+
+**Vérifications.**
+
+- `ss-crypto` : 32 tests réussis, dont le vecteur commun avec le portail, le refus du jeton d'un autre tenant, d'un autre secret, tronqué ou mal formé, et le refus d'un chiffré déchiffré avec un autre contexte.
+- Relais : 7 tests réussis : dépôt, relecture et suppression avec le jeton ; sans jeton, avec un jeton faux ou avec le jeton valide d'un autre tenant, ni lecture, ni écrasement, ni suppression (9 combinaisons) ; topologie réservée au tenant ; mode ouvert explicite ; refus de démarrer sans secret ou avec un secret court.
+- Nœud : 39 tests réussis, dont 4 sur le format des sauvegardes : aller-retour, blob déplacé sous le nom d'un autre jour, d'une autre base ou d'un autre tenant refusé, en-tête falsifié refusé au déchiffrement, ancien format refusé. Le SDK `core-rust` compile et passe ses tests avec le nouveau socle.
+- Django : 128 tests réussis, dont 4 nouveaux : vecteur commun avec le relais, jeton dans la seule pile serveur (ni le secret ni le jeton d'enregistrement n'y figurent), pile sans jeton sans secret, topologie lue par la page Relais avec le jeton du tenant.
+- **Essai réel du relais** (binaire compilé, lancé en conteneur sur le port 8089, à côté du relais du banc ; secret aléatoire ; jetons calculés par `tenants/relais.py`) : sans `RELAY_SECRET`, refus de démarrer (code 2) ; avec, `/health` indique `authentification: true` ; dépôt et relecture avec le jeton du tenant : 200 ; lecture sans jeton, suppression avec le jeton d'un autre tenant : 401 ; annonce sans jeton : 401, avec : 200 ; topologie avec le jeton d'un autre tenant : 401, avec le sien : 200. Le portail et le relais calculent donc bien le même jeton.
+- **Image Docker du relais non construite.** Docker Desktop a redémarré au début de la construction (les conteneurs PostgreSQL et etcd du portail se sont arrêtés avec lui, comme le 4 novembre) ; la construction sans cache a été abandonnée au profit de l'essai ci-dessus. Le passage du `Dockerfile` à Rust 1.88 sera vérifié à l'étape 10.
+
+**À faire à l'étape 10.** Le relais du poste éditeur tourne encore sur l'image du 29/10, ouverte. Reconstruit, il refusera de démarrer tant que `RELAY_SECRET` ne lui est pas donné : générer le secret, le placer dans l'environnement du relais **et** dans le `.env` du portail (puis reconstruire le backend), reconstruire et republier le nœud, puis retélécharger la pile des machines déjà installées pour leur remettre leur jeton.
+
+## Étape 10 — Images, relais et portail reconstruits (2026-11-05)
+
+**Préalable.** Les commits de l'étape 9 sont poussés sur `origin/main3` à la demande de l'utilisateur, avec ceux de cette étape. Il a demandé que le secret du relais soit généré sans lui : 64 caractères hexadécimaux tirés par `secrets.token_hex(32)`, écrits dans le `.env` du portail et dans `relay-deploy/.env`, tous deux ignorés par git. Le secret ne figure ni dans le dépôt, ni dans ce journal.
+
+**Adresse de l'éditeur.** Relevée avec `tailscale ip -4` à la demande de l'utilisateur : le poste éditeur est désormais en **`100.64.0.6`** sur Tailscale ; `100.65.0.5` est caduque. `RELAY_URL` du portail mis à jour. L'hôte du registre et du portail dans les installeurs et la pile n'est pas configuré : il est repris de la requête, et suit donc la nouvelle adresse sans autre changement.
+
+| Composant | Ce qui a été fait | Vérification |
+|---|---|---|
+| Pile de développement | Relancée : PostgreSQL et etcd du portail s'étaient arrêtés avec un redémarrage de Docker Desktop | Backend démarré, migrations à jour |
+| Relais | Image reconstruite (Rust 1.88 : le `Dockerfile` modifié à l'étape 9 est validé), poussée en `localhost:5000/ss-relay:dev` ; conteneur `ss-relay` recréé à l'identique (port 8080, volume `relay_blobs`, `restart: unless-stopped`) avec `--env-file relay-deploy/.env`. Retour arrière possible : `ss-relay:v3-essai` (image du 29/10) | `/health` : `authentification: true` ; requête sans jeton : 401. Le volume ne contenait que des dossiers vides, restes d'essais |
+| Portail | Backend et frontend reconstruits ; backend recréé après le changement d'adresse | Depuis le conteneur, pour AMANE Test et PME Pilote AMANE : topologie refusée sans jeton (401), accordée avec le jeton calculé par le portail (200) ; la page Relais joint le relais |
+| Nœud | `spike\build-node.ps1 -Version v3` : `localhost:5000/ss-node:v3` poussé, archive `ss-node-v3.tar.gz` | Image utilisée par l'essai ci-dessous |
+| Pile | `scripts/publier-pile.sh localhost:5000` | Nœud `cea1862c…`, orchestrateur `6a082c40…` ; PostgreSQL, etcd, HAProxy et pgAdmin inchangés. L'orchestrateur change de digest sans changement de code : sa construction n'est pas reproductible octet pour octet |
+| Pile d'AMANE Test | Téléchargée par la voie PME (`100.64.0.6:8000`) | Toutes les images en `100.64.0.6:5000/…@sha256:`, présentes dans le registre (200) ; `RELAY_URL` en `100.64.0.6:8080` ; `RELAY_AUTH_TOKEN` de 64 caractères dans le service `ss-node`, absent de la pile témoin ; application d'exemple incluse. Installeurs Linux et Windows : portail, registre et relais en `100.64.0.6` |
+
+**Essai de bout en bout.** Image du nœud publiée, PostgreSQL 17 jetable, relais réel joint par `100.64.0.6:8080`, tenant AMANE Test, jeton calculé par le portail :
+
+| Scénario | Résultat |
+|---|---|
+| Sauvegarde sans jeton | Refusée par le relais (401) |
+| Sauvegarde avec le jeton | Déposée (`sauvegarde-amane-4`, 1 456 octets) ; le blob commence par `amane-sauvegarde/1 ea49c4c4-… amane 2026-11-05` |
+| Lecture du blob sans jeton | 401 |
+| Données modifiées puis restauration | « Base amane restaurée depuis la sauvegarde du 2026-11-05 (jour 4) » ; la quantité revient de 0 à 40 |
+| Blob copié sous le nom du jour 5 | Restauration refusée : « sauvegarde du 2026-11-05 (jour 4) déposée sous le nom du jour 5 » |
+
+Les blobs de l'essai ont été supprimés du relais, la base et le volume jetables aussi.
+
+**Avant la séance de banc.** Relever l'adresse Tailscale du jour, qui peut encore changer. Les machines installées avant ce jour gardent une pile sans jeton : leurs sauvegardes seront refusées (401) jusqu'à ce que leur pile soit retéléchargée (`docker compose up -d` après téléchargement), sans relancer l'installeur.
+
 # 7. Points ouverts
 
 | Sujet | Question | Lié à |
 |---|---|---|
-| **Récupération de la DEK après perte totale** (prioritaire) | Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : s'ils sont tous perdus, les sauvegardes du relais sont irrécupérables. Proposition et trois décisions attendues au § 6 (séance du 2026-10-29 après-midi) ; étape 8 | ADR-003, ADR-008, futur ADR-010 |
-| **Shamir implémenté à la main** | `shamir.rs` contrevient à la règle n° 1 (aucune primitive maison) et n'est pas à temps constant contrairement à son commentaire. Remplacer par une bibliothèque reconnue ou consigner une dérogation, avant de brancher la récupération | Règle n° 1, étape 8 |
-| Paramètres Argon2id | 64 Mio, 3 passes : réglages du spike, à revoir pour une passphrase qui protège toute la DEK d'un client | Étape 8 |
+| Rotation de la DEK | Aucune rotation n'est prévue : d'anciennes feuilles de récupération, d'anciens serveurs retirés et d'anciennes sauvegardes gardent la même DEK. La rotation exige de rechiffrer les sauvegardes du relais et de resceller pour chaque serveur ; la clé publique de récupération permet déjà de republier le blob sans la passphrase | ADR-010 |
 | Chiffrement au repos | Tranché par ADR-008 (chiffrement du disque vérifié). À rouvrir si une PME exige un chiffrement sous la DEK indépendant de son système | ADR-008 |
 | Licence du SaaS externe | Comment l'application vérifie-t-elle sa propre licence sans accès sortant vers son éditeur ? Relais de métadonnées par le nœud ? | ADR-003 |
 | Mises à jour de l'application | Une nouvelle version est validée par l'éditeur AMANE (ADR-009) ; reste : signature des images (cosign) en plus du digest, et propagation aux machines installées (régénération de la pile aujourd'hui) | ADR-002, ADR-009 |
@@ -803,14 +1028,17 @@ Le `Dockerfile` du nœud n'a pas de couche de cache des dépendances : une modif
 | Bases autres que PostgreSQL | Que faire d'une application qui exige MySQL ou MongoDB ? | ADR-001 |
 | Délais de bascule sur le banc | Confirmer sur machines réelles les cibles d'ADR-006 (laboratoire : crash < 5 s, machine ≈ 5 s, partition < 8 s) | ADR-006, banc |
 | Validation sur le banc | Installer AMANE Test (2 serveurs + témoin) selon l'annexe ; vérifier pare-feu Windows et Docker Desktop | Étape 2b |
+| Reconstruction du nœud | La construction de l'image recompile tout l'espace de travail Rust à chaque fois (une vingtaine de minutes le 2026-11-05, dont le téléchargement des crates) : une couche de cache des dépendances (cargo-chef) la raccourcirait | Étape 10 |
 | Essai de bout en bout de l'étape 3 | Rejouer l'essai sur trois machines avec l'application d'exemple (interrompu faute de mémoire), en y ajoutant l'enrôlement et une sauvegarde | Étapes 3, 4 |
 | Console React non parcourue | Les pages des étapes 5 et 6 ont été vérifiées par compilation, lint et build, pas dans un navigateur contre un portail réel | Étape 6, banc |
 | WebSockets | Le relais du nœud ne relaie pas encore les connexions WebSocket | ADR-007 |
 | Enrôlement sur un réseau hostile | L'échange d'enrôlement passe en HTTP sur le réseau local : la DEK y est scellée, mais un attaquant placé au milieu pourrait capter le code et substituer sa clé publique, ou remettre une fausse DEK. Piste : afficher l'empreinte de la clé du nouveau serveur dans la console pour confirmation humaine, ou TLS du mesh | ADR-008 |
 | Mesh WireGuard | Reporté au-delà de l'étape 7 ; à valider sur le banc (`NET_ADMIN`, Docker Desktop) | ADR-008 |
 | Taille des sauvegardes | L'export est chiffré en mémoire en un seul bloc (limite pratique : quelques centaines de Mo). Au-delà : chiffrement par morceaux en flux | ADR-008 |
-| Jeton du relais | La pile générée ne transmet pas `RELAY_AUTH_TOKEN` au nœud : un relais qui l'exige refuserait les sauvegardes, un relais qui ne l'exige pas laisse supprimer les blobs. Jeton propre au tenant (HMAC) : étape 9 | ADR-008, étape 9 |
-| Blobs non liés à leur nom | Une sauvegarde déplacée (autre jour, autre base) se déchiffre sans erreur : restauration silencieuse d'anciennes données. Lier tenant, base et jour au chiffrement : étape 9 | ADR-008, étape 9 |
+| Renouvellement du jeton d'un tenant | Le jeton dérive du seul secret commun : en cas de fuite du jeton d'un tenant, le renouveler oblige à changer le secret et à retélécharger la pile de tous les tenants. Piste : un compteur de génération par tenant inclus dans le HMAC, incrémenté par le portail | ADR-011 |
+| Relais à secret unique | Le secret commun est la clé de tous les jetons : sa fuite côté portail ou relais rouvre l'accès aux blobs (toujours chiffrés) de tous les tenants. Le garder hors du dépôt, dans les `.env` du portail et du relais | ADR-011 |
+| **Refus de licence sans effet sur le cluster** | Un serveur au-delà du nombre de postes est refusé et désactivé par le portail (`devices/api_register.py`), mais ni le nœud ni l'orchestrateur n'agissent sur ce refus : l'amorçage le fait entrer dans etcd et Patroni, et il sert l'application. À confirmer sur le banc (test E1), puis faire respecter le refus par l'amorçage | Licences, ADR-005 |
+| Superutilisateur joignable depuis le réseau de l'application | HAProxy, attaché au réseau de l'application, mène au primaire pour tous les rôles. Défense en profondeur : restreindre par `pg_hba` le réseau de l'application au seul rôle `application` | ADR-008 |
 | Sauvegarde sur un serveur non enrôlé | Un primaire sans DEK ne sauvegarde pas (il le signale dans ses journaux). Alerter le portail ? | ADR-008 |
 | Vulnérabilités préexistantes | `govulncheck` signale 12 vulnérabilités atteignables antérieures à 2b : bibliothèque standard (toolchain 1.27.0), `golang.org/x/net`, `google.golang.org/grpc` | Commit de mise à jour dédié |
 | Couverture Go globale | 68,2 % (68,9 % avant 2b), sous le seuil CI de 70 % depuis avant la refonte : `main()` de l'orchestrateur et `wgmesh` ne sont pas testés | CI |
@@ -831,28 +1059,29 @@ Objectif : installer le banc **AMANE Test** (3 postes) en 2 serveurs + 1 témoin
 
 1. Démarrer la pile de développement (`docker compose up -d`) : portail, registre local (port 5000).
 2. Construire l'image du nœud (`spike\build-node.ps1`), puis publier la pile : `bash scripts/publier-pile.sh localhost:5000`. Vérifier que `media/node-images/pile.json` liste six images `@sha256:`.
-3. Dans la console, **désactiver les anciennes machines** du tenant AMANE Test. Sinon l'amorçage verrait des machines connues mais injoignables et refuserait, à juste titre, de créer un cluster.
+3. Relais démarré avec `RELAY_SECRET`, le même que dans le `.env` du portail : `/health` doit répondre `"authentification": true` (ADR-011).
+4. Dans la console, **désactiver les anciennes machines** du tenant AMANE Test. Sinon l'amorçage verrait des machines connues mais injoignables et refuserait, à juste titre, de créer un cluster.
 
 **Côté PME (les trois postes).**
 
-4. Depuis l'espace PME du tenant, télécharger l'installeur **serveur** et le lancer en administrateur sur le poste 1. Noter le mot de passe pgAdmin affiché à la fin.
-5. Lancer l'installeur **serveur** sur le poste 2 ; il doit annoncer « 1 serveur(s) déjà installé(s) ». Puis l'**enrôler** (étape 4) : dans la console du poste 1 (`http://<poste 1>:9001/amane/admin/enrolement`), générer un code, et sur le poste 2 lancer `docker exec ss-node ss-node enroler --depuis http://<poste 1>:9001 --code <code>` puis `docker restart ss-node`.
-6. L'espace PME doit alors proposer un témoin : télécharger l'installeur **témoin** et le lancer sur le poste 3.
+5. Depuis l'espace PME du tenant, télécharger l'installeur **serveur** et le lancer en administrateur sur le poste 1. Noter le mot de passe pgAdmin affiché à la fin.
+6. Lancer l'installeur **serveur** sur le poste 2 ; il doit annoncer « 1 serveur(s) déjà installé(s) ». Puis l'**enrôler** (étape 4) : dans la console du poste 1 (`http://<poste 1>:9001/amane/admin/enrolement`), générer un code, et sur le poste 2 lancer `docker exec ss-node ss-node enroler --depuis http://<poste 1>:9001 --code <code>` puis `docker restart ss-node`.
+7. L'espace PME doit alors proposer un témoin : télécharger l'installeur **témoin** et le lancer sur le poste 3.
 
 **Vérifications.**
 
-7. Sur un serveur : `docker exec amane-postgresql patronictl list` → un `Leader` et un `Sync Standby` en `streaming`, nommés d'après les postes.
-8. `docker exec amane-etcd etcdctl member list` → 3 membres `started`.
-9. Console éditeur : 2 serveurs et 1 témoin actifs ; la licence ne compte que les 2 serveurs.
-10. Bascule : éteindre brutalement le poste du primaire (alimentation) ; sur l'autre serveur, `patronictl list` doit le montrer `Leader` en quelques secondes ; pgAdmin (port 5050) doit pouvoir écrire.
-11. Rallumer le poste : il doit revenir en `Replica` puis `Sync Standby`.
-12. Sauvegarde : `docker exec ss-node ss-node sauvegarder` sur le primaire ; le blob doit apparaître sur le relais (page Relais de la console) et ne contenir aucune donnée lisible.
-13. Console éditeur : la page Appareils doit montrer l'état du disque de chaque poste (chiffré ou non) et le témoin.
+8. Sur un serveur : `docker exec amane-postgresql patronictl list` → un `Leader` et un `Sync Standby` en `streaming`, nommés d'après les postes.
+9. `docker exec amane-etcd etcdctl member list` → 3 membres `started`.
+10. Console éditeur : 2 serveurs et 1 témoin actifs ; la licence ne compte que les 2 serveurs.
+11. Bascule : éteindre brutalement le poste du primaire (alimentation) ; sur l'autre serveur, `patronictl list` doit le montrer `Leader` en quelques secondes ; pgAdmin (port 5050) doit pouvoir écrire.
+12. Rallumer le poste : il doit revenir en `Replica` puis `Sync Standby`.
+13. Sauvegarde : `docker exec ss-node ss-node sauvegarder` sur le primaire ; le blob doit apparaître sur le relais (page Relais de la console), commencer par l'en-tête `amane-sauvegarde/1` et ne contenir aucune autre donnée lisible. Une requête sans jeton (`curl http://<relais>:8080/api/blobs/<tenant>/sauvegarde-amane-<jour>`) doit répondre 401.
+14. Console éditeur : la page Appareils doit montrer l'état du disque de chaque poste (chiffré ou non) et le témoin.
 
 **Application hébergée, récupération (après les étapes 8 et 9).**
 
-14. Application d'exemple : la page répond par `http://<poste 1>:9001/` et par `http://<poste 2>:9001/` ; un compteur incrémenté par l'un est relu identique par l'autre ; après l'extinction du primaire, l'application répond toujours par le serveur restant et le compteur est intact.
-15. Récupération configurée sur le poste 1 (passphrase du gérant, parts imprimées) ; le blob de récupération apparaît sur le relais.
-16. Perte totale simulée : les deux serveurs sont réinstallés à neuf ; `ss-node recuperer` avec la passphrase et deux parts ; `ss-node restaurer` rend les données d'avant la perte.
+15. Application d'exemple : la page répond par `http://<poste 1>:9001/` et par `http://<poste 2>:9001/` ; un compteur incrémenté par l'un est relu identique par l'autre ; après l'extinction du primaire, l'application répond toujours par le serveur restant et le compteur est intact.
+16. Récupération configurée sur le poste 1 (passphrase du gérant, parts imprimées) ; le blob de récupération apparaît sur le relais.
+17. Perte totale simulée : les deux serveurs sont réinstallés à neuf ; `ss-node recuperer` avec la passphrase et deux parts ; `ss-node restaurer` rend les données d'avant la perte.
 
 Consigner les résultats et les durées dans le § 6 (étape 2d pour les mesures fines).

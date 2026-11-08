@@ -162,6 +162,7 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
     let ca = if active == "cluster" { "active" } else { "" };
     let ua = if active == "utilisateurs" { "active" } else { "" };
     let ea = if active == "enrolement" { "active" } else { "" };
+    let ra = if active == "recuperation" { "active" } else { "" };
 
     let admin_section = if is_admin {
         format!(
@@ -186,10 +187,17 @@ pub(crate) fn layout(title: &str, active: &str, user: &User, tenant: &str, conte
       </svg>
       Enrôlement
     </a>
+    <a href="/amane/admin/recuperation" class="{ra}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+      Récupération
+    </a>
   </nav>"#,
             ca = ca,
             ua = ua,
             ea = ea,
+            ra = ra,
         )
     } else {
         String::new()
@@ -392,7 +400,15 @@ pub async fn login_post(
 
     match super::authenticate(&state.pool, username, password).await {
         Some(user) => {
-            let redirect_to = if user.role == "admin" { "/amane/admin" } else { "/amane" };
+            // Garde-fou (ADR-010) : à sa première connexion, l'administrateur
+            // est envoyé sur la récupération, qu'il configure ou reporte.
+            let redirect_to = if user.role != "admin" {
+                "/amane"
+            } else if matches!(crate::recuperation::etat(&state.pool).await, Ok(crate::recuperation::Etat::NonConfiguree)) {
+                "/amane/admin/recuperation"
+            } else {
+                "/amane/admin"
+            };
             match super::create_session(&state.pool, user.id).await {
                 Ok(sid) => (
                     [(header::SET_COOKIE, super::session_cookie_set(sid))],
@@ -520,7 +536,12 @@ pub async fn accueil(
   Son interface sera servie ici, telle que son éditeur l'a conçue.</div>
 </div>"#;
 
-    Html(layout("Application hébergée", "accueil", &user, &state.tenant_name, content))
+    let content = if user.role == "admin" {
+        format!("{}{}", bandeau_recuperation(&state).await, content)
+    } else {
+        content.to_string()
+    };
+    Html(layout("Application hébergée", "accueil", &user, &state.tenant_name, &content))
 }
 
 // ── Admin dashboard ───────────────────────────────────────────────────────────
@@ -587,7 +608,7 @@ pub async fn admin_dashboard(
     if let Ok(base) = std::env::var("PATRONI_URL") {
         if !base.is_empty() {
             let etat = crate::patroni::lire_etat(&base).await;
-            let content = page_cluster_patroni(&etat);
+            let content = format!("{}{}", bandeau_recuperation(&state).await, page_cluster_patroni(&etat));
             return Html(layout("Cluster", "cluster", &user, &state.tenant_name, &content));
         }
     }
@@ -658,6 +679,7 @@ pub async fn admin_dashboard(
 </div>"#,
     );
 
+    let content = format!("{}{}", bandeau_recuperation(&state).await, content);
     Html(layout("Cluster", "cluster", &user, &state.tenant_name, &content))
 }
 
@@ -961,4 +983,218 @@ fn error_admin(msg: &str, user: &User, tenant: &str) -> Html<String> {
         tenant,
         &format!(r#"<div class="err-bar">⚠️ <strong>Erreur :</strong> {}</div><a href="/amane/admin/utilisateurs" class="btn btn-g">← Retour</a>"#, esc(msg)),
     ))
+}
+
+
+// ── Récupération de la DEK après perte totale (étape 8, ADR-010) ─────────────
+
+/// Bandeau des pages d'administration tant que la récupération n'est pas
+/// configurée (garde-fou d'ADR-010 : alerter, jamais bloquer).
+async fn bandeau_recuperation(state: &AppState) -> String {
+    use crate::recuperation::Etat;
+    match crate::recuperation::etat(&state.pool).await {
+        Ok(Etat::Configuree { .. }) | Err(_) => String::new(),
+        Ok(_) => r#"<div class="alert-bar" style="background:#FEE2E2;border-color:#FCA5A5;color:#991B1B">
+  ⚠ Installation incomplète : la récupération des données n'est pas configurée. Si tous les serveurs
+  étaient perdus, les sauvegardes seraient illisibles. <a href="/amane/admin/recuperation" style="color:inherit;font-weight:700">Configurer</a></div>"#
+            .to_string(),
+    }
+}
+
+fn page_recuperation(state: &AppState, etat: &crate::recuperation::Etat, erreur: Option<&str>) -> String {
+    use crate::recuperation::{Etat, PASSPHRASE_MIN};
+    let statut = match etat {
+        Etat::Configuree { par, le, jeu, .. } => format!(
+            r#"<p style="color:#065F46;font-weight:700">✓ Configurée le {} par {} — jeu de parts {}</p>
+<p style="margin-top:8px">Reconfigurer crée une nouvelle passphrase et trois nouvelles feuilles. <strong>Les anciennes
+  feuilles restent capables de reconstituer la DEK</strong> avec l'ancienne passphrase : leur bloc la contient, et la DEK
+  ne change pas. Détruisez-les une fois les nouvelles rangées.</p>"#,
+            le.format("%d/%m/%Y"),
+            esc(par),
+            esc(jeu)
+        ),
+        Etat::Reportee { par, le } => format!(
+            r#"<p style="color:#991B1B;font-weight:700">⚠ Reportée le {} par {}. Tant qu'elle n'est pas configurée,
+  la perte de tous les serveurs rendrait les sauvegardes illisibles.</p>"#,
+            le.format("%d/%m/%Y"),
+            esc(par)
+        ),
+        Etat::NonConfiguree => r#"<p style="color:#991B1B;font-weight:700">⚠ Pas encore configurée. Si tous les serveurs étaient
+  perdus, les sauvegardes du relais seraient illisibles.</p>"#
+            .to_string(),
+    };
+    let formulaire = if state.dek.is_none() {
+        r#"<div class="empty">Cette machine ne détient pas la DEK du cluster. Ouvrez cette page sur le premier
+  serveur, ou sur un serveur déjà enrôlé.</div>"#
+            .to_string()
+    } else {
+        let erreur = erreur
+            .map(|e| format!(r#"<div class="alert-bar" style="background:#FEE2E2;border-color:#FCA5A5;color:#991B1B">{}</div>"#, esc(e)))
+            .unwrap_or_default();
+        let reporter = if matches!(etat, Etat::NonConfiguree) {
+            r#"<form method="post" action="/amane/admin/recuperation/reporter" style="margin-top:10px">
+  <button type="submit" class="btn" style="background:#F3F4F6">Plus tard (consigné)</button>
+</form>"#
+        } else {
+            ""
+        };
+        format!(
+            r#"{erreur}
+<form method="post" action="/amane/admin/recuperation" style="margin-top:14px">
+  <label style="display:block;font-weight:600;margin-bottom:4px">Passphrase du gérant (au moins {PASSPHRASE_MIN} caractères)</label>
+  <input type="password" name="passphrase" minlength="{PASSPHRASE_MIN}" required autocomplete="new-password"
+    style="width:100%;max-width:420px;padding:9px;border:1px solid #D1D5DB;border-radius:8px">
+  <label style="display:block;font-weight:600;margin:10px 0 4px">Confirmation</label>
+  <input type="password" name="confirmation" minlength="{PASSPHRASE_MIN}" required autocomplete="new-password"
+    style="width:100%;max-width:420px;padding:9px;border:1px solid #D1D5DB;border-radius:8px">
+  <p style="margin:10px 0;color:var(--mu);font-size:.83rem">Seul le gérant doit la connaître. Elle n'est ni conservée
+    ni transmise : perdue, elle ne peut pas être retrouvée. Préférez une phrase de plusieurs mots.</p>
+  <button type="submit" class="btn btn-p">Configurer et imprimer les trois feuilles</button>
+</form>{reporter}"#
+        )
+    };
+    format!(
+        r#"<div class="page-title">Récupération des données</div>
+<div class="page-sub">Retrouver la DEK si tous les serveurs étaient perdus — passphrase du gérant et deux feuilles sur trois</div>
+<div class="cluster-card">{statut}
+<p style="margin-top:12px">La configuration produit <strong>trois feuilles</strong> à ranger dans trois lieux différents
+  (coffre, notaire, domicile du gérant). Deux feuilles et la passphrase suffisent à reconstituer la clé ;
+  une feuille seule, ou la passphrase seule, ne révèle rien.</p>
+{formulaire}</div>"#
+    )
+}
+
+pub async fn recuperation_page(State(state): State<Arc<AppState>>, Extension(user): Extension<User>) -> Html<String> {
+    let etat = crate::recuperation::etat(&state.pool).await.unwrap_or(crate::recuperation::Etat::NonConfiguree);
+    Html(layout("Récupération", "recuperation", &user, &state.tenant_name, &page_recuperation(&state, &etat, None)))
+}
+
+#[derive(Deserialize)]
+pub struct RecuperationForm {
+    pub passphrase: String,
+    pub confirmation: String,
+}
+
+async fn recuperation_erreur(state: &AppState, user: &User, message: &str) -> Response {
+    let etat = crate::recuperation::etat(&state.pool).await.unwrap_or(crate::recuperation::Etat::NonConfiguree);
+    Html(layout("Récupération", "recuperation", user, &state.tenant_name, &page_recuperation(state, &etat, Some(message))))
+        .into_response()
+}
+
+pub async fn recuperation_configurer(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<User>,
+    Form(f): Form<RecuperationForm>,
+) -> Response {
+    let Some(dek) = state.dek.clone() else {
+        return recuperation_erreur(&state, &user, "Cette machine ne détient pas la DEK du cluster.").await;
+    };
+    let passphrase = zeroize::Zeroizing::new(f.passphrase);
+    let confirmation = zeroize::Zeroizing::new(f.confirmation);
+    if *passphrase != *confirmation {
+        return recuperation_erreur(&state, &user, "Les deux saisies de la passphrase diffèrent.").await;
+    }
+    // Argon2id (64 Mio) hors de la boucle asynchrone.
+    let calcul = tokio::task::spawn_blocking(move || {
+        crate::recuperation::configurer(&dek, &passphrase, ss_crypto::ParametresArgon2::RFC9106)
+    })
+    .await;
+    let feuille = match calcul {
+        Ok(Ok(f)) => f,
+        Ok(Err(e)) => return recuperation_erreur(&state, &user, &e.to_string()).await,
+        Err(_) => return recuperation_erreur(&state, &user, "Calcul interrompu — réessayez.").await,
+    };
+    if let Err(e) = crate::recuperation::enregistrer_configuration(&state.pool, &feuille, &user.username).await {
+        return recuperation_erreur(&state, &user, &format!("Enregistrement impossible : {e}")).await;
+    }
+    let depot = match &state.relais {
+        Some(relais) => relais.deposer(&feuille.blob).await.map_err(|e| e.to_string()),
+        None => Err("relais inconnu (TENANT_ID absent)".to_string()),
+    };
+    match &depot {
+        Ok(()) => println!("  Récupération : configurée par {}, blob déposé sur le relais (jeu {})", user.username, feuille.jeu),
+        Err(e) => println!("  Récupération : configurée par {}, dépôt sur le relais impossible — {e}", user.username),
+    }
+    Html(page_feuilles(&state.tenant_name, &feuille, depot.err().as_deref())).into_response()
+}
+
+pub async fn recuperation_reporter(State(state): State<Arc<AppState>>, Extension(user): Extension<User>) -> Response {
+    match crate::recuperation::reporter(&state.pool, &user.username).await {
+        Ok(()) => {
+            println!("  Récupération : reportée par {}", user.username);
+            Redirect::to("/amane/admin").into_response()
+        }
+        Err(e) => Html(format!("Report impossible : {}", esc(&e.to_string()))).into_response(),
+    }
+}
+
+/// Les trois feuilles, affichées une seule fois : les parts ne sont conservées
+/// nulle part. Une feuille par page à l'impression.
+pub(crate) fn page_feuilles(tenant: &str, feuille: &crate::recuperation::Feuille, erreur_relais: Option<&str>) -> String {
+    let date = chrono::Utc::now().format("%d/%m/%Y");
+    let avertissement_relais = match erreur_relais {
+        Some(e) => format!(
+            r#"<p class="ecran alerte">Le blob n'a pas pu être déposé sur le relais ({}). Il sera redéposé à la prochaine
+  sauvegarde ; en attendant, le bloc imprimé sur chaque feuille suffit.</p>"#,
+            esc(e)
+        ),
+        None => String::new(),
+    };
+    let feuilles: String = feuille
+        .parts
+        .iter()
+        .enumerate()
+        .map(|(i, part)| {
+            format!(
+                r#"<section class="feuille">
+  <h1>AMANE — Récupération des données</h1>
+  <p class="meta">{tenant} · jeu de parts <strong>{jeu}</strong> · établie le {date}</p>
+  <h2>Part {n} sur 3</h2>
+  <p class="code">{part}</p>
+  <p>Conservez cette feuille <strong>seule</strong>, dans un lieu différent des deux autres. Deux feuilles et la
+    passphrase du gérant reconstituent la clé de chiffrement du cluster ; une feuille seule ne révèle rien.</p>
+  <h3>Bloc de récupération</h3>
+  <p class="bloc">{bloc}</p>
+  <p class="petit">Le bloc est aussi conservé, chiffré, sur le relais. Il ne sert qu'avec la passphrase et deux parts.</p>
+  <h3>Après la perte de tous les serveurs</h3>
+  <ol>
+    <li>Réinstaller un serveur avec l'installeur de l'espace PME.</li>
+    <li><code>docker exec -it ss-node ss-node recuperer</code> (ajouter <code>--bloc</code> si le relais est indisponible),
+      puis saisir la passphrase et deux parts.</li>
+    <li><code>docker restart ss-node</code>, puis <code>ss-node restaurer --base amane</code> et
+      <code>--base application</code>.</li>
+  </ol>
+</section>"#,
+                tenant = esc(tenant),
+                jeu = esc(&feuille.jeu),
+                n = i + 1,
+                part = esc(part),
+                bloc = esc(&feuille.bloc),
+            )
+        })
+        .collect();
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Récupération — trois feuilles</title>
+<style>
+body{{font-family:system-ui,sans-serif;color:#111;margin:0;padding:24px;background:#F3F4F6}}
+.ecran{{max-width:760px;margin:0 auto 16px;padding:12px 16px;border-radius:10px;background:#FEF3C7;color:#92400E}}
+.ecran.alerte{{background:#FEE2E2;color:#991B1B}}
+.feuille{{background:#fff;max-width:760px;margin:0 auto 24px;padding:32px;border-radius:10px}}
+h1{{font-size:1.2rem}} h2{{font-size:1.6rem;margin:18px 0 8px}} h3{{font-size:1rem;margin:16px 0 6px}}
+.meta{{color:#4B5563}} .petit{{font-size:.8rem;color:#4B5563}}
+.code{{font-family:ui-monospace,monospace;font-size:1.25rem;font-weight:700;letter-spacing:.06em;word-break:break-all;
+  border:2px solid #111;border-radius:8px;padding:14px}}
+.bloc{{font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;border:1px dashed #6B7280;padding:10px}}
+ol{{margin-left:20px}} li{{margin:4px 0}}
+@media print{{body{{background:#fff;padding:0}} .ecran{{display:none}}
+  .feuille{{page-break-after:always;border-radius:0;margin:0;max-width:none}}}}
+</style></head><body>
+<div class="ecran"><strong>Imprimez maintenant ces trois feuilles</strong> (une par page). Cette page ne sera plus jamais
+  affichée : les parts ne sont conservées nulle part. <button onclick="window.print()">Imprimer</button>
+  · <a href="/amane/admin/recuperation">Terminé</a></div>
+{avertissement_relais}
+{feuilles}
+</body></html>"#
+    )
 }

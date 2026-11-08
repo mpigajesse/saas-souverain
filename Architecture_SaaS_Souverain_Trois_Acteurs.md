@@ -96,7 +96,7 @@ DEK (symétrique, une par cluster) — générée par le premier serveur
  └─ scellée (sealed box X25519) pour chaque serveur enrôlé
 ```
 
-Le socle `ss-crypto` fournit aussi la récupération d'urgence (code PME dérivé par Argon2id, découpage Shamir K=2/N=3 d'une KEK), mais **la pile Docker ne l'utilise pas encore** (§ 7.2).
+La DEK est aussi protégée pour la récupération après perte totale (ADR-010, § 7.2) : scellée pour une clé publique de récupération, dont la clé privée se reconstitue avec la passphrase du gérant (Argon2id) **et** deux parts papier sur trois (Shamir, bibliothèque vsss-rs).
 
 Aucune primitive cryptographique maison (`ss-crypto` : RustCrypto, libsodium). Aucun composant hors du cluster — portail, relais, éditeur tiers, agent IA — ne touche la DEK. Le chiffrement **au repos** des données est délégué au chiffrement du disque (BitLocker, LUKS), vérifié par l'installeur et signalé à la PME (ADR-008).
 
@@ -136,7 +136,12 @@ Les autres continuent (bascule automatique). Le nouveau serveur est installé av
 
 Le relais conserve les sauvegardes chiffrées des sept derniers jours, que l'éditeur AMANE ne peut pas lire. Pour les restaurer (`ss-node restaurer`), il faut la DEK.
 
-> ⚠️ **Limite actuelle.** Dans la pile Docker, la DEK n'existe que sur les serveurs enrôlés : si **tous** sont perdus, les sauvegardes du relais sont **irrécupérables**. La cible : à la création du cluster, la DEK est emballée sous une clé que seule la PME détient (code de récupération Argon2id, ou parts Shamir), et ce blob est déposé sur le relais ; une installation neuve reconstitue la DEK à partir du secret de la PME. Les primitives existent dans `ss-crypto` ; leur intégration est le premier point ouvert du journal. Tant qu'elle manque, une PME doit garder au moins deux serveurs enrôlés.
+La DEK se reconstitue avec deux facteurs que seule la PME détient (ADR-010) :
+
+1. **À l'installation**, la console du premier serveur (`/amane/admin/recuperation`) fait saisir la passphrase du gérant et imprime trois feuilles, chacune portant une part et le bloc de récupération. La DEK, scellée pour la clé de récupération, est aussi déposée sur le relais, qui n'y voit que du chiffré. Tant que ce n'est pas fait, l'espace PME affiche « installation incomplète ».
+2. **Après la perte de tous les serveurs**, sur une installation neuve : `ss-node recuperer` demande la passphrase et deux feuilles, reconstitue la DEK et l'enregistre pour cette machine ; puis `ss-node restaurer` rend les bases.
+
+Un cluster réinstallé dont la DEK ne correspond pas au blob du relais suspend ses sauvegardes, pour ne pas écraser les anciennes avant la récupération.
 
 ---
 

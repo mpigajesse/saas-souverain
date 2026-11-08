@@ -259,6 +259,15 @@ class InstalleursTests(BasePile):
             texte = self.textes(type_machine)['windows'][0]
             self.assertEqual(texte, texte.encode('ascii', 'ignore').decode('ascii'), type_machine)
 
+    def test_adresse_de_la_route_vers_le_portail(self):
+        # Sur Tailscale (100.x), aucun préfixe /24 commun avec le portail : l'adresse
+        # annoncée à etcd et Patroni est la source de la route vers le portail.
+        for type_machine in ('serveur', 'temoin'):
+            textes = self.textes(type_machine)
+            self.assertIn('ip -4 route get "$SAAS_IP"', textes['linux'][0], type_machine)
+            self.assertRegex(textes['windows'][0], r"GetHostAddresses\('[0-9.]+'\)", type_machine)
+            self.assertIn('Find-NetRoute -RemoteIPAddress', textes['windows'][0], type_machine)
+
 
 class EspacePmeTests(BasePile):
 
@@ -540,13 +549,37 @@ class PileAvecApplicationTests(BasePile):
 
     def test_aucun_secret_de_l_application_dans_la_pile(self):
         self.assertNotIn('AMANE_APP_DB_MOT_DE_PASSE', self.texte)
-        self.assertIn('-application-secrets=/amane/secrets/application.env', self.doc['services']['amane-orchestrateur']['command'])
+        self.assertIn('-application-secrets=/amane/secrets-application/application.env', self.doc['services']['amane-orchestrateur']['command'])
         self.assertIn('-copier-binaire=/amane/bin', self.doc['services']['amane-init']['command'])
+        self.assertIn('-dossier-secrets-application=/amane/secrets-application', self.doc['services']['amane-init']['command'])
+
+    def test_l_application_ne_voit_pas_les_secrets_du_cluster(self):
+        # Le volume `secrets` porte le mot de passe du superutilisateur
+        # PostgreSQL, joignable par HAProxy depuis le réseau de l'application :
+        # elle ne monte que ses propres identifiants (faille du 2026-11-04).
+        app = self.doc['services']['amane-application']
+        self.assertNotIn('secrets:/amane/secrets:ro', app['volumes'])
+        self.assertFalse([v for v in app['volumes'] if v.startswith('secrets:')], app['volumes'])
+        self.assertIn('secrets-application:/amane/secrets-application:ro', app['volumes'])
+        self.assertIn('-secrets=/amane/secrets-application/application.env', app['entrypoint'])
+        self.assertIn('secrets-application', self.doc['volumes'])
+        # Seuls l'amorçage et l'orchestrateur, qui l'écrit, y ont accès en écriture.
+        for service, conf in self.doc['services'].items():
+            montages = [v for v in conf.get('volumes', []) if v.startswith('secrets-application:')]
+            if service in ('amane-init', 'amane-orchestrateur'):
+                self.assertEqual(montages, ['secrets-application:/amane/secrets-application'], service)
+            elif service == 'amane-application':
+                self.assertEqual(montages, ['secrets-application:/amane/secrets-application:ro'])
+            else:
+                self.assertEqual(montages, [], service)
 
     def test_le_noeud_sert_l_application(self):
         env = self.doc['services']['ss-node']['environment']
         self.assertEqual(env['AMANE_APP_URL'], 'http://amane-application:8080')
         self.assertEqual(env['AMANE_APP_SANTE'], '/sante')
+        # Sa base est sauvegardée avec celle du nœud, sans que le nœud lise ses identifiants.
+        self.assertEqual(env['AMANE_APP_BASE'], 'application')
+        self.assertFalse([v for v in self.doc['services']['ss-node']['volumes'] if v.startswith('secrets-application')])
 
     def test_le_temoin_n_heberge_jamais_l_application(self):
         self.assertNotIn('amane-application', corps(self.compose('temoin')))
@@ -558,7 +591,9 @@ class PileAvecApplicationTests(BasePile):
         app = doc['services']['amane-application']
         self.assertNotIn('entrypoint', app)
         self.assertNotIn('amane-bin', doc['volumes'])
-        self.assertNotIn('-application-secrets=/amane/secrets/application.env', doc['services']['amane-orchestrateur']['command'])
+        self.assertNotIn('-application-secrets=/amane/secrets-application/application.env', doc['services']['amane-orchestrateur']['command'])
+        self.assertNotIn('secrets-application', doc['volumes'])
+        self.assertNotIn('AMANE_APP_BASE', doc['services']['ss-node']['environment'])
 
 
 # ── Étape 4 : confinement et chiffrement ────────────────────────────────────
@@ -614,6 +649,48 @@ class ChiffrementDisqueTests(InstalleursTests):
         self.assertEqual(r.status_code, 400)
 
 
+# ── Étape 8 : récupération de la DEK (ADR-010) ──────────────────────────────
+
+class RecuperationTests(BasePile):
+    """Le portail reçoit l'état de la récupération et alerte la PME."""
+
+    def annoncer(self, installation_id, **champs):
+        return self.client.post('/api/devices/register/', {
+            'tenant_token': str(self.tenant.registration_token),
+            'installation_id': installation_id, **champs,
+        }, content_type='application/json', HTTP_HOST=HOTE)
+
+    def test_etat_enregistre_et_mis_a_jour(self):
+        iid = 'eeeeeeee-0000-4000-8000-000000000001'
+        self.assertEqual(self.annoncer(iid, recuperation='non_configuree').status_code, 201)
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'non_configuree')
+        self.annoncer(iid, recuperation='configuree')
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'configuree')
+        # Une annonce sans le champ ne l'efface pas.
+        self.annoncer(iid)
+        self.assertEqual(Device.objects.get(installation_id=iid).recuperation, 'configuree')
+
+    def test_valeur_invalide_refusee(self):
+        self.assertEqual(self.annoncer('eeeeeeee-0000-4000-8000-000000000002', recuperation='peut-etre').status_code, 400)
+
+    def test_pire_etat_du_cluster_dans_l_espace_pme(self):
+        moi = lambda: self.client.get('/api/tenants/me/', HTTP_HOST=HOTE).json()
+        self.assertIsNone(moi()['etat_recuperation'])
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000003', recuperation='configuree')
+        self.assertEqual(moi()['etat_recuperation'], 'configuree')
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000004', recuperation='reportee')
+        self.assertEqual(moi()['etat_recuperation'], 'reportee')
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000004', recuperation='dek_differente')
+        self.assertEqual(moi()['etat_recuperation'], 'dek_differente')
+        self.assertIn('recuperation', moi()['devices'][0])
+
+    def test_le_temoin_ne_compte_pas(self):
+        self.annoncer('eeeeeeee-0000-4000-8000-000000000006', recuperation='configuree')
+        Device.objects.create(tenant=self.tenant, installation_id='eeeeeeee-0000-4000-8000-000000000007',
+                              node_kind='temoin', recuperation='non_configuree')
+        self.assertEqual(self.client.get('/api/tenants/me/', HTTP_HOST=HOTE).json()['etat_recuperation'], 'configuree')
+
+
 # ── Étape 5 : application rattachée à la licence ────────────────────────────
 
 class PileDepuisLeCatalogueTests(BasePile):
@@ -632,3 +709,59 @@ class PileDepuisLeCatalogueTests(BasePile):
         self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose('temoin')))['services'])
         Application.objects.filter(pk=app.pk).update(statut=Application.RETIREE)
         self.assertNotIn('amane-application', yaml.safe_load(corps(self.compose()))['services'])
+
+
+# ── Étape 9 : jeton du relais propre au tenant (ADR-011) ────────────────────
+
+SECRET_RELAIS = 'secret-de-test-du-relais-amane-0123456789'
+
+
+class JetonRelaisTests(BasePile):
+    """Le portail calcule le jeton comme le relais le vérifie, et le remet à
+    la seule pile serveur du tenant."""
+
+    def test_vecteur_commun_avec_le_relais(self):
+        # Même valeur que `ss-crypto` (jeton_relais.rs, vecteur_commun_avec_le_portail).
+        from tenants.relais import jeton_relais
+        with override_settings(RELAY_SECRET=SECRET_RELAIS):
+            self.assertEqual(
+                jeton_relais('00000000-0000-0000-0000-000000000000'),
+                '1122cac8a5f6cce94d90f49b21d7aee4cb844f27725ab56a57ae4f80764df4a5',
+            )
+            autre = Tenant.objects.create(name='Autre', email='autre@x.fr', employee_count=1,
+                                          user=User.objects.create_user(username='autre', password='x'))
+            self.assertNotEqual(jeton_relais(self.tenant.id), jeton_relais(autre.id))
+
+    def test_jeton_dans_la_pile_serveur_seulement(self):
+        from tenants.relais import jeton_relais
+        with override_settings(RELAY_SECRET=SECRET_RELAIS):
+            attendu = jeton_relais(self.tenant.id)
+            env = yaml.safe_load(corps(self.compose()))['services']['ss-node']['environment']
+            self.assertEqual(env['RELAY_AUTH_TOKEN'], attendu)
+            self.assertEqual(len(attendu), 64)
+            self.assertNotIn(attendu, corps(self.compose('temoin')))
+            # Ni le jeton d'enregistrement ni le secret ne figurent dans la pile.
+            texte = corps(self.compose())
+            self.assertNotIn(SECRET_RELAIS, texte)
+            self.assertNotIn(str(self.tenant.registration_token), texte)
+
+    def test_sans_secret_pas_de_jeton(self):
+        with override_settings(RELAY_SECRET=''):
+            env = yaml.safe_load(corps(self.compose()))['services']['ss-node']['environment']
+            self.assertEqual(env['RELAY_AUTH_TOKEN'], '')
+
+    def test_tableau_de_bord_lit_la_topologie_avec_le_jeton(self):
+        from unittest import mock
+        from dashboard import relay
+        from tenants.relais import jeton_relais
+        vus = {}
+
+        def faux_fetch(url, timeout=5, headers=None):
+            vus[url] = headers or {}
+            return {'nodes': []}
+
+        with override_settings(RELAY_SECRET=SECRET_RELAIS, RELAY_URL='http://relais:8080'), \
+                mock.patch.object(relay, '_fetch_json', side_effect=faux_fetch):
+            relay.build_relay_status()
+            url = f'http://relais:8080/api/nodes?tenant_id={self.tenant.id}'
+            self.assertEqual(vus[url], {'x-relay-token': jeton_relais(self.tenant.id)})

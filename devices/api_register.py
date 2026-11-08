@@ -110,6 +110,7 @@ def device_register(request):
       - etat_quorum (str, optionnel) : « sain », « sous_le_seuil » ou « perdu » (étape 2d)
       - etat_application (str, opt.) : « ok » ou « ko » — application hébergée (étape 3)
       - chiffrement_disque (str, opt.) : « oui », « non » ou « inconnu » — disque de la machine (étape 4)
+      - recuperation (str, opt.) : « configuree », « reportee », « non_configuree » ou « dek_differente » (étape 8)
     """
     tenant_token_raw = request.data.get('tenant_token')
     installation_id_raw = request.data.get('installation_id')
@@ -167,6 +168,12 @@ def device_register(request):
             {'status': 'error', 'message': 'chiffrement_disque invalide.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    recuperation = request.data.get('recuperation', '')
+    if recuperation not in ('', 'configuree', 'reportee', 'non_configuree', 'dek_differente'):
+        return Response(
+            {'status': 'error', 'message': 'recuperation invalide.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     etat_application = request.data.get('etat_application', '')
     if etat_application not in ('', 'ok', 'ko'):
         return Response(
@@ -193,6 +200,7 @@ def device_register(request):
             'etat_quorum': etat_quorum,
             'etat_application': etat_application,
             'chiffrement_disque': chiffrement_disque,
+            'recuperation': recuperation,
             'is_active': True,
         },
     )
@@ -208,6 +216,8 @@ def device_register(request):
             device.etat_application = etat_application
         if chiffrement_disque:
             device.chiffrement_disque = chiffrement_disque
+        if recuperation:
+            device.recuperation = recuperation
         if node_addr:
             device.node_addr = node_addr
         if web_addr:

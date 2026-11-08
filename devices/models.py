@@ -44,6 +44,18 @@ class Device(models.Model):
         choices=[('oui', 'Chiffré'), ('non', 'Non chiffré'), ('inconnu', 'Inconnu')],
         help_text='Chiffrement du disque de la machine (BitLocker / LUKS)',
     )
+    # Étape 8 (ADR-010) : récupération de la DEK après perte totale, état
+    # partagé par le cluster (base `amane`) et remonté par chaque serveur.
+    recuperation = models.CharField(
+        max_length=16, blank=True,
+        choices=[
+            ('configuree', 'Configurée'),
+            ('reportee', 'Reportée'),
+            ('non_configuree', 'Non configurée'),
+            ('dek_differente', 'DEK différente de celle du relais'),
+        ],
+        help_text='Récupération de la DEK : configurée, reportée, absente, ou cluster réinstallé à récupérer',
+    )
     last_failover_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Dernier failover automatique détecté sur ce nœud',
