@@ -1,0 +1,32 @@
+{
+  "type_artefact": "docker",
+  "image": "listmonk/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+  "commande": ["/listmonk/listmonk"],
+  "port": 9000,
+  "sante": "/health",
+  "variables": {
+    "LISTMONK_app__address": "0.0.0.0:9000",
+    "LISTMONK_db__ssl_mode": "disable"
+  },
+  "base_de_donnees": {
+    "variables": {
+      "LISTMONK_db__host": "{hote}",
+      "LISTMONK_db__port": "{port}",
+      "LISTMONK_db__user": "{utilisateur}",
+      "LISTMONK_db__password": "{mot_de_passe}",
+      "LISTMONK_db__database": "{base}"
+    }
+  },
+  "hooks": {
+    "pre_start": [
+      ["/listmonk/listmonk", "--install", "--idempotent", "--yes"],
+      ["/listmonk/listmonk", "--upgrade", "--yes"]
+    ]
+  },
+  "volumes": [
+    {
+      "nom": "uploads",
+      "chemin": "/listmonk/uploads"
+    }
+  ]
+}
