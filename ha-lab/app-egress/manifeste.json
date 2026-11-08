@@ -1,6 +1,6 @@
 {
   "type_artefact": "docker",
-  "image": "amane/app-egress@sha256:96977a88f000c3d09e79d70e74607446ce17eae5195d3c5d9b1bf7f524e9e406",
+  "image": "amane/app-egress@sha256:4552b10b2a738d629605f174449bb99d114b9f9eba84f0a0ecadf09da27480c0",
   "commande": ["/bin/sh", "-c", "/pre_start.sh && /application"],
   "port": 8080,
   "sante": "/sante",
