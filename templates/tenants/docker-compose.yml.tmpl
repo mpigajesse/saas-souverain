@@ -222,9 +222,10 @@ services:
     # (manifeste) puis exécute la commande d'origine de l'image.
     entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets/application.env", "--"]
     command: {{ application.commande }}
-{% endif %}{% if application.environnement %}    environment:
+{% endif %}{% if application.environnement or application.pre_start %}    environment:
 {% for nom, valeur in application.environnement %}      {{ nom }}: {{ valeur }}
-{% endfor %}{% endif %}    volumes:
+{% endfor %}{% if application.pre_start %}      AMANE_PRE_START: {{ application.pre_start }}
+{% endif %}{% endif %}    volumes:
 {% if application.base %}      - amane-bin:/amane/bin:ro
       - secrets:/amane/secrets:ro
 {% endif %}{% for v in application.volumes %}      - {{ v.cle }}:{{ v.chemin }}

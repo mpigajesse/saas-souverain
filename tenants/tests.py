@@ -410,7 +410,6 @@ class ManifesteTests(TestCase):
             'port booléen': avec(port=True),
             'santé relative': avec(sante='sante'),
             'variable réservée AMANE_': avec(variables={'AMANE_X': '1'}),
-            'variable en minuscules': avec(variables={'app_env': '1'}),
             'espace réservé inconnu': avec(base_de_donnees={'variables': {'URL': '{jeton}'}}),
             'base sans variable': avec(base_de_donnees={'variables': {}}),
             'volume à la racine': avec(volumes=[{'nom': 'x', 'chemin': '/'}]),
@@ -423,11 +422,97 @@ class ManifesteTests(TestCase):
         with self.assertRaises(ManifesteInvalide):
             valider('pas un objet')
 
+    def test_noms_de_variables_minuscules_et_avec_sections_acceptes(self):
+        # Listmonk lit la config par variables d'env en minuscules + séparateur
+        # de section `__` (LISTMONK_app__address, LISTMONK_db__host) : le
+        # validateur doit les accepter, tout en gardant AMANE_ réservé.
+        m = json.loads(json.dumps(MANIFESTE_APP))
+        m['variables'] = {
+            'LISTMONK_app__address': '0.0.0.0:9000',
+            'LISTMONK_db__ssl_mode': 'disable',
+        }
+        valide = valider(m)
+        self.assertEqual(valide['variables']['LISTMONK_app__address'], '0.0.0.0:9000')
+        self.assertEqual(valide['variables']['LISTMONK_db__ssl_mode'], 'disable')
+        # AMANE_ reste réservé même avec des minuscules derrière le préfixe.
+        reserve = {**json.loads(json.dumps(MANIFESTE_APP)), 'variables': {'AMANE_debug': '1'}}
+        with self.assertRaises(ManifesteInvalide):
+            valider(reserve)
+
+    def test_manifeste_listmonk_reel_valide(self):
+        # Le manifeste Listmonk réel (ha-lab/listmonk/manifeste.json) doit
+        # passer valider() et produire un contexte compose avec pre_start.
+        chemin = Path(__file__).resolve().parent.parent / 'ha-lab' / 'listmonk' / 'manifeste.json'
+        if not chemin.exists():
+            self.skipTest('manifeste Listmonk non présent dans ce checkout')
+        data = json.loads(chemin.read_text())
+        valide = valider(data)
+        ctx = pour_compose(data, 'localhost:5000')
+        self.assertEqual(valide['port'], 9000)
+        self.assertEqual(valide['sante'], '/health')
+        self.assertEqual(len(valide['hooks']['pre_start']), 2)
+        self.assertIsNotNone(ctx['pre_start'])
+        self.assertIn('--install', ctx['pre_start'])
+        self.assertIn('localhost:5000/listmonk/listmonk@sha256:', ctx['image'])
+
     def test_mise_en_forme_compose_echappe_les_dollars(self):
         ctx = pour_compose(MANIFESTE_APP, '192.168.7.7:5000')
         self.assertEqual(ctx['image'], '192.168.7.7:5000/editeurs/facturation@' + DIGEST)
         self.assertIn(('DEVISE', '"$$EUR"'), ctx['environnement'])
         self.assertTrue(any(nom == 'AMANE_MODELES' for nom, _ in ctx['environnement']))
+
+    def test_manifeste_sans_hooks_accepte(self):
+        self.assertEqual(valider(MANIFESTE_APP)['hooks'], {})
+
+    def test_hooks_pre_start_accepte(self):
+        m = json.loads(json.dumps(MANIFESTE_APP))
+        m['hooks'] = {'pre_start': [
+            ['/listmonk', '--install', '--idempotent', '--yes'],
+            ['/listmonk', '--upgrade', '--yes'],
+        ]}
+        valide = valider(m)
+        self.assertEqual(valide['hooks']['pre_start'], [
+            ['/listmonk', '--install', '--idempotent', '--yes'],
+            ['/listmonk', '--upgrade', '--yes'],
+        ])
+
+    def test_hooks_pre_start_refuse_cas_invalides(self):
+        def avec_hook(pre):
+            m = json.loads(json.dumps(MANIFESTE_APP))
+            m['hooks'] = {'pre_start': pre}
+            return m
+        cas = {
+            'chaîne seule': avec_hook('echo hi'),
+            'liste vide': avec_hook([]),
+            'commande vide': avec_hook([[]]),
+            'retour ligne dans argv': avec_hook([['/x', 'a\nb']]),
+            'commande non-liste': avec_hook([['/x'], 'echo']),
+            'pre_start indisponible': avec_hook({'a': 1}),
+        }
+        hors_cas = {'clé inconnue': {'pre_start': [], 'post_stop': []}}
+        for nom, manifeste in cas.items():
+            with self.assertRaises(ManifesteInvalide, msg=nom):
+                valider(manifeste)
+
+    def test_hooks_cle_inconnue_refusee(self):
+        m = json.loads(json.dumps(MANIFESTE_APP))
+        m['hooks'] = {'post_stop': [['/cleanup.sh']]}
+        with self.assertRaises(ManifesteInvalide):
+            valider(m)
+
+    def test_hooks_rendu_pre_start_dans_compose(self):
+        m = json.loads(json.dumps(MANIFESTE_APP))
+        m['hooks'] = {'pre_start': [
+            ['/listmonk', '--install', '--yes'],
+            ['/listmonk', '--upgrade', '--yes'],
+        ]}
+        ctx = pour_compose(m, '192.168.7.7:5000')
+        self.assertIsNotNone(ctx['pre_start'])
+        self.assertIn('listmonk', ctx['pre_start'])
+        self.assertNotIn('\n', ctx['pre_start'])
+
+    def test_hooks_absent_pas_de_pre_start_dans_compose(self):
+        self.assertIsNone(pour_compose(MANIFESTE_APP, '192.168.7.7:5000')['pre_start'])
 
 
 class PileAvecApplicationTests(BasePile):

@@ -28,7 +28,7 @@ TYPES_PRIS_EN_CHARGE = ('docker',)
 TYPES_PREVUS = ('binaire', 'exe')  # ADR-002 : formats acceptés plus tard
 
 _IMAGE = re.compile(r'^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$')
-_VARIABLE = re.compile(r'^[A-Z_][A-Z0-9_]{0,63}$')
+_VARIABLE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]{0,63}$')
 _VOLUME = re.compile(r'^[a-z0-9][a-z0-9-]{0,39}$')
 _CHEMIN = re.compile(r'^/[A-Za-z0-9._/-]*$')
 _ESPACES_RESERVES = {'utilisateur', 'mot_de_passe', 'hote', 'port', 'base'}
@@ -46,10 +46,40 @@ def _variables(valeur, chemin: str) -> dict:
         raise ManifesteInvalide(f'{chemin} doit être un objet')
     for nom, contenu in valeur.items():
         if not _VARIABLE.match(nom) or nom.startswith('AMANE_'):
-            raise ManifesteInvalide(f'{chemin} : nom de variable refusé « {nom} » (MAJUSCULES, AMANE_ réservé)')
+            raise ManifesteInvalide(f'{chemin} : nom de variable refusé « {nom} » (alphanumérique/_, AMANE_ réservé)')
         if not isinstance(contenu, str) or '\n' in contenu:
             raise ManifesteInvalide(f'{chemin}.{nom} doit être une chaîne sur une ligne')
     return dict(valeur)
+
+
+def _commande_liste(valeur, chemin: str) -> list:
+    """Une commande : liste non vide de chaînes, une ligne chacune."""
+    if (not isinstance(valeur, list) or not valeur
+            or not all(isinstance(c, str) and c and '\n' not in c for c in valeur)):
+        raise ManifesteInvalide(f'{chemin} : liste non vide de chaînes (commande à une ligne)')
+    return list(valeur)
+
+
+def _hooks(valeur, chemin: str = 'hooks') -> dict:
+    """Valide `hooks` : uniquement `pre_start`, une liste de commandes que le
+    lanceur exécute avant le démarrage de l'application (migrations, init…).
+    Rejet strict de toute clé inconnue pour éviter toute injection."""
+    if valeur is None:
+        return {}
+    if not isinstance(valeur, dict):
+        raise ManifesteInvalide(f'{chemin} doit être un objet')
+    inconnus = set(valeur) - {'pre_start'}
+    if inconnus:
+        raise ManifesteInvalide(f'{chemin} : clés inconnues {sorted(inconnus)} (seulement pre_start)')
+    pre = valeur.get('pre_start')
+    if pre is None:
+        return {}
+    if not isinstance(pre, list) or not pre:
+        raise ManifesteInvalide(f'{chemin}.pre_start : liste non vide de commandes')
+    commandes = []
+    for i, cmd in enumerate(pre):
+        commandes.append(_commande_liste(cmd, f'{chemin}.pre_start[{i}]'))
+    return {'pre_start': commandes}
 
 
 def valider(manifeste) -> dict:
@@ -108,6 +138,8 @@ def valider(manifeste) -> dict:
             raise ManifesteInvalide(f'volume « {v["nom"]} » déclaré deux fois')
         noms.add(v['nom'])
 
+    hooks = _hooks(manifeste.get('hooks'), 'hooks')
+
     return {
         'type_artefact': type_artefact,
         'image': image,
@@ -117,6 +149,7 @@ def valider(manifeste) -> dict:
         'variables': variables,
         'base_de_donnees': {'variables': modeles} if modeles is not None else None,
         'volumes': [{'nom': v['nom'], 'chemin': v['chemin']} for v in volumes],
+        'hooks': hooks,
     }
 
 
@@ -140,6 +173,7 @@ def pour_compose(manifeste: dict, registre: str) -> dict:
         'sante': m['sante'],
         'environnement': environnement,
         'base': bool(base),
+        'pre_start': _yaml(json.dumps(m['hooks']['pre_start'], ensure_ascii=False)) if m['hooks'] else None,
         'volumes': [{'cle': f'app-{v["nom"]}', 'chemin': v['chemin']} for v in m['volumes']],
     }
 

@@ -55,6 +55,18 @@ func cmdLancer(args []string) int {
 		fmt.Fprintln(os.Stderr, "lancer :", err)
 		return 1
 	}
+	environnement := lanceur.Environnement(os.Environ(), rendus)
+	// Tranche 1.3 : exécuter les hooks pre_start (migrations/init) avant de
+	// remplacer le processus — tout échec empêche l'application de démarrer.
+	preStart, err := lanceur.DecoderPreStart(os.Getenv("AMANE_PRE_START"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "lancer :", err)
+		return 1
+	}
+	if err := lanceur.ExecuterPreStart(preStart, environnement); err != nil {
+		fmt.Fprintln(os.Stderr, "lancer : pre_start :", err)
+		return 1
+	}
 	chemin, err := exec.LookPath(commande[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "lancer : commande introuvable :", err)
@@ -62,7 +74,7 @@ func cmdLancer(args []string) int {
 	}
 	// En cas de succès, executer ne revient pas : l'application remplace le
 	// lanceur (même PID, signaux reçus directement).
-	err = executer(chemin, commande, lanceur.Environnement(os.Environ(), rendus))
+	err = executer(chemin, commande, environnement)
 	fmt.Fprintln(os.Stderr, "lancer : exécution impossible :", err)
 	return 1
 }

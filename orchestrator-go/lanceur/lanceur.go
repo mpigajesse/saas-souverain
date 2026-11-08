@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -113,4 +114,35 @@ func Environnement(courant []string, ajouts map[string]string) []string {
 	}
 	sort.Strings(sortie)
 	return sortie
+}
+
+// DecoderPreStart lit AMANE_PRE_START : liste JSON de commandes (une commande
+// étant une liste argv), à exécuter avant le démarrage de l'application.
+func DecoderPreStart(brut string) (preStart [][]string, err error) {
+	if strings.TrimSpace(brut) == "" {
+		return nil, nil
+	}
+	if err := json.Unmarshal([]byte(brut), &preStart); err != nil {
+		return nil, fmt.Errorf("AMANE_PRE_START illisible : %w", err)
+	}
+	return preStart, nil
+}
+
+// ExecuterPreStart exécute chaque commande de pre_start dans l'ordre, avec
+// l'environnement fourni. Un échec interrompt : l'application ne doit jamais
+// démarrer si un hook échoue (une migration ratée ne se masque pas, P6).
+func ExecuterPreStart(preStart [][]string, environnement []string) error {
+	for i, argv := range preStart {
+		if len(argv) == 0 {
+			continue
+		}
+		cmd := exec.Command(argv[0], argv[1:]...)
+		cmd.Env = environnement
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("pre_start[%d] %s : %w", i, argv[0], err)
+		}
+	}
+	return nil
 }
