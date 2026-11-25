@@ -1,0 +1,32 @@
+{
+  "_note": "Contexte de rendu de templates/tenants/docker-compose.yml.tmpl pour le banc de VM A-00. Même tenant et mêmes images épinglées par digest que la pile de test publiée (compose rendu le 13/11/2026, cf. docs/tests/BANC-VM.md) : le rendu est vérifié identique à /opt/amane-pme/docker-compose.yml par deploy-pile.sh.",
+  "tenant": {
+    "name": "AMANE Test",
+    "id": "ea49c4c4-f46f-464d-b5db-4fb5928b7e49"
+  },
+  "images": {
+    "noeud": "100.64.0.6:5000/amane/noeud@sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4",
+    "orchestrateur": "100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35",
+    "postgresql": "100.64.0.6:5000/amane/postgresql@sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b",
+    "etcd": "100.64.0.6:5000/amane/etcd@sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700",
+    "haproxy": "100.64.0.6:5000/amane/haproxy@sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2",
+    "pgadmin": "100.64.0.6:5000/amane/pgadmin@sha256:2fbd14f87cfc030917cc3602acea551e2b2d7167501ac54f09af17b19c094645"
+  },
+  "application": {
+    "image": "100.64.0.6:5000/editeurs/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+    "commande": "[\"docker-entrypoint.sh\", \"sh\", \"-c\", \"./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''\"]",
+    "port": 9000,
+    "sante": "/health",
+    "environnement": [
+      ["LISTMONK_APP__ADDRESS", "\"0.0.0.0:9000\""],
+      ["LISTMONK_DB__SSL_MODE", "\"disable\""],
+      ["TZ", "\"Etc/UTC\""],
+      ["AMANE_MODELES", "\"{\\\"LISTMONK_DB__DATABASE\\\": \\\"{base}\\\", \\\"LISTMONK_DB__HOST\\\": \\\"{hote}\\\", \\\"LISTMONK_DB__PASSWORD\\\": \\\"{mot_de_passe}\\\", \\\"LISTMONK_DB__PORT\\\": \\\"{port}\\\", \\\"LISTMONK_DB__USER\\\": \\\"{utilisateur}\\\"}\""]
+    ],
+    "base": true,
+    "pre_start": null,
+    "volumes": []
+  },
+  "relay_url": "http://100.64.0.6:8080",
+  "jeton_relais": "bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6"
+}

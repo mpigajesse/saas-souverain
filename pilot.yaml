@@ -1,0 +1,490 @@
+# Profil du projet pour le pilote.
+# Le dépôt canonique est `repo/` (branche main3). `saas-souverain/` est un ancien
+# état, non utilisé. Les plans de tests de référence vivent hors du dépôt :
+# /home/jose/school/amane/plan-tests-amane-v3.md, plan-tests-charge-v3.md,
+# plan-tests-exhaustif-v3.md (lecture seule).
+id: amane
+path: /home/jose/school/amane/repo
+agent: build
+
+models:
+  free:
+    - opencode/big-pickle
+    - opencode/deepseek-v4.1-flash-free
+  paid:
+    - openrouter/~z-ai/glm-flash-latest
+    - openrouter/deepseek/deepseek-v4.1-flash-1017
+
+limits:
+  paid_per_day: 4
+  task_timeout_min: 60
+  max_attempts: 2
+
+guard:
+  ram_max_pct: 75
+  cpu_max_load_per_core: 1.2
+  temp_max_c: 90
+  vram_max_pct: 60
+
+tasks:
+
+  - id: A-01
+    title: Baseline des tests existants (Go, contrats, HA) sans rien modifier
+    tier: free
+    brief: |
+      Établir l'état réel de la suite de tests, sans modifier le code.
+
+      Le dépôt est `repo/` (branche main3). Les plans de référence sont hors du
+      dépôt : `/home/jose/school/amane/plan-tests-amane-v3.md` (catalogue),
+      `plan-tests-charge-v3.md` (charge), `plan-tests-exhaustif-v3.md`.
+
+      À faire :
+      1. Lire la section « État des lieux des tests existants » de
+         `plan-tests-amane-v3.md`.
+      2. Exécuter réellement :
+         - `cd orchestrator-go && go test ./... -count=1`
+         - `cd tests && go test ./... -count=1`
+         - `cd core-rust && cargo test --workspace` (si la toolchain est présente)
+         - `python3 manage.py test` (si un environnement virtuel est disponible)
+      3. Ne rien installer, ne pas modifier le code, ne pas toucher aux conteneurs
+         du lab (ils tournent, ils sont utilisés).
+      4. Écrire `docs/tests/BASELINE.md` : pour chaque suite, la commande exacte,
+         le résultat (nombre de tests, échecs, durée), et une analyse de ce qui
+         manque au regard du plan. Inclure un tableau récapitulatif.
+      5. Terminer par le bloc de claims JSON décrit dans `AGENTS.md`.
+
+      Contraintes : aucun `docker compose down`, aucun `docker rm`, aucun
+      `docker prune`. Ne pas redémarrer le lab. Écriture limitée à `docs/tests/`.
+    verify:
+      - type: exists
+        path: docs/tests/BASELINE.md
+      - type: artifact
+        path: docs/tests/BASELINE.md
+        kind: md
+        require: ["go test", "Tableau", "manque"]
+        min_lines: 40
+      - type: shell
+        cmd: "git diff --quiet && git diff --cached --quiet"
+
+  # ------------------------------------------------- banc 3 machines réelles
+
+  - id: A-00
+    title: Monter un banc de trois machines virtuelles réelles (KVM, sans root)
+    tier: paid
+    brief: |
+      Les tests de machines doivent tourner sur de vraies machines, pas sur des
+      conteneurs : noyaux séparés, extinction électrique réelle, partition réseau
+      réelle, mémoire et CPU mesurés à l'intérieur de chaque machine.
+
+      Recette déjà validée sur cette machine (à réutiliser telle quelle) :
+      - image : `/mnt/data/vm-tp4/jammy-server-cloudimg-amd64.img` (Ubuntu 22.04,
+        SHA256 vérifié). Ne pas retélécharger.
+      - par VM : overlay qcow2 de 20 Go dans `/mnt/data/amane-bench/mN/`,
+        4096 Mo de RAM, 2 vCPU, cloud-init (utilisateur `etudiant`, clé SSH,
+        `ssh_pwauth: false`).
+      - deux cartes réseau : `ens3` en DHCP (NAT, pour apt/docker via
+        `-netdev user,hostfwd=tcp:127.0.0.1:22NN-:22`) et `ens4` en IP fixe sur
+        un commutateur virtuel sans root (`-netdev socket,listen=127.0.0.1:7777`
+        sur m1, `connect=127.0.0.1:7777` sur m2 et m3). Testé : m1 <-> m2 en
+        0,6 ms, 0 % de perte.
+      - adresses LAN : m1 `10.77.0.11`, m2 `10.77.0.12`, m3 `10.77.0.13`.
+        Fixer les MAC pour que les noms d'interface soient stables (`ens3`,
+        `ens4`). Le fichier netplan doit viser `ens3`/`ens4`, pas `enp0s3`.
+
+      À faire :
+      1. `tools/bench/create-bench.sh` : crée les trois VM, démarre QEMU
+         (`-daemonize -pidfile`), attend SSH, applique le netplan, vérifie la
+         connectivité croisée (ping m1->m2, m2->m3, m3->m1). Idempotent.
+      2. `tools/bench/destroy-bench.sh` : arrête les trois VM et supprime leurs
+         disques, en conservant journaux et captures.
+      3. Installer Docker dans chaque VM (`get.docker.com` via NAT) et vérifier
+         `docker run --rm hello-world`.
+      4. Charger les images de la pile depuis l'hôte, sans registre :
+         `docker save <image> | ssh ... 'docker load'` pour etcd, postgresql,
+         orchestrateur, haproxy, noeud, listmonk. Documenter tout écart de digest
+         par rapport à ce que la pile attend.
+      5. Déployer la pile PME sur les trois machines à partir de
+         `templates/tenants/docker-compose.yml.tmpl` (fichier `.env` par machine :
+         NODE_IP, NODE_HOSTNAME, NODE_MODE = active sur m1 sinon passive).
+         Objectif : etcd en cluster 3, Patroni qui élit un primaire, ss-node qui
+         suit, application servie par m1.
+      6. Écrire `docs/tests/BANC-VM.md` : topologie, adresses, commandes de
+         démarrage et d'arrêt, état final (3 VM, etcd 3 membres, 1 primaire
+         PostgreSQL), et les écarts constatés.
+
+      Contraintes : aucune VM sur `/` (tout dans `/mnt/data/amane-bench/`) ;
+      laisser le banc démarré à la fin ; ne pas toucher aux conteneurs de la pile
+      en service (`amane-*`) ; ne jamais dépasser 3 VM à 4 Go simultanées.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/BANC-VM.md
+      - type: exists
+        path: tools/bench/create-bench.sh
+      - type: shell
+        cmd: "test \"$(ps -eo comm=,args= | awk '$1 ~ /^qemu-system/ && index($0,\"-name amane-bench\") {c++} END {print c+0}')\" -eq 3"
+      - type: artifact
+        path: docs/tests/BANC-VM.md
+        kind: md
+        require: ["10.77.0.11", "10.77.0.12", "10.77.0.13", "etcd"]
+        min_lines: 30
+
+  # ------------------------------------------------------------- charge API
+
+  - id: A-03
+    title: Inventaire réel du banc (machines, services, images, ports, réseaux)
+    tier: free
+    brief: |
+      Établir l'inventaire de ce qui tourne réellement, avant toute campagne.
+      Rien n'est modifié.
+
+      À faire :
+      1. `docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'`,
+         et pour chaque conteneur l'image épinglée avec son digest
+         (`docker inspect --format '{{index .RepoDigests 0}}'`).
+      2. Réseaux et volumes : `docker network ls`, `docker volume ls`, et pour la
+         pile : quel conteneur est sur quel réseau, quelle passerelle.
+      3. Pour chaque service de la pile PME (etcd, postgresql, orchestrateur,
+         haproxy, ss-node, amane-application) : rôle, ports exposés, santé
+         (`docker inspect --format '{{.State.Health.Status}}'`), limites de
+         ressources déclarées, utilisateur d'exécution, capabilities.
+      4. Versions réelles : etcd, PostgreSQL (Patroni), Go de l'orchestrateur,
+         Rust de ss-node, Listmonk.
+      5. Ressources de la machine hôte : RAM totale, cœurs, disque libre, et part
+         consommée par la pile.
+      6. Écrire `docs/tests/INVENTAIRE.md` avec un tableau par catégorie, les
+         digests complets, et une section « écarts avec la documentation » :
+         ce que le dépôt prétend et ce que la machine montre réellement.
+
+      Contraintes : aucune modification, aucun `docker stop/rm`, aucun `down`.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/INVENTAIRE.md
+      - type: artifact
+        path: docs/tests/INVENTAIRE.md
+        kind: md
+        require: ["sha256", "Réseau", "Écart"]
+        min_lines: 50
+      - type: shell
+        cmd: "git diff --quiet && git diff --cached --quiet"
+
+  - id: A-04
+    title: AMANE à vide, mesures réelles pendant 10 minutes
+    tier: free
+    blocked_by: A-00
+    brief: |
+      Mesurer ce que la pile consomme **sans application sollicitée** : c'est la
+      référence à laquelle comparer les tests de charge.
+
+      Protocole :
+      1. Relever `docker stats --no-stream` toutes les 10 s pendant 10 minutes,
+         pour tous les conteneurs de la pile. Conserver les séries brutes dans
+         `docs/tests/a-vide/stats.csv` (horodatage, conteneur, cpu %, mémoire,
+         réseau entrant/sortant, I/O bloc).
+      2. Relever en parallèle sur l'hôte : charge, mémoire disponible, I/O disque,
+         température (`sensors`), toutes les 10 s, dans
+         `docs/tests/a-vide/hote.csv`.
+      3. Relever la taille des données : `docker system df`, taille des volumes.
+      4. Écrire `docs/tests/A-VIDE.md` : tableau min/moyenne/max par conteneur,
+         graphique texte ou tableau de l'évolution, commentaire sur ce qui
+         consomme sans rien faire (et pourquoi), et ce que cela implique pour une
+         PME de 2 ou 3 serveurs.
+
+      Contraintes : ne rien lancer d'autre pendant la mesure (pas de build, pas
+      de test de charge en parallèle) ; ne rien modifier dans la pile.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/a-vide/stats.csv
+      - type: exists
+        path: docs/tests/A-VIDE.md
+      - type: shell
+        cmd: "test $(wc -l < docs/tests/a-vide/stats.csv) -ge 300"
+      - type: artifact
+        path: docs/tests/A-VIDE.md
+        kind: md
+        require: ["moyenne", "hôte"]
+        min_lines: 40
+
+  - id: A-05
+    title: Sécurité réelle de la pile (isolement, privilèges, secrets, exposition)
+    tier: free
+    blocked_by: A-00
+    brief: |
+      Vérifier par des tests réels, pas par lecture de code, les promesses de
+      sécurité, et documenter aussi ce qui ne tient pas.
+
+      À tester :
+      1. **Isolement de l'application** : depuis `amane-application`, tenter une
+         sortie Internet (DNS, HTTP vers 1.1.1.1, vers l'hôte) : tout doit
+         échouer. Prouver aussi qu'elle joint bien PostgreSQL et rien d'autre.
+         Vérifier les réseaux du conteneur (`docker inspect`) et l'absence de
+         route par défaut si c'est le mécanisme retenu.
+      2. **Privilèges** : aucun conteneur en `--privileged`, pas de montage de
+         `/`, pas de socket Docker monté, utilisateur non-root quand c'est
+         possible, capabilities réellement accordées (`docker inspect`).
+      3. **Secrets** : où vivent les mots de passe (variables d'environnement,
+         fichiers, etcd), sont-ils visibles depuis `docker inspect` en clair,
+         les clés de sauvegarde sont-elles accessibles depuis l'application.
+      4. **Exposition réseau** : quels ports écoutent sur `0.0.0.0` et devraient
+         écouter en local (etcd 2379, PostgreSQL 5432, pgadmin 5050).
+      5. **Accès à la console d'administration** `ss-node` (`/amane/`) : sans
+         authentification ? avec ? depuis l'extérieur ?
+      6. **Garde de quorum** : vérifier que le nœud refuse d'écrire quand etcd
+         n'a plus de quorum (test court, réversible).
+      7. Écrire `docs/tests/SECURITE.md` : un tableau par point (attendu, test
+         exécuté, résultat observé, verdict), et une liste priorisée des
+         faiblesses constatées avec la correction proposée.
+
+      Contraintes : tests réversibles uniquement ; restaurer tout état modifié ;
+      aucun `docker rm`, aucun `down -v` ; ne pas toucher à la pile ha-lab.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/SECURITE.md
+      - type: artifact
+        path: docs/tests/SECURITE.md
+        kind: md
+        require: ["Isolement", "Privilèges", "Secrets", "Exposition", "quorum"]
+        min_lines: 60
+      - type: shell
+        cmd: "test $(docker ps --filter name=amane- --format '{{.Names}}' | wc -l) -ge 5"
+
+  - id: A-06
+    title: Les trois SaaS configurés, chacun avec un vrai processus métier
+    tier: paid
+    brief: |
+      Les trois SaaS retenus sont **Listmonk**, **Odoo 17** et **app-multi**
+      (micro-SaaS multi-services). Les tester en les utilisant vraiment, pas en
+      vérifiant un code 200. Sources : `docs/compatibilite-saas.md`,
+      `ha-lab/listmonk/manifeste.json`, `ha-lab/app-multi/manifeste.json`.
+
+      Pour chacune, dérouler un processus métier complet et le prouver :
+
+      1. **Listmonk** (image locale `100.64.0.6:5000/editeurs/listmonk`) :
+         créer une liste, un abonné réel, une campagne, déclencher l'envoi (le
+         sidecar SMTP local capture le message). Prouver en SQL que l'abonné, la
+         campagne et le message existent et que la campagne est terminée.
+      2. **Odoo 17** : déployer l'image (`odoo:17`, digest de la doc ; si absente
+         et téléchargement impossible dans le délai, documenter le blocage avec
+         la cause exacte), créer la base (`-d <base> -i base`), vérifier
+         `/web/health`, créer un contact et un devis réel via l'interface ou
+         l'ORM, et prouver en SQL que l'enregistrement existe.
+      3. **app-multi** : déployer les trois services du manifeste (web, worker,
+         redis), pousser au moins 50 jobs via `POST /enqueue`, vérifier
+         `GET /stats`, et prouver en SQL que les lignes sont dans
+         `jobs_results` (aucun job perdu, worker bien consommateur).
+
+      Pour chaque application, mesurer pendant le processus : CPU et mémoire de
+      l'application et de PostgreSQL (`docker stats`), latence des requêtes.
+
+      Écrire `docs/tests/APPS.md` : une section par SaaS avec le processus
+      exécuté, les preuves (SQL, captures, codes HTTP), les mesures, et un
+      verdict explicite (utilisable / avec réserves / inutilisable).
+
+      Contraintes : ne pas modifier les images des applications ; schéma ou base
+      dédiée ; aucun `docker rm`, aucun `down -v` ; ne pas interrompre la pile en
+      service (`amane-*`).
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/APPS.md
+      - type: artifact
+        path: docs/tests/APPS.md
+        kind: md
+        require: ["Listmonk", "Odoo", "app-multi", "verdict"]
+        min_lines: 60
+        min_images: 2
+
+  - id: A-09
+    title: Souveraineté des données, protection du logiciel, et installation sans toucher l'image
+    tier: paid
+    brief: |
+      Trois questions distinctes, à trancher par des tests réels.
+
+      **A. Installer un SaaS arbitraire sans modifier son image.**
+      Choisir `ha-lab/app-egress` (non déployé). L'installer en n'écrivant
+      **qu'un manifeste** : aucun rebuild, aucune modification de l'image.
+      Prouver que le digest exécuté est identique au digest publié
+      (`docker inspect --format '{{index .RepoDigests 0}}'` comparé au manifeste),
+      puis que l'application répond. Recommencer l'exercice avec une image tierce
+      publique déjà sur la machine si possible. Conclure : quelles catégories de
+      SaaS sont installables sans toucher l'image, et lesquelles ne le sont pas
+      (et pourquoi).
+
+      **B. Souveraineté des données de la PME.**
+      Prouver où vivent les données et qui peut les lire : fichiers PostgreSQL
+      sur l'hôte de la PME, accessibles sans passer par AMANE ; sauvegarde
+      chiffrée déposée sur le relais (si joignable) et illisible sans la clé ;
+      secrets gérés par la PME, jamais transmis à l'éditeur. Documenter ce que
+      l'éditeur AMANE peut voir depuis l'extérieur (métadonnées d'état
+      uniquement, ou davantage).
+
+      **C. Protection du logiciel de l'éditeur.**
+      Constater, preuves à l'appui, ce que la PME peut faire aujourd'hui :
+      `docker save` de l'image du SaaS, extraction des couches, récupération du
+      binaire et éventuellement des sources, lecture des variables
+      d'environnement, exécution hors d'AMANE. Estimer le temps nécessaire à
+      cette extraction. Puis comparer les parades possibles avec leur coût et
+      leur efficacité réelle : image chiffrée avec déchiffrement dans un runtime
+      scellé, attestation matérielle (TPM), licence liée à l'identité du nœud,
+      exécution distante chez l'éditeur, obfuscation. Dire clairement laquelle
+      tient ses promesses et laquelle ne fait que ralentir.
+
+      Écrire `docs/tests/SOUVERAINETE.md` : trois sections (A, B, C), des preuves
+      reproductibles, des verdicts sans complaisance, et une recommandation
+      priorisée.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/SOUVERAINETE.md
+      - type: artifact
+        path: docs/tests/SOUVERAINETE.md
+        kind: md
+        require: ["manifeste", "digest", "docker save", "relais", "recommandation"]
+        min_lines: 60
+
+  - id: A-02
+    title: Charge API Portail (L-01) avec k6, mesures réelles
+    tier: free
+    brief: |
+      Exécuter le test L-01 de `/home/jose/school/amane/plan-tests-charge-v3.md`
+      contre le lab déjà en marche.
+
+      Prérequis : installer k6 sans root, binaire unique dans `~/.local/bin`
+      (téléchargement officiel), vérifier `k6 version`. Ne pas installer locust.
+
+      À faire :
+      1. Identifier les points d'entrée réellement exposés :
+         `docker ps --format '{{.Names}} {{.Ports}}'` et le `docker-compose.yml`
+         du lab. Le portail est derrière `amane-haproxy` et `ss-node`.
+      2. Écrire `load/l01_portail.js` (k6) : profil de charge mixte 80 % lecture
+         20 % écriture, paliers 20 / 50 / 100 req/s, 2 minutes par palier,
+         seuils `http_req_failed < 1%`, `p95 < 200 ms` sur la lecture.
+      3. Exécuter réellement, consigner les sorties dans `load/results/l01.txt`.
+      4. Écrire `docs/tests/L01.md` : méthodologie, paliers, résultats mesurés,
+         comparaison aux cibles du plan, conclusion (tenu / non tenu / à refaire
+         avec quelle correction).
+      5. Terminer par le bloc de claims JSON.
+
+      Contraintes : aucun conteneur supprimé ou recréé, aucun `docker compose
+      down`. Si un service est indisponible, le documenter et tester ce qui est
+      accessible. Écriture limitée à `load/` et `docs/tests/`.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: load/l01_portail.js
+      - type: exists
+        path: docs/tests/L01.md
+      - type: artifact
+        path: docs/tests/L01.md
+        kind: md
+        require: ["p95", "k6", "paliers"]
+        min_lines: 30
+      - type: shell
+        cmd: "grep -c 'http_req_duration' load/results/l01.txt"
+
+  # ------------------------------------------------- campagne de tests V3
+
+  - id: A-07
+    title: Réplication PostgreSQL et réplicabilité du déploiement
+    tier: free
+    blocked_by: A-00
+    brief: |
+      Prouver la réplication et la capacité à rejouer un déploiement.
+
+      Réplication :
+      1. Identifier le primaire et les réplicas (`patronictl list` ou
+         `curl localhost:8008/`), le mode synchrone effectif.
+      2. Écrire 1 000 lignes dans une table de test dédiée sur le primaire,
+         mesurer le lag de réplication (`pg_stat_replication`, `LSN`), puis lire
+         les lignes sur chaque réplica : elles doivent y être.
+      3. Passer en synchrone strict, refaire l'écriture, arrêter temporairement
+         le réplica et montrer que l'écriture est bloquée ou ralentie selon la
+         configuration, puis restaurer.
+      4. Écrire `docs/tests/REPLICATION.md` avec les commandes, les mesures de
+         lag, les preuves de lecture sur réplica, et la conclusion sur le mode
+         réellement configuré.
+
+      Réplicabilité :
+      5. Rejouer la génération de la pile (même template, même tenant) et
+         comparer les manifestes produits : seuls les secrets doivent différer.
+         Documenter l'écart si ce n'est pas le cas.
+      6. Vérifier la sauvegarde/restauration : déclencher une sauvegarde
+         chiffrée, restaurer dans une base jetable, comparer un compte de lignes.
+
+      Contraintes : table de test dédiée et supprimée à la fin ; aucune donnée
+      applicative modifiée ; restaurer le mode synchrone d'origine.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/REPLICATION.md
+      - type: artifact
+        path: docs/tests/REPLICATION.md
+        kind: md
+        require: ["lag", "réplica", "synchrone", "sauvegarde"]
+        min_lines: 45
+
+  - id: A-08
+    title: Extinction de machine, quorum et bascule (chaos contrôlé)
+    tier: free
+    blocked_by: A-00
+    brief: |
+      Prouver le comportement en cas de perte de machine, sur la topologie
+      `ha-lab` (m1, m2, m3 et témoin). Cette topologie n'est pas la pile PME en
+      service (`amane-*`) : elle est montée à part et peut être recréée.
+
+      Avant de lancer quoi que ce soit :
+      1. Relever l'existant (`docker ps -a --filter name=m1`, `m2`, `m3`,
+         `etcd-temoin`, volumes du projet `ha-lab`) et l'écrire dans
+         `docs/tests/chaos/avant.txt`. Confirmer qu'aucun conteneur `amane-*`
+         n'appartient à cette topologie.
+      2. Lancer `bash ha-lab/chaos.sh temoin` puis `bash ha-lab/chaos.sh trois-pg`
+         en conservant la sortie intégrale dans `docs/tests/chaos/`.
+      3. Pour chaque scénario : la promesse testée, le résultat (OK/ÉCHEC), la
+         durée de bascule mesurée, ce que le client voit pendant la panne.
+      4. Compléter par un test manuel d'extinction : arrêter le primaire
+         (`docker stop pg-m1`), mesurer le délai de bascule avec un client qui
+         écrit en boucle, vérifier qu'aucune écriture acquittée n'est perdue au
+         retour de l'ancien primaire.
+      5. Écrire `docs/tests/QUORUM.md` : tableau des scénarios, mesures, verdicts,
+         et ce qui reste fragile.
+
+      Contraintes absolues : `chaos.sh` ne touche que le projet `ha-lab`. Ne
+      jamais lancer `docker compose down` ailleurs. Ne jamais arrêter un
+      conteneur dont le nom commence par `amane-`. Tout conteneur arrêté pour le
+      test doit être redémarré à la fin.
+      Preuves visuelles : `pilot-shot term --cmd "<commande>" --out docs/tests/captures/<nom>.png`
+      pour les commandes, `pilot-shot web --url <url> --out docs/tests/captures/<nom>.png`
+      pour les interfaces. Fortement souhaité, jamais obligatoire.
+    verify:
+      - type: exists
+        path: docs/tests/QUORUM.md
+      - type: exists
+        path: docs/tests/chaos/avant.txt
+      - type: artifact
+        path: docs/tests/QUORUM.md
+        kind: md
+        require: ["quorum", "bascule", "ÉCHEC"]
+        min_lines: 45
+      - type: shell
+        cmd: "test $(docker ps --filter name=amane- --format '{{.Names}}' | wc -l) -ge 5"
+    blocked_by: A-05
+
