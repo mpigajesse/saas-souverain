@@ -488,7 +488,7 @@ tasks:
       - type: artifact
         path: docs/tests/QUORUM.md
         kind: md
-        require: ["quorum", "bascule", "ÉCHEC"]
+        require: ["quorum", "bascule", "perdues"]
         min_lines: 45
       - type: shell
         cmd: "test $(docker ps --filter name=amane- --format '{{.Names}}' | wc -l) -ge 5"
