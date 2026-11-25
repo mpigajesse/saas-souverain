@@ -494,3 +494,281 @@ tasks:
         cmd: "test $(docker ps --filter name=amane- --format '{{.Names}}' | wc -l) -ge 5"
     blocked_by: A-05
 
+
+  # =====================================================================
+  # Campagne 2 — les tests du plan, pas l'état du système.
+  # Le registre docs/tests/REGISTRE.md est la preuve obligatoire : une
+  # tâche qui ne met pas le registre à jour échoue.
+  # =====================================================================
+
+  - id: C-01
+    title: Socle cryptographique — corruption Shamir, petit ordre, sealed box, zéroïsation, journal
+    tier: free
+    brief: |
+      Les six tests du groupe C du plan `plan-tests-exhaustif-v3.md`
+      (§ Groupe C, C-01 à C-06). Ils portent sur le workspace Rust
+      `spike/crates/` : `ss-crypto`, `ss-journal`, `ss-consensus`.
+
+      À faire, dans l'ordre du plan :
+      1. C-01 : altérer un octet d'une part Shamir, reconstruire la KEK,
+         tenter `unwrap_dek` avec la fausse KEK. Attendu : `Err(DecryptionFailed)`.
+      2. C-02 : passer les vecteurs RFC 7748 de petit ordre et le point à
+         l'infini à `seal_dek` / `open_sealed_dek`. Attendu : rejet, aucune DEK
+         scellée avec un secret tout-à-zéro.
+      3. C-03 : tronquer le sealed box à 0/31/32/79 octets, altérer 1 bit de
+         la clé éphémère. Attendu : `Err(InvalidSealedBox)` ou
+         `Err(DecryptionFailed)`, jamais de panic.
+      4. C-04 : récupérer un pointeur brut sur les octets internes, forcer le
+         drop, inspecter en `unsafe`. Attendu : tous les octets à 0x00.
+      5. C-05 : écrire un en-tête `len=256` suivi de 40 octets (torn write),
+         puis `len=0xFFFFFFFF` (DoS). Attendu : `JournalError::Corrupted` ou
+         `count_frames` en erreur, sans OOM.
+      6. C-06 : insérer une entrée epoch=4 après une entrée epoch=5. Attendu :
+         `JournalError::EpochRegression`.
+
+      Écrire les tests dans le crate concerné (`#[cfg(test)]`), les exécuter
+      avec `cargo test -p <crate>`, et **conserver la sortie brute** dans
+      `docs/tests/artifacts-c01/`.
+
+      Puis écrire `docs/tests/C-CRYPTO.md` : pour chaque test, le stimulus
+      exact, l'assertion, le résultat réel, et la commande de reproduction.
+      Si un test ne peut pas être écrit parce que la fonction n'existe pas ou
+      n'est pas exposée, le dire et le noter `BLOQUE` dans le registre.
+
+      **Obligatoire** : ajouter une ligne par test dans
+      `docs/tests/REGISTRE.md` (codes C-01 à C-06), puis lancer
+      `python3 tools/registre.py --ecrire` pour mettre la synthèse à jour.
+      Sans registre à jour, la tâche échoue.
+    verify:
+      - type: exists
+        path: docs/tests/C-CRYPTO.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| C-0[1-6] ' docs/tests/REGISTRE.md) -eq 6"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/C-CRYPTO.md
+        kind: md
+        require: ["C-01", "C-06", "Shamir", "zé", "epoch"]
+        min_lines: 50
+
+  - id: N-01
+    title: Nœud PME — quorum, fencing, enrôlement, streaming, restore, proxy
+    tier: free
+    brief: |
+      Les six tests du groupe N du plan `plan-tests-exhaustif-v3.md`
+      (§ Groupe N, N-01 à N-06). Ils portent sur `orchestrator-go/`
+      (consensus, dcs), `spike/node` et `core-rust`.
+
+      À faire, dans l'ordre du plan :
+      1. N-01 : `evaluer_quorum()` avec deux membres `Role=Leader`. Attendu :
+         `Etat = Perdu(Motif::SplitBrain)`, aucune écriture autorisée.
+      2. N-02 : machine locale primaire à timeline=2, cluster à timeline=3.
+         Attendu : `decider()` renvoie `fence:true`, `ecriture_autorisee:false`,
+         rôle basculé à standby, sauvegarde annulée.
+      3. N-03 : cinq requêtes invalides `POST /amane/api/enrolement`. Attendu :
+         blocage IP (rate-limit), invités légitimes conservés, comparaison en
+         temps constant.
+      4. N-04 : `pg_dump` en flux de 5 Go (ou du plus gros volume disponible).
+         Attendu : RSS < 128 Mo, authentification AEAD par morceau, offset
+         seek correct.
+      5. N-05 : altérer 1 bit d'un blob depuis le relais. Attendu :
+         déchiffrement DEK en erreur **avant** `pg_restore --clean`, base
+         locale intacte.
+      6. N-06 : chemins `/amane/../`, en-têtes chunked + Content-Length,
+         HTTP Upgrade, Keep-Alive croisé. Attendu : hop-by-hop épurés,
+         normalisation stricte, isolation SaaS ↔ admin, 502 si application
+         absente.
+
+      Exécuter réellement : `go test ./...` dans `orchestrator-go/`, et pour
+      N-06 un serveur de test local (pas la pile en service). Conserver les
+      sorties dans `docs/tests/artifacts-n01/`.
+
+      Écrire `docs/tests/N-NOEUD.md` avec, pour chaque test, le stimulus, la
+      commande, le résultat et la preuve. Un test non exécutable est noté
+      `BLOQUE` avec la raison, pas passé sous silence.
+
+      **Obligatoire** : lignes N-01 à N-06 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/N-NOEUD.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| N-0[1-6] ' docs/tests/REGISTRE.md) -eq 6"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/N-NOEUD.md
+        kind: md
+        require: ["N-01", "N-06", "quorum", "fencing"]
+        min_lines: 50
+
+  - id: R-01
+    title: Relais zero-knowledge — isolation multi-tenant, écriture atomique, liaison cryptographique
+    tier: free
+    brief: |
+      Les trois tests du groupe R du plan `plan-tests-exhaustif-v3.md`
+      (§ Groupe R, R-01 à R-03), sur `spike/relay`.
+
+      1. R-01 : depuis un jeton du tenant A, appeler
+         `GET/PUT/DELETE /api/blobs/{tenant_B}/sauvegarde-amane-1`.
+         Attendu : 403, validation HMAC du `tenant_id` authentifiée.
+      2. R-02 : tuer la connexion TCP à 20 % du transfert d'un blob de 500 Mo
+         (ou du plus gros blob disponible). Attendu : aucun fichier résiduel
+         sur disque, `GET` = 404, le nœud réémet.
+      3. R-03 : copier un blob chiffré de `sauvegarde-amane-1` vers
+         `sauvegarde-application-1`, puis restaurer. Attendu : déchiffrement
+         en erreur (l'AAD inclut tenant_id, nom de base, date).
+
+      Monter un relais de test local (binaire `spike/relay`, base jetable),
+      jamais le relais de production. Conserver les sorties dans
+      `docs/tests/artifacts-r01/`.
+
+      Écrire `docs/tests/R-RELAIS.md` : stimulus, commande, résultat, preuve.
+      Un test non exécutable est `BLOQUE` avec la raison.
+
+      **Obligatoire** : lignes R-01 à R-03 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/R-RELAIS.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| R-0[1-3] ' docs/tests/REGISTRE.md) -eq 3"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/R-RELAIS.md
+        kind: md
+        require: ["R-01", "R-03", "tenant"]
+        min_lines: 40
+
+  - id: D-01
+    title: Portail éditeur — usurpation, licence, sièges, confinement, manifeste, registry
+    tier: free
+    brief: |
+      Les six tests du groupe D du plan `plan-tests-exhaustif-v3.md`
+      (§ Groupe D, D-01 à D-06), sur `tenants/`, `applications/`, `devices/`
+      (Django).
+
+      1. D-01 : tenant B avec jeton valide mais `installation_id` du tenant A.
+         Attendu : 403/409, aucune modification de la machine A.
+      2. D-02 : enregistrement sur licence expirée. Attendu : 403
+         `license_expired` immédiat, `is_active=False` prioritaire.
+      3. D-03 : deux requêtes concurrentes `POST /api/devices/register` pour
+         une licence à 1 siège. Attendu : 1×201, 1×403, compte actif = 1.
+      4. D-04 : analyser le compose généré pour un tenant avec application.
+         Attendu : `network.internal=True`, application sans port publié,
+         ss-node + HAProxy sur le réseau applicatif, PG + etcd ailleurs.
+      5. D-05 : manifeste avec volumes `/var/run/docker.sock`, `/etc`, `/proc`,
+         commande `sh -c curl…`, schémas `file:///etc/passwd` et `gopher://`.
+         Attendu : `ManifesteInvalide` catégorique, seuls `postgres://` et
+         chemins non sensibles acceptés.
+      6. D-06 : registry répondant 401, 403, 500, 302 vers 169.254.169.254.
+         Attendu : 401/403/500 → erreur d'infrastructure (pas 409), SSRF bloqué.
+
+      Exécuter avec le framework de test Django du dépôt, base de test jetable.
+      Ne jamais toucher la base de production ni la pile `amane-*`.
+      Sorties dans `docs/tests/artifacts-d01/`.
+
+      Écrire `docs/tests/D-PORTAIL.md`. Un test non exécutable est `BLOQUE`.
+
+      **Obligatoire** : lignes D-01 à D-06 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/D-PORTAIL.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| D-0[1-6] ' docs/tests/REGISTRE.md) -eq 6"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/D-PORTAIL.md
+        kind: md
+        require: ["D-01", "D-05", "manifeste"]
+        min_lines: 50
+
+  - id: HA-01
+    title: Haute disponibilité — élection, mutex, keepalive, bascule HAProxy, hystérésis, bootstrap
+    tier: free
+    brief: |
+      Les six tests du groupe HA du plan `plan-tests-amane-v3.md`
+      (§ HA-01 à HA-06), sur `orchestrator-go/supervisor/`.
+
+      1. HA-01 : élection de lease etcd. Attendu : un seul leader, les autres
+         restent followers, aucune double promotion.
+      2. HA-02 : mutex « force-right ». Attendu : un opérateur ne peut pas
+         forcer deux bascules simultanées.
+      3. HA-03 : keepalive gRPC. Attendu : la session survit à une coupure
+         courte, le heartbeat reprend sans double enrôlement.
+      4. HA-04 : bascule HAProxy. Attendu : le backend suit le leader en
+         moins de 5 s, aucune requête routée vers un nœud non leader.
+      5. HA-05 : hystérésis de synchronisation. Attendu : pas d'oscillation
+         du mode synchrone quand la latence varie autour du seuil.
+      6. HA-06 : bootstrap concurrent. Attendu : deux nœuds démarrés en même
+         temps produisent un seul cluster, pas deux.
+
+      S'appuyer sur `ha-lab` (projet `ha-lab` uniquement) et sur le banc de VM
+      `A-00` pour ce qui exige de vraies machines. `chaos.sh` ne doit toucher
+      que `ha-lab`. Sorties dans `docs/tests/artifacts-ha01/`.
+
+      Écrire `docs/tests/HA-DISPO.md`. Un test non exécutable est `BLOQUE`.
+
+      **Obligatoire** : lignes HA-01 à HA-06 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/HA-DISPO.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| HA-0[1-6] ' docs/tests/REGISTRE.md) -eq 6"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/HA-DISPO.md
+        kind: md
+        require: ["HA-01", "HA-06", "leader"]
+        min_lines: 50
+
+  - id: L-02
+    title: Charge L-02 à L-12 — relais, nœud, bascule sous charge, volumes, multi-tenant, latence, disque, soak
+    tier: free
+    blocked_by: A-02
+    brief: |
+      Les onze tests de charge restants du plan `plan-tests-charge-v3.md`
+      (L-02 à L-12). L-01 est déjà fait et a rendu `NON TENU` parce que la pile
+      en service n'était pas saine : **ne pas refaire L-01**.
+
+      L-02 charge relais zero-knowledge, L-03 charge nœud Rust,
+      L-04 réplication synchrone sous charge, L-05 bascule sous charge,
+      L-06 sauvegarde chiffrée gros volumes, L-07 restauration gros volumes,
+      L-08 isolation charge multi-tenant relais, L-09 portail multi-tenant,
+      L-10 latence réseau inter-machines, L-11 HAProxy sous charge,
+      L-12 performance disque chiffré, plus le soak (7) et la montée en charge
+      (8).
+
+      **Condition d'entrée** : la pile en service est dégradée
+      (`amane-application` en redémarrage, `amane-etcd` unhealthy). Si elle
+      n'est pas réparée, la charge ne mesure que l'infrastructure. Dans ce cas,
+      exécuter les tests **sur le banc de VM A-00** (trois VM réelles, pile
+      déployée, saine) et le dire explicitement. Ne jamais conclure « NON TENU »
+      sans avoir identifié la cause racine.
+
+      Outil : `k6` (déjà installé dans `~/.local/bin`), scripts dans `load/`.
+      Une cible non atteinte se note `NON TENU` avec la mesure, pas « OK ».
+
+      Écrire `docs/tests/L-02-12.md` : tableau des douze cibles avec la mesure
+      réelle, le verdict, et la cause de chaque non-tenue.
+
+      **Obligatoire** : lignes L-02 à L-12 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/L-02-12.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| L-(0[2-9]|1[0-2]) ' docs/tests/REGISTRE.md) -eq 11"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/L-02-12.md
+        kind: md
+        require: ["L-02", "L-12", "soak"]
+        min_lines: 60
