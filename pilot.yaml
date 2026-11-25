@@ -10,13 +10,14 @@ agent: build
 models:
   free:
     - opencode/big-pickle
-    - opencode/deepseek-v4.1-flash-free
+    - openrouter/baidu/ernie-5.5-flash-preview:free
+    - openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
   paid:
-    - openrouter/~z-ai/glm-flash-latest
     - openrouter/deepseek/deepseek-v4.1-flash-1017
+    - openrouter/~z-ai/glm-flash-latest
 
 limits:
-  paid_per_day: 4
+  paid_usd_per_day: 1.5
   task_timeout_min: 60
   max_attempts: 2
 
@@ -64,7 +65,7 @@ tasks:
         require: ["go test", "Tableau", "manque"]
         min_lines: 40
       - type: shell
-        cmd: "git diff --quiet && git diff --cached --quiet"
+        cmd: "test -z \"$(git status --porcelain | grep -vE '^.. (docs/tests/|reports/|pilot\\.yaml|AGENTS\\.md|docs/STATE\\.md|docs/DECISIONS\\.md)')\" || (git status --porcelain | grep -vE '^.. (docs/tests/|reports/|pilot\\.yaml|AGENTS\\.md|docs/STATE\\.md|docs/DECISIONS\\.md)'; false)"
 
   # ------------------------------------------------- banc 3 machines réelles
 
@@ -171,7 +172,7 @@ tasks:
         require: ["sha256", "Réseau", "Écart"]
         min_lines: 50
       - type: shell
-        cmd: "git diff --quiet && git diff --cached --quiet"
+        cmd: "test -z \"$(git status --porcelain | grep -vE '^.. (docs/tests/|reports/|pilot\\.yaml|AGENTS\\.md|docs/STATE\\.md|docs/DECISIONS\\.md)')\" || (git status --porcelain | grep -vE '^.. (docs/tests/|reports/|pilot\\.yaml|AGENTS\\.md|docs/STATE\\.md|docs/DECISIONS\\.md)'; false)"
 
   - id: A-04
     title: AMANE à vide, mesures réelles pendant 10 minutes
