@@ -1,0 +1,1760 @@
+[
+    {
+        "Id": "af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6",
+        "Created": "2026-11-13T13:43:15.561701625Z",
+        "Path": "sh",
+        "Args": [
+            "-c",
+            ". /amane/etcd/etcd.env && exec etcd"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1481,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-11-21T00:49:52.783816361Z",
+            "FinishedAt": "2026-11-21T00:48:44.192939712Z",
+            "Health": {
+                "Status": "unhealthy",
+                "FailingStreak": 38902,
+                "Log": [
+                    {
+                        "Start": "2026-11-25T18:24:04.556633903Z",
+                        "End": "2026-11-25T18:24:07.705859876Z",
+                        "ExitCode": -1,
+                        "Output": "Health check exceeded timeout (3s)"
+                    },
+                    {
+                        "Start": "2026-11-25T18:24:12.707044005Z",
+                        "End": "2026-11-25T18:24:15.791521395Z",
+                        "ExitCode": -1,
+                        "Output": "Health check exceeded timeout (3s)"
+                    },
+                    {
+                        "Start": "2026-11-25T18:24:20.793153841Z",
+                        "End": "2026-11-25T18:24:23.90232475Z",
+                        "ExitCode": -1,
+                        "Output": "Health check exceeded timeout (3s)"
+                    },
+                    {
+                        "Start": "2026-11-25T18:24:28.903619062Z",
+                        "End": "2026-11-25T18:24:31.9912271Z",
+                        "ExitCode": -1,
+                        "Output": "Health check exceeded timeout (3s)"
+                    },
+                    {
+                        "Start": "2026-11-25T18:24:36.993444316Z",
+                        "End": "2026-11-25T18:24:40.109281697Z",
+                        "ExitCode": -1,
+                        "Output": "Health check exceeded timeout (3s)"
+                    }
+                ]
+            }
+        },
+        "Image": "sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700",
+        "ResolvConfPath": "/var/lib/docker/containers/af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6/hostname",
+        "HostsPath": "/var/lib/docker/containers/af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6/hosts",
+        "LogPath": "/var/lib/docker/containers/af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6/af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6-json.log",
+        "Name": "/amane-etcd",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_etcd-data:/etcd-data:rw",
+                "amane-pme_etcd-conf:/amane/etcd:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane",
+            "PortBindings": {
+                "2379/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "2379"
+                    }
+                ],
+                "2380/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "2380"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_etcd-data",
+                "Source": "/var/lib/docker/volumes/amane-pme_etcd-data/_data",
+                "Destination": "/etcd-data",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_etcd-conf",
+                "Source": "/var/lib/docker/volumes/amane-pme_etcd-conf/_data",
+                "Destination": "/amane/etcd",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "af5773b77e36",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "2379/tcp": {},
+                "2380/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "sh",
+                "-c",
+                ". /amane/etcd/etcd.env && exec etcd"
+            ],
+            "Healthcheck": {
+                "Test": [
+                    "CMD",
+                    "etcdctl",
+                    "endpoint",
+                    "health"
+                ],
+                "Interval": 5000000000,
+                "Timeout": 3000000000,
+                "Retries": 60
+            },
+            "Image": "100.64.0.6:5000/amane/etcd@sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "Labels": {
+                "com.docker.compose.config-hash": "3a65a72fc9a351d26b6adc40aa2a1732850568f18c31cb4ebd5960d24729f0dc",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-init:service_completed_successfully:false",
+                "com.docker.compose.image": "sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "amane-etcd",
+                "com.docker.compose.version": "5.6.1"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "90a33085422b31e63d02617b0ed9fa586a81c62e8a25d7ae345fa80d807c4452",
+            "SandboxKey": "/var/run/docker/netns/90a33085422b",
+            "Ports": {
+                "2379/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "2379"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "2379"
+                    }
+                ],
+                "2380/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "2380"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "2380"
+                    }
+                ]
+            },
+            "Networks": {
+                "amane-pme_amane": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-etcd",
+                        "amane-etcd"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d",
+                    "EndpointID": "d33c3779efb45d295b4aa5840c318ccebc68b6869685fff04f73decca6433fe2",
+                    "Gateway": "172.22.0.1",
+                    "IPAddress": "172.22.0.3",
+                    "MacAddress": "26:e1:7c:0d:41:02",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-etcd",
+                        "af5773b77e36"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "digest": "sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700",
+            "size": 1783,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]
+[
+    {
+        "Id": "85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a",
+        "Created": "2026-11-13T13:43:15.605687518Z",
+        "Path": "/bin/sh",
+        "Args": [
+            "-c",
+            "until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; exec /bin/sh /launch.sh init"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1529,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-11-21T00:49:52.800069247Z",
+            "FinishedAt": "2026-11-21T00:48:52.603309824Z"
+        },
+        "Image": "sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b",
+        "ResolvConfPath": "/var/lib/docker/containers/85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a/hostname",
+        "HostsPath": "/var/lib/docker/containers/85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a/hosts",
+        "LogPath": "/var/lib/docker/containers/85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a/85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a-json.log",
+        "Name": "/amane-postgresql",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_pg-data:/home/postgres/pgdata:rw",
+                "amane-pme_secrets:/amane/secrets:ro"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane",
+            "PortBindings": {
+                "5432/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "5432"
+                    }
+                ],
+                "8008/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8008"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_secrets",
+                "Source": "/var/lib/docker/volumes/amane-pme_secrets/_data",
+                "Destination": "/amane/secrets",
+                "Driver": "local",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_pg-data",
+                "Source": "/var/lib/docker/volumes/amane-pme_pg-data/_data",
+                "Destination": "/home/postgres/pgdata",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "pme-100-64-0-4",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "5432/tcp": {},
+                "8008/tcp": {},
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "SPILO_CONFIGURATION=bootstrap:\n  dcs:\n    ttl: 20\n    loop_wait: 2\n    retry_timeout: 5\n    synchronous_mode: true\n    synchronous_mode_strict: false\n    postgresql:\n      parameters:\n        synchronous_commit: \"on\"\n        max_wal_senders: 5\n        max_slot_wal_keep_size: 1024MB\n",
+                "PATRONI_RESTAPI_LISTEN=0.0.0.0:8008",
+                "PG_CONNECT_ADDRESS=100.64.0.4:5432",
+                "RESTAPI_CONNECT_ADDRESS=100.64.0.4:8008",
+                "PATRONI_NAME=pme-100-64-0-4",
+                "ETCD3_HOSTS=amane-etcd:2379",
+                "SCOPE=amane",
+                "ALLOW_NOSSL=true",
+                "PATRONI_POSTGRESQL_LISTEN=0.0.0.0:5432",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/17/bin",
+                "POSTGIS_VERSION=3.5",
+                "BG_MON_COMMIT=7f5887218790b263fe3f42f85f4ddc9c8400b154",
+                "PG_AUTH_MON_COMMIT=fe099eef7662cbc85b0b79191f47f52f1e96b779",
+                "PG_MON_COMMIT=ead1de70794ed62ca1e34d4022f6165ff36e9a91",
+                "SET_USER=REL4_1_0",
+                "PLPROFILER=REL4_2_5",
+                "PG_PROFILE=4.7",
+                "PAM_OAUTH2=v1.0.1",
+                "PG_PERMISSIONS_COMMIT=f4b7c18676fa64236a1c8e28d34a35764e4a70e2",
+                "PATRONIVERSION=4.0.4",
+                "WALE_VERSION=1.1.1",
+                "LC_ALL=en_US.utf-8",
+                "PGHOME=/home/postgres",
+                "RW_DIR=/run",
+                "DEMO=false",
+                "WALE_ENV_DIR=/run/etc/wal-e.d/env",
+                "LOG_ENV_DIR=/run/etc/log.d/env",
+                "PGROOT=/home/postgres/pgdata/pgroot",
+                "PGDATA=/home/postgres/pgdata/pgroot/data",
+                "PGLOG=/home/postgres/pgdata/pgroot/pg_log",
+                "USE_OLD_LOCALES=false"
+            ],
+            "Cmd": [
+                "/bin/sh",
+                "-c",
+                "until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; exec /bin/sh /launch.sh init"
+            ],
+            "Image": "100.64.0.6:5000/amane/postgresql@sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b",
+            "Volumes": null,
+            "WorkingDir": "/home/postgres",
+            "Entrypoint": null,
+            "Labels": {
+                "com.docker.compose.config-hash": "4da1a436824a5de87b86f4c4c46bc348e76d1ba6ee70149e3a6a3713f33f1994",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-etcd:service_healthy:false",
+                "com.docker.compose.image": "sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "amane-postgresql",
+                "com.docker.compose.version": "5.6.1",
+                "maintainer": "Team ACID @ Zalando <team-acid@zalando.de>",
+                "org.opencontainers.image.ref.name": "ubuntu",
+                "org.opencontainers.image.version": "22.04"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "180b0a73bdaf9f508327ba8f11854b706dba2e00b4b10554eaea5051469d25fa",
+            "SandboxKey": "/var/run/docker/netns/180b0a73bdaf",
+            "Ports": {
+                "5432/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "5432"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "5432"
+                    }
+                ],
+                "8008/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8008"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "8008"
+                    }
+                ],
+                "8080/tcp": null
+            },
+            "Networks": {
+                "amane-pme_amane": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-postgresql",
+                        "amane-postgresql"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d",
+                    "EndpointID": "6ff9433a38655e75c6e424125eff17fb4d837093fce57db0868098c9a98c461d",
+                    "Gateway": "172.22.0.1",
+                    "IPAddress": "172.22.0.5",
+                    "MacAddress": "02:5a:c2:3b:d5:d1",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-postgresql",
+                        "85c8724abd4c",
+                        "pme-100-64-0-4"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b",
+            "size": 4277,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]
+[
+    {
+        "Id": "d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42",
+        "Created": "2026-11-13T13:43:15.613078046Z",
+        "Path": "/usr/local/bin/orchestrator",
+        "Args": [
+            "-etcd-endpoints=amane-etcd:2379",
+            "-supervisor",
+            "-decouvrir",
+            "-patroni-scope=amane",
+            "-secrets=/amane/secrets/postgresql.env",
+            "-haproxy-dossier=/amane/haproxy",
+            "-synchrone-auto",
+            "-application-secrets=/amane/secrets-application/application.env"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1480,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-11-21T00:49:52.782391643Z",
+            "FinishedAt": "2026-11-21T00:48:44.187472107Z"
+        },
+        "Image": "sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35",
+        "ResolvConfPath": "/var/lib/docker/containers/d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42/hostname",
+        "HostsPath": "/var/lib/docker/containers/d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42/hosts",
+        "LogPath": "/var/lib/docker/containers/d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42/d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42-json.log",
+        "Name": "/amane-orchestrateur",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_secrets:/amane/secrets:rw",
+                "amane-pme_haproxy:/amane/haproxy:rw",
+                "amane-pme_secrets-application:/amane/secrets-application:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_haproxy",
+                "Source": "/var/lib/docker/volumes/amane-pme_haproxy/_data",
+                "Destination": "/amane/haproxy",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_secrets",
+                "Source": "/var/lib/docker/volumes/amane-pme_secrets/_data",
+                "Destination": "/amane/secrets",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_secrets-application",
+                "Source": "/var/lib/docker/volumes/amane-pme_secrets-application/_data",
+                "Destination": "/amane/secrets-application",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "d13adb2ec9ec",
+            "Domainname": "",
+            "User": "amane",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "50051/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "AMANE_NODE_ID=pme-100-64-0-4",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "-etcd-endpoints=amane-etcd:2379",
+                "-supervisor",
+                "-decouvrir",
+                "-patroni-scope=amane",
+                "-secrets=/amane/secrets/postgresql.env",
+                "-haproxy-dossier=/amane/haproxy",
+                "-synchrone-auto",
+                "-application-secrets=/amane/secrets-application/application.env"
+            ],
+            "Image": "100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35",
+            "Volumes": null,
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/usr/local/bin/orchestrator"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "3d688bdc19f1aef7cb6535fe1bff7c7c94903f2e574c1e936272c5777bf3c0f6",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-etcd:service_healthy:false",
+                "com.docker.compose.image": "sha256:05d37339d97d52da74b32e5690e0e76a1ef72c1cac3c440f7b196ba7e50bb7d7",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "amane-orchestrateur",
+                "com.docker.compose.version": "5.6.1"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "b6764185e39a51f9e6f9e8d0abd4a6d3db2c7c3998d746cfefd0252764e0e349",
+            "SandboxKey": "/var/run/docker/netns/b6764185e39a",
+            "Ports": {
+                "50051/tcp": null
+            },
+            "Networks": {
+                "amane-pme_amane": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-orchestrateur",
+                        "amane-orchestrateur"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d",
+                    "EndpointID": "c48a6153bb3148a28ef2155366ab17398d195c5e77cb327c150b9c1816147009",
+                    "Gateway": "172.22.0.1",
+                    "IPAddress": "172.22.0.2",
+                    "MacAddress": "5e:22:6e:1a:10:97",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-orchestrateur",
+                        "d13adb2ec9ec"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:05d37339d97d52da74b32e5690e0e76a1ef72c1cac3c440f7b196ba7e50bb7d7",
+            "size": 861,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]
+[
+    {
+        "Id": "d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933",
+        "Created": "2026-11-13T13:43:15.645320327Z",
+        "Path": "docker-entrypoint.sh",
+        "Args": [
+            "sh",
+            "-c",
+            "until [ -f /amane/haproxy/haproxy.cfg ]; do sleep 1; done; exec haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1519,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-11-21T00:49:52.798648941Z",
+            "FinishedAt": "2026-11-21T00:48:44.202988348Z"
+        },
+        "Image": "sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2",
+        "ResolvConfPath": "/var/lib/docker/containers/d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933/hostname",
+        "HostsPath": "/var/lib/docker/containers/d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933/hosts",
+        "LogPath": "/var/lib/docker/containers/d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933/d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933-json.log",
+        "Name": "/amane-haproxy",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_haproxy:/amane/haproxy:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_haproxy",
+                "Source": "/var/lib/docker/volumes/amane-pme_haproxy/_data",
+                "Destination": "/amane/haproxy",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "d066ececc84e",
+            "Domainname": "",
+            "User": "haproxy",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "HAPROXY_VERSION=3.0.30",
+                "HAPROXY_URL=https://www.haproxy.org/download/3.0/src/haproxy-3.0.30.tar.gz",
+                "HAPROXY_SHA256=a7c594a1985936890737219ae2d7c3769346a92a2f536522b8b3abc540d7a608"
+            ],
+            "Cmd": [
+                "sh",
+                "-c",
+                "until [ -f /amane/haproxy/haproxy.cfg ]; do sleep 1; done; exec haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg"
+            ],
+            "Image": "100.64.0.6:5000/amane/haproxy@sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2",
+            "Volumes": null,
+            "WorkingDir": "/var/lib/haproxy",
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "3bd28f8baa68b29bcc49c4c42d22c14e219bed4de2554cc4213c6158fa51e1b0",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-orchestrateur:service_started:false",
+                "com.docker.compose.image": "sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "amane-haproxy",
+                "com.docker.compose.version": "5.6.1"
+            },
+            "StopSignal": "SIGUSR1"
+        },
+        "NetworkSettings": {
+            "SandboxID": "7f5c3eecaadd1e475b645b6b8d4b8666354515d5e1db218731302203a119dce5",
+            "SandboxKey": "/var/run/docker/netns/7f5c3eecaadd",
+            "Ports": {},
+            "Networks": {
+                "amane-pme_amane": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-haproxy",
+                        "amane-haproxy"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d",
+                    "EndpointID": "a70712295f0a489dd14afdcc80076c9a6e6c18056fa33f3f35ac2af838fae96e",
+                    "Gateway": "172.22.0.1",
+                    "IPAddress": "172.22.0.6",
+                    "MacAddress": "b6:8c:36:4c:01:8d",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-haproxy",
+                        "d066ececc84e"
+                    ]
+                },
+                "amane-pme_amane-application": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-haproxy",
+                        "amane-haproxy"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "35983ce23e1832700626eb3759ab5a33ebbc5d14837c3085cb7dff81e9076391",
+                    "EndpointID": "b1b23acc494f7c42122acc604515ae29df1fb10d8c7d4698011363731c7ecacc",
+                    "Gateway": "",
+                    "IPAddress": "172.23.0.4",
+                    "MacAddress": "7e:32:12:e5:0f:d1",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-haproxy",
+                        "d066ececc84e"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2",
+            "size": 2101,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]
+[
+    {
+        "Id": "e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f",
+        "Created": "2026-11-13T13:43:15.690488334Z",
+        "Path": "/bin/sh",
+        "Args": [
+            "-c",
+            "until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; export PG_URL=\"postgres://amane:${AMANE_PG_PASSWORD}@amane-haproxy:5000/amane\"; exec /entrypoint.sh run --mode \"${NODE_MODE:-passive}\""
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1498,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-11-21T00:49:52.783225764Z",
+            "FinishedAt": "2026-11-21T00:48:54.203524611Z"
+        },
+        "Image": "sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4",
+        "ResolvConfPath": "/var/lib/docker/containers/e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f/hostname",
+        "HostsPath": "/var/lib/docker/containers/e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f/hosts",
+        "LogPath": "/var/lib/docker/containers/e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f/e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f-json.log",
+        "Name": "/ss-node",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_secrets:/amane/secrets:ro",
+                "amane-pme_node-data:/data:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane",
+            "PortBindings": {
+                "9001/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "9001"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_node-data",
+                "Source": "/var/lib/docker/volumes/amane-pme_node-data/_data",
+                "Destination": "/data",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_secrets",
+                "Source": "/var/lib/docker/volumes/amane-pme_secrets/_data",
+                "Destination": "/amane/secrets",
+                "Driver": "local",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "e365d651630b",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "9001/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "NODE_MODE=active",
+                "REGISTRATION_TOKEN=412c9377-8285-400d-a8c0-fa3e9b0b8752",
+                "AMANE_APP_SANTE=/health",
+                "SAAS_URL=http://100.64.0.6:5173",
+                "RUST_LOG=info",
+                "HOSTNAME=pme-100-64-0-4",
+                "NODE_ADDR=100.64.0.4:9001",
+                "AMANE_APP_BASE=application",
+                "CHIFFREMENT_DISQUE=non",
+                "PATRONI_URL=http://amane-postgresql:8008",
+                "TENANT_ID=ea49c4c4-f46f-464d-b5db-4fb5928b7e49",
+                "RELAY_URL=http://100.64.0.6:8080",
+                "WEB_PORT=9001",
+                "AMANE_APP_URL=http://amane-application:9000",
+                "SS_NODE_DIR=/data",
+                "RELAY_AUTH_TOKEN=bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": null,
+            "Image": "100.64.0.6:5000/amane/noeud@sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4",
+            "Volumes": {
+                "/data": {}
+            },
+            "WorkingDir": "",
+            "Entrypoint": [
+                "/bin/sh",
+                "-c",
+                "until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; export PG_URL=\"postgres://amane:${AMANE_PG_PASSWORD}@amane-haproxy:5000/amane\"; exec /entrypoint.sh run --mode \"${NODE_MODE:-passive}\""
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "35284067d2fffb48e92afe76fdc0d59b9cb1cf2c0dbd1d38e16ce88a6e82c586",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-haproxy:service_started:false,amane-postgresql:service_started:false",
+                "com.docker.compose.image": "sha256:af0c2c62ed88aee2cdf08d17ffffa65c350ef68ceba33d6a3be254c310d8a491",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "ss-node",
+                "com.docker.compose.version": "5.6.1"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "0c647278ba5f5ded2d8c7860def36b0465d49b1d5e5ad2d110233aeb18fbcec3",
+            "SandboxKey": "/var/run/docker/netns/0c647278ba5f",
+            "Ports": {
+                "9001/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "9001"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "9001"
+                    }
+                ]
+            },
+            "Networks": {
+                "amane-pme_amane": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "ss-node",
+                        "ss-node"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d",
+                    "EndpointID": "a800eb1a2cc7834023476d1eece43060b8f850cd1d1badd2d7897b6e16e57cda",
+                    "Gateway": "172.22.0.1",
+                    "IPAddress": "172.22.0.4",
+                    "MacAddress": "b2:06:83:6f:10:a9",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "ss-node",
+                        "e365d651630b"
+                    ]
+                },
+                "amane-pme_amane-application": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "ss-node",
+                        "ss-node"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "35983ce23e1832700626eb3759ab5a33ebbc5d14837c3085cb7dff81e9076391",
+                    "EndpointID": "0505ba8780eae014ba5c9bb44ca4ed9b55da51513e8b71ad157d6cc570739730",
+                    "Gateway": "",
+                    "IPAddress": "172.23.0.3",
+                    "MacAddress": "fa:fc:2a:41:46:01",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "ss-node",
+                        "e365d651630b"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:af0c2c62ed88aee2cdf08d17ffffa65c350ef68ceba33d6a3be254c310d8a491",
+            "size": 1055,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]
+[
+    {
+        "Id": "973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff",
+        "Created": "2026-11-13T13:43:15.680391676Z",
+        "Path": "/amane/bin/orchestrator",
+        "Args": [
+            "lancer",
+            "-secrets=/amane/secrets-application/application.env",
+            "--",
+            "docker-entrypoint.sh",
+            "sh",
+            "-c",
+            "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"
+        ],
+        "State": {
+            "Status": "restarting",
+            "Running": true,
+            "Paused": false,
+            "Restarting": true,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 1,
+            "Error": "",
+            "StartedAt": "2026-11-25T18:23:44.518554824Z",
+            "FinishedAt": "2026-11-25T18:23:44.7132085Z"
+        },
+        "Image": "sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+        "ResolvConfPath": "/var/lib/docker/containers/973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff/hostname",
+        "HostsPath": "/var/lib/docker/containers/973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff/hosts",
+        "LogPath": "/var/lib/docker/containers/973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff/973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff-json.log",
+        "Name": "/amane-application",
+        "RestartCount": 5230,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "amane-pme_amane-bin:/amane/bin:ro",
+                "amane-pme_secrets-application:/amane/secrets-application:ro"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "amane-pme_amane-application",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "amane-pme_amane-bin",
+                "Source": "/var/lib/docker/volumes/amane-pme_amane-bin/_data",
+                "Destination": "/amane/bin",
+                "Driver": "local",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "amane-pme_secrets-application",
+                "Source": "/var/lib/docker/volumes/amane-pme_secrets-application/_data",
+                "Destination": "/amane/secrets-application",
+                "Driver": "local",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "973068bdc3a2",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "9000/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "AMANE_MODELES={\"LISTMONK_DB__DATABASE\": \"{base}\", \"LISTMONK_DB__HOST\": \"{hote}\", \"LISTMONK_DB__PASSWORD\": \"{mot_de_passe}\", \"LISTMONK_DB__PORT\": \"{port}\", \"LISTMONK_DB__USER\": \"{utilisateur}\"}",
+                "LISTMONK_APP__ADDRESS=0.0.0.0:9000",
+                "LISTMONK_DB__SSL_MODE=disable",
+                "TZ=Etc/UTC",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "docker-entrypoint.sh",
+                "sh",
+                "-c",
+                "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"
+            ],
+            "Image": "100.64.0.6:5000/editeurs/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+            "Volumes": null,
+            "WorkingDir": "/listmonk",
+            "Entrypoint": [
+                "/amane/bin/orchestrator",
+                "lancer",
+                "-secrets=/amane/secrets-application/application.env",
+                "--"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "81fec17d151ed15707cd995a919726a5979994ec75133759b4238149e9185eb4",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "amane-haproxy:service_started:false,amane-orchestrateur:service_started:false",
+                "com.docker.compose.image": "sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "amane-pme",
+                "com.docker.compose.project.config_files": "/opt/amane-pme/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/opt/amane-pme",
+                "com.docker.compose.service": "amane-application",
+                "com.docker.compose.version": "5.6.1",
+                "org.opencontainers.image.created": "2026-06-26T10:22:50Z",
+                "org.opencontainers.image.description": "listmonk",
+                "org.opencontainers.image.licenses": "AGPL-3.0",
+                "org.opencontainers.image.revision": "ef0a75872463f10a4848af6c547d1c057405453a",
+                "org.opencontainers.image.source": "https://github.com/knadh/listmonk",
+                "org.opencontainers.image.title": "listmonk",
+                "org.opencontainers.image.url": "https://github.com/knadh/listmonk",
+                "org.opencontainers.image.version": "6.2.0"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "amane-pme_amane-application": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "amane-application",
+                        "amane-application"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "35983ce23e1832700626eb3759ab5a33ebbc5d14837c3085cb7dff81e9076391",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "amane-application",
+                        "973068bdc3a2"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "digest": "sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291",
+            "size": 1779,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]

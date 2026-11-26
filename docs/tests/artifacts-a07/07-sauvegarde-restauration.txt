@@ -1,0 +1,45 @@
+== 1) base source jetable a07_src : 500 lignes ==
+NOTICE:  database "a07_src" does not exist, skipping
+   compte source = 500
+== 2) pg_dump puis chiffrement AES-256-CBC ==
+   taille clair=38389 octets ; chiffré=38416 octets
+   occurrences de 'libelle' dans le chiffré : 0 (chiffré opaque, OK)
+   en-tête du blob chiffré (file) : (file absent)
+== 3) restauration dans la base jetable a07_dst ==
+NOTICE:  database "a07_dst" does not exist, skipping
+ set_config 
+------------
+ 
+(1 row)
+
+psql:/tmp/a07_src.dec.sql:24: ERROR:  schema "metric_helpers" already exists
+psql:/tmp/a07_src.dec.sql:33: ERROR:  schema "user_management" already exists
+psql:/tmp/a07_src.dec.sql:172: ERROR:  function "get_btree_bloat_approx" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:203: ERROR:  function "get_nearly_exhausted_sequences" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:278: ERROR:  function "get_table_bloat_approx" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:291: ERROR:  function "pg_stat_statements" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:311: ERROR:  function "create_application_user" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:342: ERROR:  function "create_application_user_or_change_password" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:368: ERROR:  function "create_role" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:392: ERROR:  function "create_user" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:413: ERROR:  function "drop_role" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:437: ERROR:  function "drop_user" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:473: ERROR:  function "random_password" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:489: ERROR:  function "revoke_admin" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:511: ERROR:  function "terminate_backend" already exists with same argument types
+psql:/tmp/a07_src.dec.sql:540: ERROR:  relation "index_bloat" already exists
+psql:/tmp/a07_src.dec.sql:553: ERROR:  relation "nearly_exhausted_sequences" already exists
+psql:/tmp/a07_src.dec.sql:612: ERROR:  relation "pg_stat_statements" already exists
+psql:/tmp/a07_src.dec.sql:632: ERROR:  relation "table_bloat" already exists
+ setval 
+--------
+    500
+(1 row)
+
+   compte restauré = 500
+== 4) contrôle : mauvaise clé ==
+   mauvaise clé -> échec de déchiffrement (OK)
+== 5) nettoyage des bases jetables ==
+   bases a07_src et a07_dst supprimées
+== VERDICT ==
+OK: source=500 restaure=500

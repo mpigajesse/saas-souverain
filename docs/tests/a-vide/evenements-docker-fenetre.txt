@@ -1,0 +1,235 @@
+1795634902 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT key FROM settings;
+1795634902 a06-postgres exec_die
+1795634902 amane-etcd exec_create: etcdctl endpoint health
+1795634902 amane-etcd exec_start: etcdctl endpoint health
+1795634905 a06-postgres exec_create: psql -U a06 -d listmonk -c \d roles
+1795634905 a06-postgres exec_start: psql -U a06 -d listmonk -c \d roles
+1795634905 amane-etcd exec_die
+1795634905 a06-postgres exec_die
+1795634910 amane-etcd exec_create: etcdctl endpoint health
+1795634910 amane-etcd exec_start: etcdctl endpoint health
+1795634910 wizardly_mcnulty create
+1795634910 wizardly_mcnulty attach
+1795634910 a06-net connect
+1795634910 wizardly_mcnulty start
+1795634911 a06-net disconnect
+1795634911 wizardly_mcnulty die
+1795634911 wizardly_mcnulty destroy
+1795634913 amane-etcd exec_die
+1795634914 a06-mailpit exec_create: /mailpit readyz
+1795634914 a06-mailpit exec_start: /mailpit readyz
+1795634914 hardcore_fermi create
+1795634914 hardcore_fermi attach
+1795634914 a06-mailpit exec_die
+1795634914 a06-net connect
+1795634914 hardcore_fermi start
+1795634914 a06-net disconnect
+1795634914 hardcore_fermi die
+1795634915 hardcore_fermi destroy
+1795634915 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634915 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634915 a06-postgres exec_die
+1795634917 a06-postgres exec_create: psql -U a06 -d postgres -c DROP DATABASE listmonk;
+1795634917 a06-postgres exec_start: psql -U a06 -d postgres -c DROP DATABASE listmonk;
+1795634918 amane-etcd exec_create: etcdctl endpoint health
+1795634918 amane-etcd exec_start: etcdctl endpoint health
+1795634921 amane-etcd exec_die
+1795634922 a06-postgres exec_die
+1795634922 a06-postgres exec_create: psql -U a06 -d postgres -c CREATE DATABASE listmonk OWNER a06;
+1795634922 a06-postgres exec_start: psql -U a06 -d postgres -c CREATE DATABASE listmonk OWNER a06;
+1795634922 a06-postgres exec_die
+1795634923 cranky_ptolemy create
+1795634923 cranky_ptolemy attach
+1795634923 a06-net connect
+1795634923 cranky_ptolemy start
+1795634923 a06-net disconnect
+1795634923 cranky_ptolemy die
+1795634923 cranky_ptolemy destroy
+1795634923 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634923 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634923 a06-postgres exec_die
+1795634926 amane-etcd exec_create: etcdctl endpoint health
+1795634926 amane-etcd exec_start: etcdctl endpoint health
+1795634926 a06-listmonk kill
+1795634926 a06-net disconnect
+1795634926 a06-listmonk stop
+1795634926 a06-listmonk die
+1795634926 a06-postgres exec_create: psql -U a06 -d postgres -c DROP DATABASE listmonk;
+1795634926 a06-postgres exec_start: psql -U a06 -d postgres -c DROP DATABASE listmonk;
+1795634927 a06-postgres exec_die
+1795634927 a06-postgres exec_create: psql -U a06 -d postgres -c CREATE DATABASE listmonk OWNER a06;
+1795634927 a06-postgres exec_start: psql -U a06 -d postgres -c CREATE DATABASE listmonk OWNER a06;
+1795634927 a06-postgres exec_die
+1795634927 amazing_mendel create
+1795634927 amazing_mendel attach
+1795634927 a06-net connect
+1795634927 amazing_mendel start
+1795634928 a06-net disconnect
+1795634928 amazing_mendel die
+1795634928 amazing_mendel destroy
+1795634928 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634928 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,username,type,status FROM users;
+1795634928 a06-postgres exec_die
+1795634929 amane-etcd exec_die
+1795634929 a06-mailpit exec_create: /mailpit readyz
+1795634929 a06-mailpit exec_start: /mailpit readyz
+1795634929 a06-mailpit exec_die
+1795634931 a06-net connect
+1795634931 a06-listmonk start
+1795634934 amane-etcd exec_create: etcdctl endpoint health
+1795634934 amane-etcd exec_start: etcdctl endpoint health
+1795634937 amane-etcd exec_die
+1795634942 amane-etcd exec_create: etcdctl endpoint health
+1795634942 amane-etcd exec_start: etcdctl endpoint health
+1795634943 <no value> mount
+1795634943 <no value> mount
+1795634943 amane-pme_amane-application connect
+1795634944 amane-application start
+1795634944 amane-pme_amane-application disconnect
+1795634944 <no value> unmount
+1795634944 <no value> unmount
+1795634944 amane-application die
+1795634944 a06-mailpit exec_create: /mailpit readyz
+1795634944 a06-mailpit exec_start: /mailpit readyz
+1795634944 a06-mailpit exec_die
+1795634945 amane-etcd exec_die
+1795634950 amane-etcd exec_create: etcdctl endpoint health
+1795634950 amane-etcd exec_start: etcdctl endpoint health
+1795634953 amane-etcd exec_die
+1795634958 amane-etcd exec_create: etcdctl endpoint health
+1795634958 amane-etcd exec_start: etcdctl endpoint health
+1795634959 a06-mailpit exec_create: /mailpit readyz
+1795634959 a06-mailpit exec_start: /mailpit readyz
+1795634959 a06-mailpit exec_die
+1795634962 amane-etcd exec_die
+1795634964 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists;
+1795634964 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists;
+1795634964 a06-postgres exec_die
+1795634967 amane-etcd exec_create: etcdctl endpoint health
+1795634967 amane-etcd exec_start: etcdctl endpoint health
+1795634967 a06-postgres exec_create: psql -U a06 -d listmonk -c UPDATE subscriber_lists SET status='confirmed' WHERE subscriber_id=3 AND list_id=3;
+1795634967 a06-postgres exec_start: psql -U a06 -d listmonk -c UPDATE subscriber_lists SET status='confirmed' WHERE subscriber_id=3 AND list_id=3;
+1795634967 a06-postgres exec_die
+1795634970 amane-etcd exec_die
+1795634974 a06-mailpit exec_create: /mailpit readyz
+1795634974 a06-mailpit exec_start: /mailpit readyz
+1795634975 a06-mailpit exec_die
+1795634975 amane-etcd exec_create: etcdctl endpoint health
+1795634975 amane-etcd exec_start: etcdctl endpoint health
+1795634978 amane-etcd exec_die
+1795634983 amane-etcd exec_create: etcdctl endpoint health
+1795634983 amane-etcd exec_start: etcdctl endpoint health
+1795634986 amane-etcd exec_die
+1795634990 a06-mailpit exec_create: /mailpit readyz
+1795634990 a06-mailpit exec_start: /mailpit readyz
+1795634990 a06-mailpit exec_die
+1795634991 amane-etcd exec_create: etcdctl endpoint health
+1795634991 amane-etcd exec_start: etcdctl endpoint health
+1795634994 amane-etcd exec_die
+1795634996 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT status,to_send,sent FROM campaigns WHERE id=2;
+1795634996 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT status,to_send,sent FROM campaigns WHERE id=2;
+1795634996 a06-postgres exec_die
+1795634999 amane-etcd exec_create: etcdctl endpoint health
+1795634999 amane-etcd exec_start: etcdctl endpoint health
+1795635002 amane-etcd exec_die
+1795635004 <no value> mount
+1795635004 <no value> mount
+1795635004 amane-pme_amane-application connect
+1795635004 amane-application start
+1795635004 amane-pme_amane-application disconnect
+1795635004 <no value> unmount
+1795635004 <no value> unmount
+1795635004 amane-application die
+1795635005 a06-mailpit exec_create: /mailpit readyz
+1795635005 a06-mailpit exec_start: /mailpit readyz
+1795635005 a06-mailpit exec_die
+1795635006 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,name,type,status FROM lists WHERE id=3;
+1795635006 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,name,type,status FROM lists WHERE id=3;
+1795635006 a06-postgres exec_die
+1795635006 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,email,name,status FROM subscribers WHERE id=3;
+1795635006 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,email,name,status FROM subscribers WHERE id=3;
+1795635006 a06-postgres exec_die
+1795635006 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists WHERE subscriber_id=3;
+1795635006 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists WHERE subscriber_id=3;
+1795635007 a06-postgres exec_die
+1795635007 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,name,status,sent,to_send,subject FROM campaigns WHERE id=2;
+1795635007 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,name,status,sent,to_send,subject FROM campaigns WHERE id=2;
+1795635007 a06-postgres exec_die
+1795635007 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT count(*) AS nb_messages FROM messages;
+1795635007 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT count(*) AS nb_messages FROM messages;
+1795635007 a06-postgres exec_die
+1795635007 a06-postgres exec_create: psql -U a06 -d listmonk -c \dt
+1795635007 a06-postgres exec_start: psql -U a06 -d listmonk -c \dt
+1795635007 a06-postgres exec_die
+1795635007 amane-etcd exec_create: etcdctl endpoint health
+1795635007 amane-etcd exec_start: etcdctl endpoint health
+1795635009 a06-postgres exec_create: psql -U a06 -d listmonk -c \dt
+1795635009 a06-postgres exec_start: psql -U a06 -d listmonk -c \dt
+1795635009 a06-postgres exec_die
+1795635010 amane-etcd exec_die
+1795635012 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,name,type,status FROM lists WHERE id=3;
+1795635012 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,name,type,status FROM lists WHERE id=3;
+1795635012 a06-postgres exec_die
+1795635012 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,email,name,status FROM subscribers WHERE id=3;
+1795635012 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,email,name,status FROM subscribers WHERE id=3;
+1795635012 a06-postgres exec_die
+1795635012 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists WHERE subscriber_id=3;
+1795635012 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT subscriber_id,list_id,status FROM subscriber_lists WHERE subscriber_id=3;
+1795635012 a06-postgres exec_die
+1795635012 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,name,status,sent,to_send,subject FROM campaigns WHERE id=2;
+1795635012 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,name,status,sent,to_send,subject FROM campaigns WHERE id=2;
+1795635012 a06-postgres exec_die
+1795635015 amane-etcd exec_create: etcdctl endpoint health
+1795635015 amane-etcd exec_start: etcdctl endpoint health
+1795635018 amane-etcd exec_die
+1795635019 a06-postgres exec_create: psql -U a06 -d listmonk -c SELECT id,name,status,sent FROM campaigns WHERE id=2;
+1795635019 a06-postgres exec_start: psql -U a06 -d listmonk -c SELECT id,name,status,sent FROM campaigns WHERE id=2;
+1795635019 a06-postgres exec_die
+1795635020 a06-mailpit exec_create: /mailpit readyz
+1795635020 a06-mailpit exec_start: /mailpit readyz
+1795635020 a06-mailpit exec_die
+1795635023 amane-etcd exec_create: etcdctl endpoint health
+1795635023 amane-etcd exec_start: etcdctl endpoint health
+1795635026 a06-postgres exec_create: psql -U a06 -d postgres -c CREATE DATABASE odoo OWNER a06;
+1795635026 a06-postgres exec_start: psql -U a06 -d postgres -c CREATE DATABASE odoo OWNER a06;
+1795635026 a06-postgres exec_die
+1795635026 <no value> create
+1795635026 <no value> create
+1795635026 a06-odoo create
+1795635026 <no value> mount
+1795635026 <no value> mount
+1795635027 amane-etcd exec_die
+1795635027 a06-net connect
+1795635027 a06-odoo start
+1795635032 amane-etcd exec_create: etcdctl endpoint health
+1795635032 amane-etcd exec_start: etcdctl endpoint health
+1795635034 a06-odoo kill
+1795635035 amane-etcd exec_die
+1795635035 a06-mailpit exec_create: /mailpit readyz
+1795635035 a06-mailpit exec_start: /mailpit readyz
+1795635035 a06-mailpit exec_die
+1795635035 a06-net disconnect
+1795635035 <no value> unmount
+1795635035 <no value> unmount
+1795635035 a06-odoo stop
+1795635035 a06-odoo die
+1795635035 <no value> create
+1795635035 <no value> create
+1795635035 cranky_wilson create
+1795635035 cranky_wilson attach
+1795635035 <no value> mount
+1795635035 <no value> mount
+1795635036 a06-net connect
+1795635036 cranky_wilson start
+1795635040 amane-etcd exec_create: etcdctl endpoint health
+1795635040 amane-etcd exec_start: etcdctl endpoint health
+1795635043 amane-etcd exec_die
+1795635048 amane-etcd exec_create: etcdctl endpoint health
+1795635048 amane-etcd exec_start: etcdctl endpoint health
+1795635050 a06-mailpit exec_create: /mailpit readyz
+1795635050 a06-mailpit exec_start: /mailpit readyz
+1795635050 a06-mailpit exec_die
+1795635051 amane-etcd exec_die
+1795635056 amane-etcd exec_create: etcdctl endpoint health
+1795635056 amane-etcd exec_start: etcdctl endpoint health
+1795635059 amane-etcd exec_die

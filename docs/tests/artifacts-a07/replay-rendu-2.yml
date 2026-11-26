@@ -1,0 +1,277 @@
+# -----------------------------------------------------------------------------
+# AMANE — Pile PME, machine SERVEUR — AMANE Test
+# Générée le : 25/11/2026 à 21:05
+#
+# DÉFINITION UNIQUE DE LA PILE (refonte V3, ADR-001, ADR-004, ADR-005). Les
+# installeurs Windows et Linux la téléchargent depuis le portail ; Windows et
+# Linux déploient donc rigoureusement les mêmes services.
+#
+#   amane-init          amorçage (une fois par démarrage) : rejoint ou crée le
+#                       cluster etcd sur le réseau local de la PME
+#   amane-etcd          consensus Raft : décide qui est primaire
+#   amane-postgresql    PostgreSQL 17 piloté par Patroni (Spilo)
+#   amane-orchestrateur détection de panne, secrets, rôle amane, HAProxy
+#   amane-haproxy       adresse fixe qui mène toujours au primaire du moment
+#   ss-node             nœud AMANE : lit son rôle dans Patroni, ne décide rien
+#   pgadmin             consultation locale des données
+#
+# Les mots de passe sont générés par la première machine et transmis aux
+# suivantes par etcd : ils ne quittent jamais le réseau de la PME et l'éditeur
+# ne les connaît pas. Aucune image n'est référencée par tag : chacune est
+# épinglée par digest.
+#
+# Seul paramétrage : le fichier « .env » déposé à côté par l'installeur.
+#   NODE_IP             IP LAN de la machine, annoncée aux autres
+#   NODE_HOSTNAME       nom de la machine (membre etcd et Patroni)
+#   NODE_MODE           active = premier serveur (génère la DEK), passive sinon
+#                       (ne décide plus du rôle PostgreSQL : Patroni le fait)
+#   SAAS_URL / REGISTRATION_TOKEN / RELAY_URL / TENANT_ID / WEB_PORT
+#   PGADMIN_EMAIL
+# -----------------------------------------------------------------------------
+
+networks:
+  amane:
+    driver: bridge
+  # Réseau de l'application hébergée : INTERNE, sans aucune sortie vers
+  # Internet (ADR-003, étape 4). Seuls le nœud (interface) et HAProxy (base)
+  # y sont joignables : l'application ne peut rien envoyer à son éditeur.
+  amane-application:
+    driver: bridge
+    internal: true
+
+services:
+  amane-init:
+    image: 100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35
+    container_name: amane-init
+    # Root le temps de l'amorçage : il prépare les droits des volumes partagés.
+    user: "0"
+    restart: "no"
+    networks: [amane]
+    command:
+      - init
+      - -nom=${NODE_HOSTNAME}
+      - -ip=${NODE_IP}
+      - -portail=${SAAS_URL}
+      - -jeton=${REGISTRATION_TOKEN}
+      - -dossier-secrets=/amane/secrets
+      - -dossier-haproxy=/amane/haproxy
+      # Lanceur statique de l'application (identifiants de sa base, étape 3).
+      - -copier-binaire=/amane/bin
+      - -dossier-secrets-application=/amane/secrets-application
+    volumes:
+      - etcd-data:/etcd-data
+      - etcd-conf:/amane/etcd
+      - secrets:/amane/secrets
+      - haproxy:/amane/haproxy
+      - amane-bin:/amane/bin
+      - secrets-application:/amane/secrets-application
+
+  amane-etcd:
+    image: 100.64.0.6:5000/amane/etcd@sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700
+    container_name: amane-etcd
+    restart: unless-stopped
+    networks: [amane]
+    # Configuration (ETCD_*) produite par l'amorçage.
+    command: ["sh", "-c", ". /amane/etcd/etcd.env && exec etcd"]
+    ports: ["2379:2379", "2380:2380"]
+    volumes:
+      - etcd-data:/etcd-data
+      - etcd-conf:/amane/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    depends_on:
+      amane-init: { condition: service_completed_successfully }
+
+  amane-orchestrateur:
+    image: 100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35
+    container_name: amane-orchestrateur
+    restart: unless-stopped
+    networks: [amane]
+    command:
+      - -etcd-endpoints=amane-etcd:2379
+      - -supervisor
+      - -decouvrir
+      - -patroni-scope=amane
+      - -secrets=/amane/secrets/postgresql.env
+      - -haproxy-dossier=/amane/haproxy
+      # Mode synchrone strict à partir de 3 serveurs (ADR-004, décision 2).
+      - -synchrone-auto
+      # Rôle, base et identifiants de l'application hébergée (étape 3).
+      - -application-secrets=/amane/secrets-application/application.env
+    environment:
+      AMANE_NODE_ID: "${NODE_HOSTNAME}"
+    volumes:
+      - secrets:/amane/secrets
+      - haproxy:/amane/haproxy
+      - secrets-application:/amane/secrets-application
+    depends_on:
+      amane-etcd: { condition: service_healthy }
+
+  amane-postgresql:
+    image: 100.64.0.6:5000/amane/postgresql@sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b
+    container_name: amane-postgresql
+    # Spilo nomme le membre Patroni d'après le NOM D'HÔTE du conteneur (il
+    # ignore PATRONI_NAME). Ce nom doit être celui de la machine : c'est par lui
+    # que l'orchestrateur reconnaît son nœud local (AMANE_NODE_ID) et que la
+    # garde anti-partition s'applique.
+    hostname: "${NODE_HOSTNAME}"
+    restart: unless-stopped
+    networks: [amane]
+    ports: ["5432:5432", "8008:8008"]
+    # Mots de passe du cluster, écrits par l'orchestrateur local.
+    command:
+      - /bin/sh
+      - -c
+      - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; exec /bin/sh /launch.sh init
+    environment:
+      SCOPE: amane
+      PATRONI_NAME: "${NODE_HOSTNAME}"
+      ETCD3_HOSTS: "amane-etcd:2379"
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      # Adresses annoncées aux autres machines : l'IP LAN, pas celle du
+      # conteneur (Spilo lit ces variables, et non les PATRONI_*).
+      RESTAPI_CONNECT_ADDRESS: "${NODE_IP}:8008"
+      PG_CONNECT_ADDRESS: "${NODE_IP}:5432"
+      # Connexions non chiffrées admises sur le réseau PME ; chiffrement entre
+      # machines : mesh WireGuard, étape 4 (ADR-004, décision 6).
+      ALLOW_NOSSL: "true"
+      SPILO_CONFIGURATION: |
+        bootstrap:
+          dcs:
+            ttl: 20
+            loop_wait: 2
+            retry_timeout: 5
+            synchronous_mode: true
+            synchronous_mode_strict: false
+            postgresql:
+              parameters:
+                synchronous_commit: "on"
+                max_wal_senders: 5
+                max_slot_wal_keep_size: 1024MB
+    volumes:
+      - pg-data:/home/postgres/pgdata
+      - secrets:/amane/secrets:ro
+    depends_on:
+      amane-etcd: { condition: service_healthy }
+
+  amane-haproxy:
+    image: 100.64.0.6:5000/amane/haproxy@sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2
+    container_name: amane-haproxy
+    restart: unless-stopped
+    networks: [amane, amane-application]
+    # Configuration écrite et rechargée par l'orchestrateur ; port 5000 joint
+    # par les conteneurs de la machine uniquement (non publié).
+    command:
+      - sh
+      - -c
+      - until [ -f /amane/haproxy/haproxy.cfg ]; do sleep 1; done; exec haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg
+    volumes:
+      - haproxy:/amane/haproxy
+    depends_on: [amane-orchestrateur]
+
+  ss-node:
+    image: 100.64.0.6:5000/amane/noeud@sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4
+    container_name: ss-node
+    restart: unless-stopped
+    networks: [amane, amane-application]
+    ports:
+      - "${WEB_PORT:-9001}:${WEB_PORT:-9001}"
+    # Données par HAProxy : le nœud écrit toujours sur le primaire du moment,
+    # quelle que soit sa machine. Son rôle, il le lit dans Patroni
+    # (PATRONI_URL) : garde de quorum en lecture et fencing par la timeline
+    # (refonte V3, étape 2c). Il ne décide d'aucune bascule.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; export PG_URL="postgres://amane:$${AMANE_PG_PASSWORD}@amane-haproxy:5000/amane"; exec /entrypoint.sh run --mode "$${NODE_MODE:-passive}"
+    environment:
+      SS_NODE_DIR: /data
+      WEB_PORT: "${WEB_PORT:-9001}"
+      TENANT_ID: "${TENANT_ID:-ea49c4c4-f46f-464d-b5db-4fb5928b7e49}"
+      REGISTRATION_TOKEN: "${REGISTRATION_TOKEN}"
+      RELAY_URL: "${RELAY_URL:-http://100.64.0.6:8080}"
+      # Jeton du relais propre au tenant (ADR-011) : il ouvre ses seuls blobs
+      # et sa seule topologie. Fixé par le portail : retélécharger la pile
+      # suffit à le renouveler.
+      RELAY_AUTH_TOKEN: "bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6"
+      SAAS_URL: "${SAAS_URL}"
+      NODE_ADDR: "${NODE_IP}:${WEB_PORT:-9001}"
+      # active = premier serveur : génère la DEK au premier démarrage.
+      NODE_MODE: "${NODE_MODE:-passive}"
+      PATRONI_URL: http://amane-postgresql:8008
+      # Application hébergée : servie à la racine du port web, telle que son
+      # éditeur l'a conçue ; console du nœud sous /amane (étape 3, ADR-007).
+      AMANE_APP_URL: http://amane-application:9000
+      AMANE_APP_SANTE: "/health"
+      # Base de l'application, sauvegardée avec celle du nœud (ADR-008). Le nœud
+      # ne lit pas les identifiants de l'application (volume secrets-application).
+      AMANE_APP_BASE: "application"
+      HOSTNAME: "${NODE_HOSTNAME}"
+      # Chiffrement du disque de la machine, constaté par l'installeur
+      # (oui / non / inconnu) et signalé au portail (ADR-008).
+      CHIFFREMENT_DISQUE: "${CHIFFREMENT_DISQUE:-inconnu}"
+      RUST_LOG: info
+    volumes:
+      - node-data:/data
+      - secrets:/amane/secrets:ro
+    depends_on: [amane-postgresql, amane-haproxy]
+
+  # Application externe hébergée (étape 3, ADR-007) : image de son éditeur,
+  # inchangée, épinglée par digest. Sa base et ses identifiants sont fournis
+  # par AMANE ; elle la joint par HAProxy, donc toujours sur le primaire.
+  amane-application:
+    image: 100.64.0.6:5000/editeurs/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291
+    container_name: amane-application
+    restart: unless-stopped
+    networks: [amane-application]
+    # Point d'entrée : le lanceur AMANE compose les variables de la base
+    # (manifeste) puis exécute la commande d'origine de l'image.
+    entrypoint: ["/amane/bin/orchestrator", "lancer", "-secrets=/amane/secrets-application/application.env", "--"]
+    command: ["docker-entrypoint.sh", "sh", "-c", "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"]
+    environment:
+      LISTMONK_APP__ADDRESS: "0.0.0.0:9000"
+      LISTMONK_DB__SSL_MODE: "disable"
+      TZ: "Etc/UTC"
+      AMANE_MODELES: "{\"LISTMONK_DB__DATABASE\": \"{base}\", \"LISTMONK_DB__HOST\": \"{hote}\", \"LISTMONK_DB__PASSWORD\": \"{mot_de_passe}\", \"LISTMONK_DB__PORT\": \"{port}\", \"LISTMONK_DB__USER\": \"{utilisateur}\"}"
+    volumes:
+      # Ses seuls identifiants : jamais le volume `secrets` du cluster, qui
+      # contient le mot de passe du superutilisateur PostgreSQL (joignable par
+      # HAProxy depuis le réseau de l'application).
+      - amane-bin:/amane/bin:ro
+      - secrets-application:/amane/secrets-application:ro
+    depends_on: [amane-orchestrateur, amane-haproxy]
+
+  pgadmin:
+    image: 100.64.0.6:5000/amane/pgadmin@sha256:2fbd14f87cfc030917cc3602acea551e2b2d7167501ac54f09af17b19c094645
+    container_name: pgadmin
+    restart: unless-stopped
+    networks: [amane]
+    ports: ["5050:80"]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - until [ -f /amane/secrets/postgresql.env ]; do sleep 1; done; . /amane/secrets/postgresql.env; exec /entrypoint.sh
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@pme-amane.com}"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - secrets:/amane/secrets:ro
+    depends_on: [amane-haproxy]
+
+volumes:
+  etcd-data:
+  etcd-conf:
+  secrets:
+  haproxy:
+  pg-data:
+  node-data:
+  pgadmin-data:
+  amane-bin:
+  secrets-application:
+

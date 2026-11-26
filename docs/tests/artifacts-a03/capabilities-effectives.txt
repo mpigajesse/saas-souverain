@@ -1,0 +1,6 @@
+=== CapEff / CapBnd des PIDs principaux ===
+amane-etcd comm=etcd pid=1481 CapEff:	00000000a80425fb CapBnd:	00000000a80425fb NoNewPrivs:	0 
+amane-postgresql comm=patroni pid=2651 CapEff:	0000000000000000 CapBnd:	00000000a80425fb NoNewPrivs:	0 
+amane-orchestrateur comm=orchestrator pid=1480 CapEff:	0000000000000000 CapBnd:	00000000a80425fb NoNewPrivs:	0 
+amane-haproxy comm=haproxy pid=1519 CapEff:	0000000000000000 CapBnd:	00000000a80425fb NoNewPrivs:	0 
+ss-node comm=ss-node pid=1498 CapEff:	00000000a80425fb CapBnd:	00000000a80425fb NoNewPrivs:	0 

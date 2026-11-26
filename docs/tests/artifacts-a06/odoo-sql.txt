@@ -1,0 +1,15 @@
+# Preuves SQL Odoo — A-06 (2026-11-25T19:33:44Z)
+## Contact res.partner id=41
+ id |    name    |      email       |   phone    
+----+------------+------------------+------------
+ 41 | Client A06 | client@a06.local | 0600000000
+(1 row)
+
+## Devis sale.order id=21 (state=draft)
+ id |  name  | partner_id | state | amount_total 
+----+--------+------------+-------+--------------
+ 21 | S00021 |         41 | draft |         0.00
+(1 row)
+
+## Santé /web/health
+{"status": "pass"}

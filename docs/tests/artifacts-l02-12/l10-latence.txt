@@ -1,0 +1,10 @@
+# L-10 latence inter-machines (LAN 10.77.0.0/24) — 2026-11-26T00:32:57+00:00
+# charge applicative en cours (L-03/L-11) au moment de la mesure
+m1 -> m2 : min/avg/max/mdev = 0.295/0.515/2.087/0.225 | 0% packet loss
+   p95=0.884 ms (n=100)
+m2 -> m3 : min/avg/max/mdev = 0.180/0.390/2.099/0.269 | 0% packet loss
+   p95=0.578 ms (n=100)
+m3 -> m1 : min/avg/max/mdev = 0.277/0.434/1.291/0.139 | 0% packet loss
+   p95=0.605 ms (n=100)
+m1 -> m3 : min/avg/max/mdev = 0.267/0.482/1.204/0.159 | 0% packet loss
+   p95=0.849 ms (n=100)

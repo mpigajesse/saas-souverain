@@ -1,0 +1,147 @@
+=== orchestrator-go/Dockerfile ===
+# Image de l'orchestrateur Go (Mission C) — superviseur de failover Patroni,
+# consensus etcd, serveur gRPC du contrat proto/amane/framework/v1.
+#
+# Contexte de build : le dossier orchestrator-go/ (module Go autonome, bindings
+# gRPC déjà générés dans gen/).
+#   docker build -t amane-orchestrator:dev orchestrator-go
+
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# Binaire statique : l'image finale n'embarque ni libc ni toolchain.
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/orchestrator ./cmd/orchestrator
+
+FROM alpine:3.20
+# Compte non privilégié : l'orchestrateur n'a besoin d'aucun droit root
+# (etcd et Patroni sont joints par le réseau).
+RUN adduser -D -H -u 10001 amane
+COPY --from=build /out/orchestrator /usr/local/bin/orchestrator
+USER amane
+EXPOSE 50051
+ENTRYPOINT ["/usr/local/bin/orchestrator"]
+=== go.mod ===
+module github.com/amane/orchestrator-go
+
+go 1.26.5
+
+require (
+	github.com/jackc/pgx/v5 v5.9.2
+	go.etcd.io/etcd/api/v3 v3.7.1
+	go.etcd.io/etcd/client/v3 v3.7.1
+	google.golang.org/grpc v1.82.1
+	google.golang.org/protobuf v1.36.11
+=== spike/node/Dockerfile ===
+FROM rust:1.88-bookworm AS builder
+WORKDIR /workspace
+# Contexte de build = spike/ (workspace Cargo complet)
+COPY . .
+RUN cargo build --release -p node
+
+FROM debian:bookworm-slim
+# Client PostgreSQL 17 (pg_dump / pg_restore) pour les sauvegardes chiffrées
+# (refonte V3, étape 4) : il doit être de la version du serveur (Spilo 17), que
+# Debian bookworm ne fournit pas — dépôt officiel PostgreSQL (PGDG), clé vérifiée.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates libssl3 curl gnupg \
+ && install -d /usr/share/postgresql-common/pgdg \
+ && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+ && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client-17 \
+ && apt-get purge -y curl gnupg && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /workspace/target/release/ss-node /usr/local/bin/ss-node
+ENV SS_NODE_DIR=/data
+VOLUME ["/data"]
+EXPOSE 9001
+
+# Script d'entrée : init --first si premier serveur (génère la DEK), init seul
+# sinon (le serveur attend son enrôlement : `ss-node enroler`).
+RUN printf '#!/bin/sh\nset -e\nif [ ! -f "$SS_NODE_DIR/config.toml" ]; then\n  if [ "${NODE_MODE}" = "active" ]; then\n    ss-node init --first\n  else\n    ss-node init\n  fi\nfi\nexec ss-node "$@"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["run", "--mode", "passive"]
+=== README pile ===
+13-| :--- | :--- | :--- | :--- |
+14-| **Portail éditeur AMANE** (Django + React) | Chez l'éditeur AMANE | Non : comptes, licences, manifestes, métadonnées d'état | Tenants, licences, catalogue des applications hébergées, génération de la pile et des installeurs |
+15-| **Relais zero-knowledge** (Rust) | Chez l'éditeur AMANE | **Jamais** | Rendez-vous des nœuds, stockage des sauvegardes chiffrées |
+16:| **Éditeur du SaaS externe** | Chez lui | **Jamais** | Livre une image Docker épinglée par digest et son manifeste |
+17-| **Cluster PME** | Machines de la PME | **Oui**, c'est son périmètre | Exécute l'application, détient les données et la DEK |
+18-
+19-## 2. Ce qui tourne sur une machine de la PME
+20-
+21:Une **pile Docker générée par le portail** pour chaque PME (`templates/tenants/docker-compose.yml.tmpl`), toutes images épinglées par digest :
+22-
+23-| Service | Rôle |
+24-| :--- | :--- |
+25:| `amane-etcd` | Consensus (Raft) : membership, élection, verrou de leader |
+26-| `amane-postgresql` | PostgreSQL 17 piloté par Patroni (Spilo) ; réplication synchrone selon la taille du cluster |
+27-| `amane-orchestrateur` | Orchestrateur Go : amorçage, secrets partagés par etcd, HAProxy, mode synchrone, base de l'application |
+28-| `amane-haproxy` | Mène toujours au primaire PostgreSQL |
+29-| `ss-node` | Nœud Rust : reverse proxy de l'application, console d'administration (`/amane/`), enrôlement, sauvegardes chiffrées, garde de quorum |
+30-| `amane-application` | Le SaaS hébergé, seul sur un réseau Docker **interne sans sortie** |
+31-
+32-Un **témoin** (etcd seul, sans données, sans poste de licence) sur une troisième machine permet la bascule automatique avec deux serveurs.
+33-
+34-```
+35:                 Portail éditeur AMANE ──── registre d'images (digests)
+36-                    ▲ métadonnées d'état        │ pile + installeurs
+37-                    │                           ▼
+38-   ┌──────────────── Cluster PME ───────────────────────────────────┐
+39-   │  serveur 1                 serveur 2                témoin      │
+40-   │  ┌───────────────┐         ┌───────────────┐       ┌────────┐   │
+41-   │  │ application   │         │ application   │       │  etcd  │   │
+42-   │  │ (sans sortie) │         │ (sans sortie) │       └────────┘   │
+43-   │  │ ss-node       │         │ ss-node       │                    │
+44-   │  │ HAProxy       │         │ HAProxy       │                    │
+45-   │  │ Patroni/PG 17 │◀──WAL──▶│ Patroni/PG 17 │                    │
+46-   │  │ etcd · orch.  │         │ etcd · orch.  │                    │
+47-   │  └───────────────┘         └───────────────┘                    │
+48-   └───────────────────────────────┬─────────────────────────────────┘
+49-                                   │ sauvegardes chiffrées par la DEK
+50-                                   ▼
+51-                         Relais zero-knowledge
+52-```
+53-
+54-## 3. Garanties
+55-
+--
+58-- **Sauvegardes** : `pg_dump` chiffré par la DEK, déposé sur le relais en blob opaque, rotation sur 7 jours, restauration par `ss-node restaurer`.
+59-- **Chiffrement au repos** : délégué au chiffrement du disque (BitLocker, LUKS), vérifié par l'installeur et signalé à la PME.
+60-- **Haute disponibilité** : etcd + Patroni, aucun consensus écrit à la main. Bascule automatique avec un quorum de trois membres etcd ; synchrone strict à partir de trois serveurs PostgreSQL ; fencing par la timeline PostgreSQL ; alerte au portail sous le seuil (ADR-004, ADR-006).
+61:- **Images** : la PME exécute exactement ce qui a été validé (digest), et une application n'est validée que si son image est publiée dans le registre (ADR-009).
+62-
+63-## 4. Carte du dépôt
+64-
+65-| Chemin | Contenu |
+66-| :--- | :--- |
+67-| `config/`, `tenants/`, `licenses/`, `devices/`, `applications/`, `dashboard/`, `api/` | Portail éditeur Django (API REST seule, plus `/admin/`) |
+68-| `templates/tenants/` | Gabarits de la pile PME (serveur, témoin) et des installeurs Linux et Windows |
+69-| `frontend/` | Console React (Vite, React 19) — espaces éditeur et PME |
+70-| `orchestrator-go/` | Orchestrateur : `init`, `temoin`, `lancer`, superviseur, HAProxy, synchrone, consensus, gRPC |
+71-| `spike/node/`, `spike/relay/` | Nœud PME `ss-node` et relais `ss-relay` (Rust) |
+72-| `spike/crates/` | Socle : `ss-crypto` (DEK, AK, sealed box, Shamir, CRL), `ss-journal` (journal CBOR chiffré), `ss-consensus` (garde de quorum) |
+73-| `core-rust/ss-client/` | SDK client Rust (invariants, hors-ligne, client gRPC) |
+74-| `proto/amane/framework/v1/` | Contrat gRPC, figé |
+75-| `ha-lab/` | Laboratoire HA (trois machines simulées, scénarios de chaos) et application d'exemple |
+76-| `relay-deploy/` | Déploiement du relais |
+77-| `scripts/` | Publication de la pile (`publier-pile.sh`), mesures de bascule, ouverture du pare-feu Windows |
+78-
+79-## 5. Démarrer
+80-
+81-### Portail éditeur (développement)
+--
+97-bash scripts/publier-pile.sh         # images de la pile poussées et épinglées (media/node-images/pile.json)
+98-```
+99-
+100:L'image d'un SaaS externe est poussée dans le même registre, puis déclarée dans la console (**Applications**) : brouillon → validation contre le registre → rattachement à la licence de la PME.
+101-
+102-### Installer une PME
+103-
+104-La PME télécharge depuis son espace (`/bienvenue`) l'installeur Linux ou Windows de chaque **serveur**, et celui du **témoin**. Les serveurs suivants reçoivent la DEK par enrôlement : console du premier serveur, `/amane/admin/enrolement`, puis `ss-node enroler` sur le nouveau. Le détail des URL et des ports est dans [`ACCES-INTERFACES.md`](ACCES-INTERFACES.md).
+105-
+106-## 6. Tests
+107-

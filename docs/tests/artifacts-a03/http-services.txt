@@ -1,0 +1,15 @@
+=== curl ss-node :9001 / ===
+curl: (56) Recv failure: Connection reset by peer
+000
+=== curl ss-node :9001 /amane/ ===
+curl: (56) Recv failure: Connection reset by peer
+000
+=== curl pgadmin :5050 ===
+302
+=== curl etcd :2379/version ===
+curl: (28) Operation timed out after 5001 milliseconds with 0 bytes received
+
+=== curl Patroni :8008 inside container ===
+curl: (7) Failed to connect to 127.0.0.1 port 8008 after 0 ms: Connection refused
+sh: 1: wget: not found
+

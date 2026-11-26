@@ -1,0 +1,186 @@
+=== amane-etcd (30 dernières lignes) ===
+{"level":"info","ts":"2026-11-25T18:26:09.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f received MsgPreVoteResp from b72b580ded43801f at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:09.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f [logterm: 450, index: 8346] sent MsgPreVote request to 1b3b00ce4fbfdc7d at term 450"}
+{"level":"warn","ts":"2026-11-25T18:26:09.882Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: i/o timeout"}
+{"level":"warn","ts":"2026-11-25T18:26:10.755Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"warn","ts":"2026-11-25T18:26:14.883Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"warn","ts":"2026-11-25T18:26:15.756Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: i/o timeout"}
+{"level":"info","ts":"2026-11-25T18:26:15.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f is starting a new election at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:15.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f became pre-candidate at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:15.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f received MsgPreVoteResp from b72b580ded43801f at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:15.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f [logterm: 450, index: 8346] sent MsgPreVote request to 1b3b00ce4fbfdc7d at term 450"}
+{"level":"warn","ts":"2026-11-25T18:26:19.884Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"warn","ts":"2026-11-25T18:26:20.757Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: i/o timeout"}
+{"level":"info","ts":"2026-11-25T18:26:21.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f is starting a new election at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:21.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f became pre-candidate at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:21.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f received MsgPreVoteResp from b72b580ded43801f at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:21.815Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f [logterm: 450, index: 8346] sent MsgPreVote request to 1b3b00ce4fbfdc7d at term 450"}
+{"level":"warn","ts":"2026-11-25T18:26:23.012Z","caller":"etcdserver/server.go:2075","msg":"failed to publish local member to cluster through raft","local-member-id":"b72b580ded43801f","local-member-attributes":"{Name:pme-100-64-0-4 ClientURLs:[http://100.64.0.4:2379]}","request-path":"/0/members/b72b580ded43801f/attributes","publish-timeout":"15s","error":"etcdserver: request timed out"}
+{"level":"warn","ts":"2026-11-25T18:26:24.884Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"warn","ts":"2026-11-25T18:26:25.758Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"info","ts":"2026-11-25T18:26:27.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f is starting a new election at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:27.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f became pre-candidate at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:27.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f received MsgPreVoteResp from b72b580ded43801f at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:27.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f [logterm: 450, index: 8346] sent MsgPreVote request to 1b3b00ce4fbfdc7d at term 450"}
+{"level":"warn","ts":"2026-11-25T18:26:29.885Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"warn","ts":"2026-11-25T18:26:30.759Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: connect: no route to host"}
+{"level":"info","ts":"2026-11-25T18:26:33.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f is starting a new election at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:33.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f became pre-candidate at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:33.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f received MsgPreVoteResp from b72b580ded43801f at term 450"}
+{"level":"info","ts":"2026-11-25T18:26:33.814Z","logger":"raft","caller":"etcdserver/zap_raft.go:77","msg":"b72b580ded43801f [logterm: 450, index: 8346] sent MsgPreVote request to 1b3b00ce4fbfdc7d at term 450"}
+{"level":"warn","ts":"2026-11-25T18:26:34.885Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"1b3b00ce4fbfdc7d","rtt":"0s","error":"dial tcp 100.64.0.7:2380: i/o timeout"}
+=== amane-postgresql (30 dernières lignes) ===
+2026-11-25 18:25:39,259 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24a920>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:25:39,260 INFO: waiting on etcd
+2026-11-25 18:25:45,268 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d2496c0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:25:46,269 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24aaa0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:25:47,271 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d249030>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:25:47,271 INFO: waiting on etcd
+2026-11-25 18:25:53,280 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d249b70>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:25:54,282 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d248e20>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:25:55,283 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24a950>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:25:55,283 INFO: waiting on etcd
+2026-11-25 18:26:01,292 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24b5b0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:02,294 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d747940>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:03,295 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d223eb0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:26:03,295 INFO: waiting on etcd
+2026-11-25 18:26:09,302 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d249c90>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:10,303 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24b4f0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:11,306 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d248580>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:26:11,307 INFO: waiting on etcd
+2026-11-25 18:26:17,315 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d248220>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:18,317 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24b9d0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:19,319 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d249f60>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:26:19,319 INFO: waiting on etcd
+2026-11-25 18:26:25,327 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24b070>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:26,328 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24a3b0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:27,330 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d2488b0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:26:27,330 INFO: waiting on etcd
+2026-11-25 18:26:33,336 WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24a1d0>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:34,338 WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=0, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24ad70>, 'Connection to amane-etcd timed out. (connect timeout=1.0)')': /version
+2026-11-25 18:26:35,340 ERROR: Failed to get list of machines from http://amane-etcd:2379/v3beta: MaxRetryError("HTTPConnectionPool(host='amane-etcd', port=2379): Max retries exceeded with url: /version (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7f390d24ae00>, 'Connection to amane-etcd timed out. (connect timeout=1.0)'))")
+2026-11-25 18:26:35,340 INFO: waiting on etcd
+=== amane-orchestrateur (30 dernières lignes) ===
+{"level":"warn","ts":"2026-11-25T18:26:16.579285Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:16.579333974Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:16.611449Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9e10c000/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.Cluster/MemberList","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"level":"warn","ts":"2026-11-25T18:26:16.611460Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.Cluster/MemberList","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"level":"info","ts":"2026-11-25T18:26:16.611493Z","logger":"etcd-client","caller":"v3@v3.7.1/client.go:221","msg":"Auto sync endpoints failed.","error":"context deadline exceeded"}
+{"level":"info","ts":"2026-11-25T18:26:16.611493Z","logger":"etcd-client","caller":"v3@v3.7.1/client.go:221","msg":"Auto sync endpoints failed.","error":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:18.579787Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:18.579886877Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:19.333578Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Txn","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:19.333655467Z","level":"WARN","msg":"secrets du cluster indisponibles, nouvelle tentative","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:20.580483Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:20.580586963Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:22.581361Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:22.581403132Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:24.582320Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:24.582396985Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"time":"2026-11-25T18:26:26.33542845Z","level":"WARN","msg":"secrets du cluster indisponibles, nouvelle tentative","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:26.335338Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Txn","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:26.583588727Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:26.583509Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:28.583941757Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:28.583855Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:30.58434639Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:30.584290Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"level":"warn","ts":"2026-11-25T18:26:32.584559Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:32.584873894Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+{"time":"2026-11-25T18:26:33.336741547Z","level":"WARN","msg":"secrets du cluster indisponibles, nouvelle tentative","err":"context deadline exceeded"}
+{"level":"warn","ts":"2026-11-25T18:26:33.336643Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Txn","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"level":"warn","ts":"2026-11-25T18:26:34.585389Z","logger":"etcd-client","caller":"v3@v3.7.1/retry_interceptor.go:68","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x4ff9df34800/amane-etcd:2379","peer":"Peer{Addr: <nil>, LocalAddr: <nil>, AuthInfo: <nil>}","method":"/etcdserverpb.KV/Range","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 172.22.0.3:2379: i/o timeout\""}
+{"time":"2026-11-25T18:26:34.585470078Z","level":"WARN","msg":"haproxy : membres Patroni illisibles, configuration inchangée","err":"context deadline exceeded"}
+=== amane-haproxy (30 dernières lignes) ===
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+[WARNING]  (8) : Server primaire/U7-WIN11-25H2-S is DOWN, reason: Layer4 connection problem, info: "Network unreachable", check duration: 0ms. 1 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.
+[WARNING]  (8) : Server primaire/pme-100-64-0-4 is DOWN, reason: Layer4 timeout, check duration: 1001ms. 0 active and 0 backup servers left. 2 sessions active, 0 requeued, 0 remaining in queue.
+[ALERT]    (8) : proxy 'primaire' has no server available!
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+[NOTICE]   (1) : haproxy version is 3.0.30-47d806b
+[WARNING]  (1) : Exiting Master process...
+[WARNING]  (8) : Proxy primaire stopped (cumulated conns: FE: 5560, BE: 5560).
+[WARNING]  (1) : Current worker (8) exited with code 0 (Exit)
+[WARNING]  (1) : All workers exited. Exiting... (0)
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+[NOTICE]   (1) : haproxy version is 3.0.30-47d806b
+[WARNING]  (1) : Exiting Master process...
+[WARNING]  (8) : Proxy primaire stopped (cumulated conns: FE: 40, BE: 40).
+[WARNING]  (1) : Current worker (8) exited with code 0 (Exit)
+[WARNING]  (1) : All workers exited. Exiting... (0)
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+[NOTICE]   (1) : haproxy version is 3.0.30-47d806b
+[WARNING]  (1) : Exiting Master process...
+[WARNING]  (8) : Proxy primaire stopped (cumulated conns: FE: 39, BE: 39).
+[WARNING]  (1) : Current worker (8) exited with code 0 (Exit)
+[WARNING]  (1) : All workers exited. Exiting... (0)
+[NOTICE]   (1) : New worker (8) forked
+[NOTICE]   (1) : Loading success.
+=== ss-node (30 dernières lignes) ===
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+  SaaS     : injoignable — error sending request for url (http://100.64.0.6:5173/api/devices/register/) (non bloquant)
+  PostgreSQL : injoignable — error communicating with database: expected to read 5 bytes, got 0 bytes at EOF (nouvel essai dans 10 s)
+=== amane-application (30 dernières lignes) ===
+2026/11/25 18:18:43.447284 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:18:43.449041 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:19:43.684967 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:19:43.685179 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:19:43.686133 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:20:43.954571 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:20:43.954812 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:20:43.956063 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:21:44.203976 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:21:44.204430 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:21:44.205748 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:22:44.475486 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:22:44.475720 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:22:44.476780 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:23:44.707690 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:23:44.707951 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:23:44.709432 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:24:44.940443 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:24:44.940641 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:24:44.941514 init.go:361: error connecting to DB: EOF
+Launching listmonk with user=[root] group=[root] PUID=[0] PGID=[0]
+2026/11/25 18:25:45.186346 main.go:106: v6.2.0 (ef0a7587 2026-06-26T10:21:29Z, linux/amd64)
+2026/11/25 18:25:45.186609 init.go:331: connecting to db: amane-haproxy:5000/application
+2026/11/25 18:25:45.187991 init.go:361: error connecting to DB: EOF

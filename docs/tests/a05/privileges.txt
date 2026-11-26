@@ -1,0 +1,9 @@
+name | privileged | user | capadd | capdrop | binds(/ ou docker.sock) | published-ports
+/amane-etcd | priv=false | user= | capadd=[] | capdrop=[] | binds=amane-pme_etcd-data:/etcd-data:rw amane-pme_etcd-conf:/amane/etcd:rw  | ports=map[2379/tcp:[{invalid IP 2379}] 2380/tcp:[{invalid IP 2380}]]
+/amane-postgresql | priv=false | user= | capadd=[] | capdrop=[] | binds=amane-pme_pg-data:/home/postgres/pgdata:rw amane-pme_secrets:/amane/secrets:ro  | ports=map[5432/tcp:[{invalid IP 5432}] 8008/tcp:[{invalid IP 8008}]]
+/amane-orchestrateur | priv=false | user=amane | capadd=[] | capdrop=[] | binds=amane-pme_secrets:/amane/secrets:rw amane-pme_haproxy:/amane/haproxy:rw amane-pme_secrets-application:/amane/secrets-application:rw  | ports=map[]
+/amane-haproxy | priv=false | user=haproxy | capadd=[] | capdrop=[] | binds=amane-pme_haproxy:/amane/haproxy:rw  | ports=map[]
+/ss-node | priv=false | user= | capadd=[] | capdrop=[] | binds=amane-pme_secrets:/amane/secrets:ro amane-pme_node-data:/data:rw  | ports=map[9001/tcp:[{invalid IP 9001}]]
+/amane-application | priv=false | user= | capadd=[] | capdrop=[] | binds=amane-pme_amane-bin:/amane/bin:ro amane-pme_secrets-application:/amane/secrets-application:ro  | ports=map[]
+/pgadmin | priv=false | user=pgadmin | capadd=[] | capdrop=[] | binds=amane-pme_pgadmin-data:/var/lib/pgadmin:rw amane-pme_secrets:/amane/secrets:ro  | ports=map[80/tcp:[{invalid IP 5050}]]
+/amane-init | priv=false | user=0 | capadd=[] | capdrop=[] | binds=amane-pme_etcd-data:/etcd-data:rw amane-pme_etcd-conf:/amane/etcd:rw amane-pme_secrets:/amane/secrets:rw amane-pme_haproxy:/amane/haproxy:rw amane-pme_amane-bin:/amane/bin:rw amane-pme_secrets-application:/amane/secrets-application:rw  | ports=map[]

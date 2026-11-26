@@ -1,0 +1,32 @@
+=== amane-init ===
+user=0 status=exited exit=1 cmd=[init -nom=pme-100-64-0-4 -ip=100.64.0.4 -portail=http://100.64.0.6:5173 -jeton=412c9377-8285-400d-a8c0-fa3e9b0b8752 -dossier-secrets=/amane/secrets -dossier-haproxy=/amane/haproxy -copier-binaire=/amane/bin -dossier-secrets-application=/amane/secrets-application] entrypoint=[/usr/local/bin/orchestrator]
+=== entrée du template (init) ===
+  # Internet (ADR-003, étape 4). Seuls le nœud (interface) et HAProxy (base)
+  # y sont joignables : l'application ne peut rien envoyer à son éditeur.
+  amane-application:
+    driver: bridge
+    internal: true
+{% endif %}
+services:
+  amane-init:
+    image: {{ images.orchestrateur }}
+    container_name: amane-init
+    # Root le temps de l'amorçage : il prépare les droits des volumes partagés.
+    user: "0"
+    restart: "no"
+    networks: [amane]
+    command:
+      - init
+      - -nom=${NODE_HOSTNAME}
+      - -ip=${NODE_IP}
+      - -portail=${SAAS_URL}
+      - -jeton=${REGISTRATION_TOKEN}
+      - -dossier-secrets=/amane/secrets
+      - -dossier-haproxy=/amane/haproxy
+{% if application.base %}      # Lanceur statique de l'application (identifiants de sa base, étape 3).
+      - -copier-binaire=/amane/bin
+      - -dossier-secrets-application=/amane/secrets-application
+{% endif %}    volumes:
+      - etcd-data:/etcd-data
+=== docker compose project labels ===
+failed to execute template: template: :1:14: executing "" at <index .Labels "com.docker.compose.project">: error calling index: cannot index slice/array with type string

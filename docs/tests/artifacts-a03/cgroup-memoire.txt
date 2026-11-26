@@ -1,0 +1,14 @@
+=== cgroup driver ===
+systemd 2
+=== exemples de chemins ===
+/sys/fs/cgroup/system.slice/docker-558e89cd68c64954477d82b01dcbe73ecc934616d70466231dd99392e0e8d68f.scope
+/sys/fs/cgroup/system.slice/docker-85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a.scope
+/sys/fs/cgroup/system.slice/docker-af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6.scope
+=== memory.current pile ===
+amane-etcd 74919936 octets
+amane-postgresql 58793984 octets
+amane-orchestrateur 34639872 octets
+amane-haproxy 6283264 octets
+ss-node 17952768 octets
+amane-application ? octets
+pgadmin 29626368 octets

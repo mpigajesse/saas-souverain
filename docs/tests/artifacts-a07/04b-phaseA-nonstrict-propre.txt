@@ -1,0 +1,7 @@
+### A-07 — PHASE A (propre) : strict=false, réplicas arrêtés, écriture attendue SUCCÈS RAPIDE 2026-11-25T21:07:23Z
+config: synchronous_mode_strict: true
+== arrêt réplicas m2/m3 ==
+amane-postgresql
+amane-postgresql
+synchronous_standby_names = *
+== écriture 10 lignes, statement_timeout=8s, chrono ==

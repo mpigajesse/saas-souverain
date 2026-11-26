@@ -1,0 +1,12 @@
+21:23:22  topologie trois-pg : démarrage…
+21:24:19  topologie trois-pg : saine (leader pg-m1)
+21:24:37  → Crash du PostgreSQL primaire (trois-pg) : OK — bascule pg-m1 → pg-m2 en 3336 ms (< 5 s), zéro perte, pg-m1 revenu en réplica
+21:24:37  attente de la fin du cooldown orchestrateur (17 s)
+21:25:10  → Panne de la machine du primaire (trois-pg) : OK — machine m2 perdue, bascule vers pg-m1 en 5058 ms (> 5 s), zéro perte
+21:25:10  attente de la fin du cooldown orchestrateur (22 s)
+21:25:54  → Isolement réseau du primaire (trois-pg) : OK — aucune écriture acquittée par le primaire isolé ; bascule vers pg-m3 en 9694 ms (> 5 s) ; pg-m1 n'accepte plus d'écriture après 10006 ms ; écriture non acquittée écartée au retour
+
+=== Bilan des scénarios ===
+Crash du PostgreSQL primaire (trois-pg)          OK     bascule pg-m1 → pg-m2 en 3336 ms (< 5 s), zéro perte, pg-m1 revenu en réplica
+Panne de la machine du primaire (trois-pg)       OK     machine m2 perdue, bascule vers pg-m1 en 5058 ms (> 5 s), zéro perte
+Isolement réseau du primaire (trois-pg)         OK     aucune écriture acquittée par le primaire isolé ; bascule vers pg-m3 en 9694 ms (> 5 s) ; pg-m1 n'accepte plus d'écriture après 10006 ms ; écriture non acquittée écartée au retour

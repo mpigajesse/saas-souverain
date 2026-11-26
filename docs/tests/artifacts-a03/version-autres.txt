@@ -1,0 +1,5 @@
+=== pgadmin version ===
+=== spilo image config (version clues) ===
+"POSTGIS_VERSION=3.5"
+"PATRONIVERSION=4.0.4"
+"WALE_VERSION=1.1.1"

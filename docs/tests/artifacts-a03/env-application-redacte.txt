@@ -1,0 +1,6 @@
+AMANE_MODELES={"LISTMONK_DB__DATABASE": "{base}", "LISTMONK_DB__HOST": "{hote}", "LISTMONK_DB__PASSWORD": "{mot_de_passe}", "LISTMONK_DB__PORT": "{port}", "LISTMONK_DB__USER": "{utilisateur}"}
+LISTMONK_APP__ADDRESS=0.0.0.0:9000
+LISTMONK_DB__SSL_MODE=disable
+TZ=Etc/UTC
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+

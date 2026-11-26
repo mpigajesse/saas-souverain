@@ -1,0 +1,21 @@
+== m1
+amane-application Up 32 minutes
+amane-etcd Up 32 minutes (healthy)
+amane-haproxy Up 32 minutes
+amane-orchestrateur Up 32 minutes
+amane-postgresql Up 32 minutes
+ss-node Up 32 minutes
+== m2
+amane-application Up 32 minutes
+amane-etcd Up 32 minutes (healthy)
+amane-haproxy Up 32 minutes
+amane-orchestrateur Up 32 minutes
+amane-postgresql Up 32 minutes
+ss-node Up 32 minutes
+== m3
+amane-application Up 16 minutes
+amane-etcd Up 16 minutes (healthy)
+amane-haproxy Up 16 minutes
+amane-orchestrateur Up 16 minutes
+amane-postgresql Up 16 minutes
+ss-node Up 16 minutes

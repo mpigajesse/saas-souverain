@@ -68,6 +68,15 @@ Thumbs.db
 
 # Documentation locale & PDF (documents générés)
 docs/*
+# Les resultats de tests sont un livrable : toujours versionnes
+!docs/tests/
+# ... mais jamais de secret reel, meme planque dans une preuve de test
+docs/tests/**/secret-*.yml
+docs/tests/**/runtime-secrets.txt
+docs/tests/**/*secrets*.txt
+docs/tests/**/diff-secrets.txt
+docs/tests/**/*.key
+docs/tests/**/cle-*.key
 !docs/bench/
 docs/bench/*
 !docs/bench/baseline.json

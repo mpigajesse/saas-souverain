@@ -1,0 +1,12 @@
+fenêtre : 2026-11-25T18:53:10Z → 2026-11-25T19:03:10Z (600 s)
+charge_1 : 1.31 / 2.42 / 3.74
+charge_5 : 2.32 / 2.79 / 3.56
+charge_15 : 2.84 / 3.03 / 3.35
+mem_disponible_kb : 15417860.00 / 15553992.33 / 15610016.00
+temp_package_c : 59.00 / 60.38 / 63.00
+temp_core_max_c : 59.00 / 60.41 / 63.00
+temp_nvme0_c : 49.85 / 50.85 / 52.85
+temp_dell_temp1_c : 59.00 / 59.51 / 61.00
+disk_lecture_mo_s : 2.886
+disk_ecriture_mo_s : 1.221
+disk_occupation_pct : 6.99

@@ -1,0 +1,18 @@
+### A-07 Replication — relevé initial 2026-11-25T21:03:54Z
+== patronictl list (primaire = m1) ==
++ Cluster: amane (7712168205387665475) ----------+----+-----------+
+| Member | Host       | Role         | State     | TL | Lag in MB |
++--------+------------+--------------+-----------+----+-----------+
+| m1     | 10.77.0.11 | Leader       | running   |  2 |           |
+| m2     | 10.77.0.12 | Sync Standby | streaming |  2 |         0 |
+| m3     | 10.77.0.13 | Replica      | streaming |  2 |         0 |
++--------+------------+--------------+-----------+----+-----------+
+
+== GUC de réplication effectifs (primaire) ==
+
+== synchronous_mode_strict (Patroni, via show-config) ==
+synchronous_mode: true
+synchronous_mode_strict: true
+
+== Rôles Patroni par VM ==
+port 2211 : port 2212 : port 2213 : 

@@ -1,0 +1,22 @@
+== Tenant A jeton = e14619bcf03dd9a151274a8492cac14377614c6e2bb603dec2118f85bb11573b
+== Tenant B jeton = 5e0f9b51925d8bc810747ffae7815223c61675d7b39ce54f550e7cf85c662786
+== URL cible (tenant B) = http://127.0.0.1:18099/api/blobs/bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb/sauvegarde-amane-1
+
+-- [0] PUT blob de B avec jeton B (attendu 200)
+   HTTP 200
+
+-- [GET] jeton A sur blob de B (attendu 403)
+   HTTP 401 | corps: Jeton du tenant manquant ou invalide
+-- [PUT] jeton A sur blob de B (attendu 403)
+   HTTP 401 | corps: Jeton du tenant manquant ou invalide
+-- [DELETE] jeton A sur blob de B (attendu 403)
+   HTTP 401 | corps: Jeton du tenant manquant ou invalide
+
+-- [sans jeton] GET blob de B (attendu 401/403)
+   HTTP 401
+-- [jeton faux] GET blob de B (attendu 401/403)
+   HTTP 401
+
+-- [intégrité] GET blob de B avec jeton B (attendu 200 + contenu)
+secret-de-B
+   HTTP 200

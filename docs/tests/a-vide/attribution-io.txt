@@ -1,0 +1,7 @@
+avant 2825663 read_bytes: 77361152 write_bytes: 6205219753 
+avant 2825692 read_bytes: 76132352 write_bytes: 6103745679 
+avant 2825742 read_bytes: 149176320 write_bytes: 5690815634 
+host_secteurs_10s=73096 octets=37425152
+apres 2825663 read_bytes: 77361152 write_bytes: 6206632873 
+apres 2825692 read_bytes: 76132352 write_bytes: 6105359503 
+apres 2825742 read_bytes: 149180416 write_bytes: 5692224658 

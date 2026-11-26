@@ -1,0 +1,11 @@
+amane-listmonk-net	id=cbdc4fbefff9e9e1dbe0037f0038207eb13d7c86a66b9b7886e69eadf3a228e6	driver=bridge	internal=false	subnet=172.18.0.0/16 gw=172.18.0.1	membres=
+amane-pme_amane	id=e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d	driver=bridge	internal=false	subnet=172.22.0.0/16 gw=172.22.0.1	membres=pgadmin=172.22.0.7/16 amane-postgresql=172.22.0.5/16 amane-etcd=172.22.0.3/16 amane-haproxy=172.22.0.6/16 amane-orchestrateur=172.22.0.2/16 ss-node=172.22.0.4/16 
+amane-pme_amane-application	id=35983ce23e1832700626eb3759ab5a33ebbc5d14837c3085cb7dff81e9076391	driver=bridge	internal=true	subnet=172.23.0.0/16 gw=172.23.0.1	membres=amane-haproxy=172.23.0.4/16 ss-node=172.23.0.3/16 
+atelier-cassandra_default	id=6f30a6e861fe880bcbe2b2936fb8351906aa864edde04c1fbb368c0cf4c010e4	driver=bridge	internal=false	subnet=172.21.0.0/16 gw=172.21.0.1	membres=
+bridge	id=7337d3d70da13816be4cb8d8739661aba69a273cb72e31e4ec257eb7f5ac54f2	driver=bridge	internal=false	subnet=172.17.0.0/16 gw=172.17.0.1	membres=
+db_admistration_default	id=4795d203b7f8682e468768e8e1556683dcb22f4aa85682077e255937a0daf6f1	driver=bridge	internal=false	subnet=172.19.0.0/16 gw=172.19.0.1	membres=
+deploiement_ia_default	id=fe60174ae406bee37945dd0c0f8f0237fc8b0e20f34402390e9a66cbf423474d	driver=bridge	internal=false	subnet=172.20.0.0/16 gw=172.20.0.1	membres=
+host	id=ce7c0057ca5e71a041effb025bf2036a00d5414efbee541a5d508e71939f8a21	driver=host	internal=false		membres=
+none	id=29a06f3db6ae7f75d7f1bcdebc33e57c086b3d8d30c3ab02c46b07c6bae9a7eb	driver=null	internal=false		membres=
+tp2-cassandra_default	id=c87b365247dc57d2b9f56728451c789735f58f8f58ae454acbcfc0c6b87b0efc	driver=bridge	internal=false	subnet=172.24.0.0/16 gw=172.24.0.1	membres=
+tp3-cassandra_net	id=3d972887c7ec8bde6588a9ff21dad6ac3c6f70f33bc25df895d3cd8d7ab5f9ce	driver=bridge	internal=false	subnet=172.25.0.0/16 gw=172.25.0.1	membres=

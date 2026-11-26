@@ -1,0 +1,39 @@
+DEPENDENCIES
+LICENSE
+branding.py
+commit_hash
+config.py
+config_distro.py
+docs
+gunicorn_config.py
+migrations
+pgAdmin4.py
+from version import APP_VERSION, APP_RELEASE, APP_REVISION, APP_SUFFIX, \
+    APP_VERSION_INT
+# APP_VERSION_INT for cache busting on version upgrade. If the value is set as
+##########################################################################
+#
+# pgAdmin 4 - PostgreSQL Tools
+#
+# Copyright (C) 2013 - 2024, The pgAdmin Development Team
+# This software is released under the PostgreSQL Licence
+#
+##########################################################################
+
+##########################################################################
+# Application settings
+##########################################################################
+
+# NOTE!!!
+# If you change any of APP_RELEASE, APP_REVISION or APP_SUFFIX, then you
+# must also change APP_VERSION_INT to match.
+#
+
+# Application version number components
+APP_RELEASE = 8
+---
+9e58717321a434519875773707df78c020bcde40 2024-12-09
+APP_RELEASE = 8
+APP_REVISION = 14
+APP_SUFFIX = ''
+APP_VERSION_INT = 81400

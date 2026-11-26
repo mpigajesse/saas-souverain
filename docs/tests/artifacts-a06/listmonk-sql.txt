@@ -1,0 +1,28 @@
+# Preuves SQL Listmonk — A-06 (généré 2026-11-25T19:30:12Z)
+## Liste
+ id |      name      |  type  | status 
+----+----------------+--------+--------
+  3 | A06 Newsletter | public | active
+(1 row)
+
+## Abonné
+ id |      email       |      name       | status  
+----+------------------+-----------------+---------
+  3 | abonne@a06.local | Abonne Test A06 | enabled
+(1 row)
+
+## Souscription
+ subscriber_id | list_id |  status   
+---------------+---------+-----------
+             3 |       3 | confirmed
+(1 row)
+
+## Campagne (status=finished, sent=1)
+ id |     name     |  status  | sent | to_send |    subject    
+----+--------------+----------+------+---------+---------------
+  2 | Campagne A06 | finished |    1 |       1 | Bienvenue A06
+(1 row)
+
+## Messages capturés par mailpit (sidecar SMTP local)
+41BuBKvPQa7oTfZqiAeiWQ | news@a06.local -> ['abonne@a06.local'] | Bienvenue A06
+6xrV9TMhdpNiGCBPIhUJjP | news@a06.local -> ['abonne@a06.local'] | Confirm subscription

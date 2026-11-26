@@ -1,0 +1,6 @@
+ss-node 14.73MiB / 3.82GiB 0.00%
+amane-application 24.12MiB / 3.82GiB 0.02%
+amane-haproxy 15MiB / 3.82GiB 0.20%
+amane-orchestrateur 23.57MiB / 3.82GiB 2.16%
+amane-postgresql 1.053GiB / 3.82GiB 4.88%
+amane-etcd 86.61MiB / 3.82GiB 14.97%

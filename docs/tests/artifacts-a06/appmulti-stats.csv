@@ -1,0 +1,4 @@
+a06-appweb,1.86%,3.426MiB / 38.95GiB,0.01%
+a06-appworker,0.31%,2.91MiB / 38.95GiB,0.01%
+a06-redis,0.56%,4.551MiB / 38.95GiB,0.01%
+a06-postgres,0.35%,136.9MiB / 38.95GiB,0.34%

@@ -1,0 +1,12 @@
+amane-etcd conteneur: {"2379/tcp":{},"2380/tcp":{}}
+amane-etcd image    : {"2379/tcp":{},"2380/tcp":{}}
+amane-postgresql conteneur: {"5432/tcp":{},"8008/tcp":{},"8080/tcp":{}}
+amane-postgresql image    : {"5432/tcp":{},"8008/tcp":{},"8080/tcp":{}}
+amane-orchestrateur conteneur: {"50051/tcp":{}}
+amane-orchestrateur image    : {"50051/tcp":{}}
+amane-haproxy conteneur: null
+amane-haproxy image    : null
+ss-node conteneur: {"9001/tcp":{}}
+ss-node image    : {"9001/tcp":{}}
+amane-application conteneur: {"9000/tcp":{}}
+amane-application image    : {"9000/tcp":{}}

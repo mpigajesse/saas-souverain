@@ -1,0 +1,17 @@
+=== docker stats --no-stream (pile + conteneurs actifs) ===
+NAME                  CPU %     MEM USAGE / LIMIT     MEM %     PIDS
+ss-node               0.00%     3.953MiB / 38.95GiB   0.01%     10
+pgadmin               0.03%     21.61MiB / 38.95GiB   0.05%     8
+amane-application     0.00%     0B / 0B               0.00%     0
+amane-haproxy         0.00%     5.719MiB / 38.95GiB   0.01%     9
+amane-orchestrateur   0.04%     27.99MiB / 38.95GiB   0.07%     13
+amane-postgresql      0.00%     22.35MiB / 38.95GiB   0.06%     9
+amane-etcd            7.12%     59.08MiB / 38.95GiB   0.15%     21
+=== cgroup memory.current (octets) ===
+amane-etcd af5773b77e36f930ad90ecae7216637ae7f4ab0b4b5c85339c0c3723efe55cf6 ?
+amane-postgresql 85c8724abd4c33e188c2b59c8293f4b18fa1f4bf99a3ce445c701aafbc40218a ?
+amane-orchestrateur d13adb2ec9ecdc5aa2919860b171ddc0ce78e6c072b962f6c4f0cfab99cabf42 ?
+amane-haproxy d066ececc84e8052cc50e3321e011045ece485b521528353cd393e65b6972933 ?
+ss-node e365d651630bab5657fc1f57d20a777701d18a7505d4eafbee3dd5fe2632148f ?
+amane-application 973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff ?
+pgadmin 558e89cd68c64954477d82b01dcbe73ecc934616d70466231dd99392e0e8d68f ?

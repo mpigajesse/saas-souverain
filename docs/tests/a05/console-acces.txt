@@ -1,0 +1,7 @@
+=== Console ss-node depuis l'hote (exterieur) ===
+  /                -> code=000
+  /amane/          -> code=000
+  /amane/login     -> code=000
+  /amane/admin/    -> code=000
+=== pgadmin (5050) ===
+  / -> code=302 (302 = redirection login)

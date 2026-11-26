@@ -1,0 +1,38 @@
+=== A-08 — État AVANT lancement du chaos (ha-lab) ===
+Date : 2026-11-25T21:16:17Z
+
+## Conteneurs m1 / m2 / m3 (topologie ha-lab)
+$ docker ps -a --filter name=m1
+
+$ docker ps -a --filter name=m2
+
+$ docker ps -a --filter name=m3
+
+## Conteneurs de la topologie ha-lab (etcd-m*, pg-m*, orch-m*)
+(aucun)
+
+## Témoin etcd (etcd-temoin / etcd-m3)
+(aucun)
+
+## Volumes du projet ha-lab
+(fin liste volumes)
+
+## Réseaux du projet ha-lab
+(fin liste réseaux)
+
+## Pile PME en service (amane-*) — NE FAIT PAS PARTIE de ha-lab
+amane-application	Restarting (1) 41 seconds ago
+amane-haproxy	Up 4 days
+amane-orchestrateur	Up 4 days
+amane-postgresql	Up 4 days
+amane-etcd	Up 4 days (unhealthy)
+amane-init	Exited (1) 4 days ago
+amane-mailpit	Exited (0) 12 days ago
+amane-registry	Exited (2) 12 days ago
+amane-test-pg	Exited (0) 4 hours ago
+
+## Confirmation : aucun conteneur amane-* n'appartient à la topologie ha-lab
+Les conteneurs amane-* listés ci-dessus sont la pile PME en service
+(projet autre que amane-ha-lab). La topologie ha-lab (projet 'amane-ha-lab')
+n'a aucun conteneur amane-*. Vérifié : aucun conteneur de nom m1/m2/m3 ni
+etcd-m*/pg-m*/orch-m* n'existe, aucun volume/réseau ha-lab n'existe.

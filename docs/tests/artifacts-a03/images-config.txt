@@ -1,0 +1,18 @@
+=== 100.64.0.6:5000/amane/etcd@sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700 ===
+user= entrypoint=[] cmd=[/usr/local/bin/etcd]
+labels=null
+=== 100.64.0.6:5000/amane/postgresql@sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b ===
+user= entrypoint=[] cmd=[/bin/sh /launch.sh init]
+labels={"maintainer":"Team ACID @ Zalando <team-acid@zalando.de>","org.opencontainers.image.ref.name":"ubuntu","org.opencontainers.image.version":"22.04"}
+=== 100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35 ===
+user=amane entrypoint=[/usr/local/bin/orchestrator] cmd=[]
+labels=null
+=== 100.64.0.6:5000/amane/haproxy@sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2 ===
+user=haproxy entrypoint=[docker-entrypoint.sh] cmd=[haproxy -f /usr/local/etc/haproxy/haproxy.cfg]
+labels=null
+=== 100.64.0.6:5000/amane/noeud@sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4 ===
+user= entrypoint=[/entrypoint.sh] cmd=[run --mode passive]
+labels=null
+=== 100.64.0.6:5000/editeurs/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291 ===
+user= entrypoint=[docker-entrypoint.sh] cmd=[./listmonk]
+labels={"org.opencontainers.image.created":"2026-06-26T10:22:50Z","org.opencontainers.image.description":"listmonk","org.opencontainers.image.licenses":"AGPL-3.0","org.opencontainers.image.revision":"ef0a75872463f10a4848af6c547d1c057405453a","org.opencontainers.image.source":"https://github.com/knadh/listmonk","org.opencontainers.image.title":"listmonk","org.opencontainers.image.url":"https://github.com/knadh/listmonk","org.opencontainers.image.version":"6.2.0"}

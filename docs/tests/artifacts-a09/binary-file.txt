@@ -1,0 +1,1 @@
+docs/tests/artifacts-a09/rootfs/application: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=5hWbCPFhXzLB6wX1fTrV/XF8xDh4ZHZmCma5oxAfT/uAyIAQ96isas0cPn6Zsk/GtJZrelOI0HrsfNt2eWA, stripped

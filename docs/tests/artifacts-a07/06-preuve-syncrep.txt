@@ -1,0 +1,24 @@
+### A-07 — PREUVE pg_stat_activity : écriture garée en attente SyncRep 2026-11-25T21:11:35Z
+== arrêt réplicas m2/m3 ==
+amane-postgresql
+amane-postgresql
+== lancement en arrière-plan d'un INSERT 5 lignes (phaseC-) ==
+== pg_stat_activity (requête phaseC) : état + wait_event ==
+  pid   | state  | wait_event_type | wait_event |                         requete                         
+--------+--------+-----------------+------------+---------------------------------------------------------
+ 144858 | active | IPC             | SyncRep    | insert into a07_replication_test(libelle) select 'phase
+ 144929 | active |                 |            | select pid, state, wait_event_type, wait_event, left(qu
+(2 rows)
+
+== redémarrage réplicas puis attente ==
+amane-postgresql
+amane-postgresql
+== après retour réplicas : phaseC- présent ? ==
+5
++ Cluster: amane (7712168205387665475) ----------+----+-----------+
+| Member | Host       | Role         | State     | TL | Lag in MB |
++--------+------------+--------------+-----------+----+-----------+
+| m1     | 10.77.0.11 | Leader       | running   |  2 |           |
+| m2     | 10.77.0.12 | Sync Standby | streaming |  2 |         0 |
+| m3     | 10.77.0.13 | Replica      | streaming |  2 |         0 |
++--------+------------+--------------+-----------+----+-----------+

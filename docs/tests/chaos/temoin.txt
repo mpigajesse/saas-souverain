@@ -1,0 +1,23 @@
+21:18:24  topologie temoin : démarrage…
+21:19:16  topologie temoin : saine (leader pg-m2)
+21:19:31  → Crash du PostgreSQL primaire (temoin) : OK — bascule pg-m2 → pg-m1 en 3861 ms (< 5 s), zéro perte, pg-m2 revenu en réplica
+21:19:31  attente de la fin du cooldown orchestrateur (20 s)
+21:20:12  → Panne de la machine du primaire (temoin) : OK — machine m1 perdue, bascule vers pg-m2 en 4884 ms (< 5 s), zéro perte
+21:20:12  attente de la fin du cooldown orchestrateur (17 s)
+21:20:52  → Isolement réseau du primaire (temoin) : OK — aucune écriture acquittée par le primaire isolé ; bascule vers pg-m1 en 7949 ms (> 5 s) ; pg-m2 n'accepte plus d'écriture après 8117 ms ; écriture non acquittée écartée au retour
+21:21:11  → Perte du standby, non strict (temoin) : OK — écritures reprises en 749 ms sans standby (standby synchrone restant : 0 → le nœud remonte « sous le seuil » au portail, étape 2d) ; standby réintégré
+21:21:32  → Isolement du témoin etcd (temoin) : OK — primaire pg-m1 inchangé, écritures acquittées pendant 15 s
+21:22:04  → Crash app web (temoin) : ÉCHEC — app pas redémarrée en 30s
+21:22:08  → Bascule DB pendant requête app (temoin) : OK — bascule 4007ms, retry écriture OK, zéro perte
+21:22:08  attente de la fin du cooldown orchestrateur (31 s)
+21:22:41  → Egress bloqué confinement (temoin) : ÉCHEC — conteneur app introuvable
+
+=== Bilan des scénarios ===
+Crash du PostgreSQL primaire (temoin)            OK     bascule pg-m2 → pg-m1 en 3861 ms (< 5 s), zéro perte, pg-m2 revenu en réplica
+Panne de la machine du primaire (temoin)         OK     machine m1 perdue, bascule vers pg-m2 en 4884 ms (< 5 s), zéro perte
+Isolement réseau du primaire (temoin)           OK     aucune écriture acquittée par le primaire isolé ; bascule vers pg-m1 en 7949 ms (> 5 s) ; pg-m2 n'accepte plus d'écriture après 8117 ms ; écriture non acquittée écartée au retour
+Perte du standby, non strict (temoin)            OK     écritures reprises en 749 ms sans standby (standby synchrone restant : 0 → le nœud remonte « sous le seuil » au portail, étape 2d) ; standby réintégré
+Isolement du témoin etcd (temoin)               OK     primaire pg-m1 inchangé, écritures acquittées pendant 15 s
+Crash app web (temoin)                           ÉCHEC app pas redémarrée en 30s
+Bascule DB pendant requête app (temoin)         OK     bascule 4007ms, retry écriture OK, zéro perte
+Egress bloqué confinement (temoin)              ÉCHEC conteneur app introuvable

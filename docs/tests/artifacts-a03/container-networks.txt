@@ -1,0 +1,26 @@
+=== amane-etcd ===
+  amane-pme_amane ip=172.22.0.3 gw=172.22.0.1 aliases=[amane-etcd amane-etcd]
+
+=== amane-postgresql ===
+  amane-pme_amane ip=172.22.0.5 gw=172.22.0.1 aliases=[amane-postgresql amane-postgresql]
+
+=== amane-orchestrateur ===
+  amane-pme_amane ip=172.22.0.2 gw=172.22.0.1 aliases=[amane-orchestrateur amane-orchestrateur]
+
+=== amane-haproxy ===
+  amane-pme_amane ip=172.22.0.6 gw=172.22.0.1 aliases=[amane-haproxy amane-haproxy]
+  amane-pme_amane-application ip=172.23.0.4 gw=invalid IP aliases=[amane-haproxy amane-haproxy]
+
+=== ss-node ===
+  amane-pme_amane ip=172.22.0.4 gw=172.22.0.1 aliases=[ss-node ss-node]
+  amane-pme_amane-application ip=172.23.0.3 gw=invalid IP aliases=[ss-node ss-node]
+
+=== amane-application ===
+  amane-pme_amane-application ip=invalid IP gw=invalid IP aliases=[amane-application amane-application]
+
+=== pgadmin ===
+  amane-pme_amane ip=172.22.0.7 gw=172.22.0.1 aliases=[pgadmin pgadmin]
+
+=== amane-init ===
+  amane-pme_amane ip=invalid IP gw=invalid IP aliases=[amane-init amane-init]
+

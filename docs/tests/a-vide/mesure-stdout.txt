@@ -1,0 +1,11 @@
+point 10/61 — 2026-11-25T19:22:00Z
+point 20/61 — 2026-11-25T19:23:40Z
+point 30/61 — 2026-11-25T19:25:20Z
+point 40/61 — 2026-11-25T19:27:00Z
+point 50/61 — 2026-11-25T19:28:40Z
+point 60/61 — 2026-11-25T19:30:20Z
+Fin : fin_reelle_epoch=1795635032
+fin_reelle_utc=2026-11-25T19:30:32+00:00
+duree_reelle_secondes=605
+lignes_stats=424
+lignes_hote=61

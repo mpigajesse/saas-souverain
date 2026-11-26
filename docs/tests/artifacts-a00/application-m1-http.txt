@@ -1,0 +1,2 @@
+HTTP 200
+HTTP 303 (console ss-node /amane)

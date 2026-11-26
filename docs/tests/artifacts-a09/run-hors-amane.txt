@@ -1,0 +1,3 @@
+=== binaire natif exécuté HORS AMANE (sans DATABASE_URL) ===
+2026/11/25 19:50:51 DATABASE_URL absente
+(sortie attendue ci-dessus: 'DATABASE_URL absente' -> le binaire tourne seul, sans AMANE)

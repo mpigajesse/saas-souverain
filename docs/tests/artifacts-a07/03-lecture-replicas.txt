@@ -1,0 +1,15 @@
+### A-07 — lecture sur chaque réplica 2026-11-25T21:04:18Z
+== réplica port 2212 ==
+rôle: last_receive/replay LSN: compte de lignes a07_replication_test: 1000
+min/max id: 
+== réplica port 2213 ==
+rôle: last_receive/replay LSN: compte de lignes a07_replication_test: 1000
+min/max id: 
+== échantillon de 3 lignes lues sur m3 (port 2213) ==
+ id | libelle 
+----+---------
+  1 | ligne-1
+  2 | ligne-2
+  3 | ligne-3
+(3 rows)
+

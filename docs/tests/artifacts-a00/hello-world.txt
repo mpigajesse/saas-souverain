@@ -1,0 +1,9 @@
+[deploy-pile] [m1] docker run --rm hello-world : OK
+[deploy-pile] [m1] docker run --rm hello-world : OK
+[deploy-pile] [m1] docker run --rm hello-world : OK
+[deploy-pile] [m2] docker run --rm hello-world : OK
+[deploy-pile] [m2] docker run --rm hello-world : OK
+[deploy-pile] [m2] docker run --rm hello-world : OK
+[deploy-pile] [m3] docker run --rm hello-world : OK
+[deploy-pile] [m3] docker run --rm hello-world : OK
+[deploy-pile] [m3] docker run --rm hello-world : OK

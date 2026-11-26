@@ -1,0 +1,12 @@
+### A-07 — rôle et LSN par réplica (relevé propre) 2026-11-25T21:04:28Z
+== port 2212 ==
+  pg_is_in_recovery : t
+  pg_last_wal_receive_lsn : 0/703CD80
+  pg_last_wal_replay_lsn  : 0/703CD80
+  count(*) a07_replication_test : 1000
+== port 2213 ==
+  pg_is_in_recovery : t
+  pg_last_wal_receive_lsn : 0/703CD80
+  pg_last_wal_replay_lsn  : 0/703CD80
+  count(*) a07_replication_test : 1000
+primaire m1 pg_current_wal_lsn : 0/703CD80

@@ -1,0 +1,25 @@
+=== amane-etcd ===
+USER                PID                 COMMAND             COMMAND
+root                1481                etcd                etcd
+root                2880680             etcdctl             etcdctl endpoint health
+=== amane-postgresql ===
+USER                PID                 COMMAND             COMMAND
+root                1529                dumb-init           /usr/bin/dumb-init -c --rewrite 1:0 -- /bin/sh /launch.sh
+root                1814                sh                  /bin/sh /launch.sh
+root                2646                runsvdir            /usr/bin/runsvdir -P /etc/service
+root                2647                runsv               runsv pgqd
+root                2648                runsv               runsv patroni
+101                 2650                patroni_wait.sh     /bin/bash /scripts/patroni_wait.sh --role primary -- /usr/bin/pgqd /home/postgres/pgq_ticker.ini
+101                 2651                patroni             /usr/bin/python3 /usr/local/bin/patroni /home/postgres/postgres.yml
+=== amane-orchestrateur ===
+USER                PID                 COMMAND             COMMAND
+10001               1480                orchestrator        /usr/local/bin/orchestrator -etcd-endpoints=amane-etcd:2379 -supervisor -decouvrir -patroni-scope=amane -secrets=/amane/secrets/postgresql.env -haproxy-dossier=/amane/haproxy -synchrone-auto -application-secrets=/amane/secrets-application/application.env
+=== amane-haproxy ===
+USER                PID                 COMMAND             COMMAND
+99                  1519                haproxy             haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg
+99                  1942                haproxy             haproxy -W -db -S /amane/haproxy/master.sock,mode,666 -f /amane/haproxy/haproxy.cfg
+=== ss-node ===
+USER                PID                 COMMAND             COMMAND
+root                1498                ss-node             ss-node run --mode active
+=== amane-application ===
+Error response from daemon: Container 973068bdc3a2af3c8675fca9fcd812f1d6cad558a8f0f64406b0554a3dcc03ff is restarting, wait until the container is running

@@ -1,0 +1,3 @@
+m1 running primary
+m2 running replica
+m3 running replica

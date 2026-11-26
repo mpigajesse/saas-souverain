@@ -1,0 +1,12 @@
+== m1
+  Sauvegarde : toutes les bases ÉCHEC — relais injoignable
+[2m2026-11-25T18:08:34.922014Z[0m [32m INFO[0m [2msqlx_core::pool::inner[0m[2m:[0m ping on idle connection returned error [3merror[0m[2m=[0merror communicating with database: expected to read 5 bytes, got 0 bytes at EOF
+[2m2026-11-25T18:09:38.025964Z[0m [32m INFO[0m [2msqlx_core::pool::inner[0m[2m:[0m ping on idle connection returned error [3merror[0m[2m=[0merror communicating with database: expected to read 5 bytes, got 0 bytes at EOF
+== m2
+  Cluster  : sain (époque 2)
+[2m2026-11-25T18:08:05.854167Z[0m [32m INFO[0m [2msqlx_core::pool::inner[0m[2m:[0m ping on idle connection returned error [3merror[0m[2m=[0merror communicating with database: expected to read 5 bytes, got 0 bytes at EOF
+[2m2026-11-25T18:09:05.869294Z[0m [32m INFO[0m [2msqlx_core::pool::inner[0m[2m:[0m ping on idle connection returned error [3merror[0m[2m=[0merror communicating with database: expected to read 5 bytes, got 0 bytes at EOF
+== m3
+  Cluster  : sain (époque 2)
+  Application : disponible (http://amane-application:9000/health)
+  SaaS     : appareil enregistré dans le portail

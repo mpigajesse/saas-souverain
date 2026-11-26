@@ -1,0 +1,10 @@
+amane-etcd: 74919936 octets = 71.4 MiB = 0.184 % de 38 GiB
+amane-postgresql: 58793984 octets = 56.1 MiB = 0.144 % de 38 GiB
+amane-orchestrateur: 34639872 octets = 33.0 MiB = 0.085 % de 38 GiB
+amane-haproxy: 6283264 octets = 6.0 MiB = 0.015 % de 38 GiB
+ss-node: 17952768 octets = 17.1 MiB = 0.044 % de 38 GiB
+pgadmin: 29626368 octets = 28.3 MiB = 0.073 % de 38 GiB
+Pile PME des 6 services (hors pgadmin, appli en redémarrage): 192589824 octets = 183.7 MiB = 0.472 % de 38 GiB
+Pile + pgadmin: 222216192 octets = 211.9 MiB = 0.545 % de 38 GiB
+Images de la pile (tailles « SIZE » de docker system df -v): 3.630 Go
+Volumes amane-pme_*: 425.9 Mo

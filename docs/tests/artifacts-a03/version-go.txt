@@ -1,0 +1,37 @@
+=== orchestrateur CLI aide ===
+Usage of /usr/local/bin/orchestrator:
+  -application-secrets string
+    	fichier des identifiants de la base de l'application hébergée (pile PME avec application, étape 3)
+  -decouvrir
+    	superviseur : membres Patroni relus dans etcd à chaque tick (pile PME)
+  -etcd-endpoints string
+    	endpoints etcd v3 (séparés par des virgules) (default "localhost:2379")
+  -haproxy-dossier string
+    	dossier partagé avec HAProxy : configuration et socket maître (pile PME)
+  -haproxy-port int
+    	port d'écoute de HAProxy vers le primaire (default 5000)
+  -listen string
+    	adresse d'écoute gRPC (default ":50051")
+  -patroni-nodes string
+    	nœuds Patroni 'nom@http://host:port,...' (ex: postgres-primary@http://localhost:8008)
+  -patroni-scope string
+    	scope Patroni suivi (DCS /service/<scope>/) (default "amane")
+  -replicate-interval duration
+    	intervalle de propagation des deltas vers les pairs (default 1s)
+  -replicate-to string
+    	pairs de réplication multi-site 'site-id@host:port,...' (PushDelta périodique)
+  -secrets string
+    	fichier des secrets PostgreSQL à produire depuis etcd (pile PME)
+  -supervisor
+    	active le superviseur de failover (option C : détection crash + POST /failover Patroni)
+  -synchrone-auto
+    	mode synchrone strict à partir de 3 serveurs, non strict en dessous (pile PME, orchestrateur élu)
+  -tls-ca string
+    	CA client (active mTLS)
+  -tls-cert string
+    	certificat serveur (mTLS si tls-ca fourni)
+  -tls-key string
+    	clé privée du certificat serveur
+=== go version -m (si go présent) ===
+=== strings go1. ===
+go1.26.10

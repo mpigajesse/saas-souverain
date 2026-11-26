@@ -1,0 +1,6 @@
+# L-12 performance disque — 2026-11-26T01:14:05+00:00
+# banc : CHIFFREMENT_DISQUE=non (aucun volume chiffré) ; mesure du disque brut
+# écriture 2 Gio (bs=1M, conv=fdatasync)
+2147483648 bytes (2.1 GB, 2.0 GiB) copied, 20.0224 s, 107 MB/s
+# vidage du cache puis lecture 2 Gio
+2147483648 bytes (2.1 GB, 2.0 GiB) copied, 2.68982 s, 798 MB/s

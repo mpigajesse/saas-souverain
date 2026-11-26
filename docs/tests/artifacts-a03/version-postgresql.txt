@@ -1,0 +1,9 @@
+=== Patroni REST /patroni ===
+
+=== patroni --version (container) ===
+patroni 4.0.4
+=== psql select version() ===
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: Connection refused
+	Is the server running locally and accepting connections on that socket?
+=== postgres --version ===
+postgres (PostgreSQL) 17.5 (Ubuntu 17.5-1.pgdg22.04+1)

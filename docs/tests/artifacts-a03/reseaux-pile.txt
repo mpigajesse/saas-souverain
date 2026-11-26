@@ -1,0 +1,12 @@
+=== amane-pme_amane ===
+Id=e16380dab405b348ad5d0150938a5d4a57dc7b2e4e5948362ee009e2f1c6848d Driver=bridge Internal=false Attachable=false
+IPAM: subnet=172.22.0.0/16 gateway=172.22.0.1 iprange=invalid Prefix
+Membres: pgadmin=172.22.0.7/16 amane-postgresql=172.22.0.5/16 amane-etcd=172.22.0.3/16 amane-haproxy=172.22.0.6/16 amane-orchestrateur=172.22.0.2/16 ss-node=172.22.0.4/16 
+=== amane-pme_amane-application ===
+Id=35983ce23e1832700626eb3759ab5a33ebbc5d14837c3085cb7dff81e9076391 Driver=bridge Internal=true Attachable=false
+IPAM: subnet=172.23.0.0/16 gateway=172.23.0.1 iprange=invalid Prefix
+Membres: amane-haproxy=172.23.0.4/16 ss-node=172.23.0.3/16 
+=== amane-listmonk-net ===
+Id=cbdc4fbefff9e9e1dbe0037f0038207eb13d7c86a66b9b7886e69eadf3a228e6 Driver=bridge Internal=false Attachable=false
+IPAM: subnet=172.18.0.0/16 gateway=172.18.0.1 iprange=invalid Prefix
+Membres: 

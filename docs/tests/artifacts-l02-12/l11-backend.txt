@@ -1,0 +1,17 @@
+# HAProxy logs (m1) pendant/apres charge L-11 — 2026-11-26T00:42:34+00:00
+[NOTICE]   (1) : Loading success.
+[WARNING]  (14) : Server primaire/m1 is DOWN, reason: Socket error, info: "ECONNRESET returned by OS (Connection reset by peer)", check duration: 13ms. 2 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.
+[NOTICE]   (1) : haproxy version is 3.0.30-47d806b
+[WARNING]  (1) : Former worker (10) exited with code 0 (Exit)
+[WARNING]  (14) : Server primaire/m2 is DOWN, reason: Layer4 connection problem, info: "Connection refused", check duration: 1ms. 1 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.
+[WARNING]  (14) : Server primaire/m3 is DOWN, reason: Layer4 connection problem, info: "Connection refused", check duration: 0ms. 0 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.
+[ALERT]    (14) : proxy 'primaire' has no server available!
+[WARNING]  (14) : Server primaire/m3 is UP, reason: Layer7 check passed, code: 200, check duration: 2ms. 1 active and 0 backup servers online. 0 sessions requeued, 0 total in queue.
+
+# pg_stat_replication (primaire m3)
+ application_name |   state   | sync_state | write_lag | flush_lag | replay_lag 
+------------------+-----------+------------+-----------+-----------+------------
+ m1               | streaming | async      |           |           | 
+ m2               | streaming | sync       |           |           | 
+(2 rows)
+

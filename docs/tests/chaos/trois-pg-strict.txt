@@ -1,0 +1,6 @@
+21:28:27  topologie trois-pg : démarrage…
+21:29:22  topologie trois-pg : saine (leader pg-m1)
+21:29:47  → Blocage strict sans standby (trois-pg) : OK — aucune écriture acquittée sans standby synchrone ; reprise au retour des standbys
+
+=== Bilan des scénarios ===
+Blocage strict sans standby (trois-pg)           OK     aucune écriture acquittée sans standby synchrone ; reprise au retour des standbys

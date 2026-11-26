@@ -1,0 +1,15 @@
+# L-05 bascule sous charge — 2026-11-26T01:04:07+00:00
+# primaire avant : m1 (port 2211)
+DROP TABLE
+CREATE TABLE
+# 01s : kill du primaire (port 2211) (docker update --restart=no puis docker kill)
+amane-postgresql
+# nouveau primaire : port 2212 — bascule en 4.46 s
+# écrivain : 284 OK (acquittées), 16 FAIL (pendant la coupure)
+# écritures acquittées avant le kill : 84
+# lignes présentes sur le nouveau primaire : 284
+# VERDICT : aucune écriture acquittée perdue (284 >= 84)
+# restauration : redémarrage du nœud tué (port 2211)
+amane-postgresql
+# nœud réintégré (replica)
+DROP TABLE

@@ -1,0 +1,30 @@
+# L-04 réplication synchrone sous charge (pgbench) — 2026-11-26T00:55:10+00:00 (primaire m3)
+NOTICE:  database "pgl04" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE
+done in 3.51 s (drop tables 0.00 s, create tables 0.04 s, client-side generate 1.68 s, vacuum 0.47 s, primary keys 1.32 s).
+number of clients: 4
+number of threads: 4
+number of transactions actually processed: 3276
+latency average = 30.525 ms
+tps = 131.039596 (without initial connection time)
+# durée charge : 27.0 s
+# échantillons (t|sync|stream|replay_ms) :
+00:55:21|1|2|3
+00:55:25|1|2|1
+00:55:28|1|2|3
+00:55:31|1|2|3
+00:55:34|1|2|1
+00:55:36|1|2|1
+00:55:40|1|2|3
+00:55:43|1|2|1
+00:55:46|1|2|4
+00:55:49|1|2|6
+00:55:51|1|2|6
+00:55:54|1|2|6
+# max replay_lag observé (ms) :
+6
+# état de réplication final :
+m1|streaming|async
+m2|streaming|sync
+DROP DATABASE

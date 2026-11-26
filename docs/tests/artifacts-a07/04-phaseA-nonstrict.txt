@@ -1,0 +1,29 @@
+### A-07 — PHASE A : mode NON-strict (strict=false), réplicas arrêtés, écriture attendue SUCCÈS 2026-11-25T21:04:42Z
+== 1) passage synchronous_mode_strict=false ==
+--- 
++++ 
+@@ -33,5 +33,5 @@
+   use_slots: true
+ retry_timeout: 5
+ synchronous_mode: true
+-synchronous_mode_strict: true
++synchronous_mode_strict: false
+ ttl: 20
+Apply these changes? [y/N]: Aborted!
+== config après ==
+synchronous_mode: true
+synchronous_mode_strict: true
+
+== 2) arrêt temporaire des réplicas m2 et m3 (conteneurs amane-postgresql) ==
+amane-postgresql
+amane-postgresql
+== état du primaire (m1) pendant réplicas down ==
++ Cluster: amane (7712168205387665475) ---+----+-----------+
+| Member | Host       | Role    | State   | TL | Lag in MB |
++--------+------------+---------+---------+----+-----------+
+| m1     | 10.77.0.11 | Leader  | running |  2 |           |
+| m3     | 10.77.0.13 | Replica | stopped |    |   unknown |
++--------+------------+---------+---------+----+-----------+
+synchronous_standby_names = *
+
+== 3) écriture de test avec statement_timeout=8s (non-strict : doit RÉUSSIR) ==

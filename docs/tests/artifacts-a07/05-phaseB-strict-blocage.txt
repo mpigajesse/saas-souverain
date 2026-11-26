@@ -1,0 +1,29 @@
+### A-07 — PHASE B : mode STRICT (garanti par l'orchestrateur), réplicas arrêtés, écriture attendue BLOQUÉE 2026-11-25T21:10:10Z
+config: synchronous_mode_strict: true
+== arrêt réplicas m2/m3 ==
+amane-postgresql
+amane-postgresql
+état primaire:
++ Cluster: amane (7712168205387665475) ---+----+-----------+
+| Member | Host       | Role    | State   | TL | Lag in MB |
++--------+------------+---------+---------+----+-----------+
+| m1     | 10.77.0.11 | Leader  | running |  2 |           |
+| m3     | 10.77.0.13 | Replica | stopped |    |   unknown |
++--------+------------+---------+---------+----+-----------+
+synchronous_standby_names = *
+== écriture 5 lignes, bornée par timeout 12s (strict : doit ÊTRE TUÉE, exit 124, aucun INSERT) ==
+code retour = 124 (124 = tué par timeout = écriture bloquée) ; durée =  s
+== redémarrage réplicas ==
+amane-postgresql
+amane-postgresql
+état cluster après retour réplicas:
++ Cluster: amane (7712168205387665475) ----------+----+-----------+
+| Member | Host       | Role         | State     | TL | Lag in MB |
++--------+------------+--------------+-----------+----+-----------+
+| m1     | 10.77.0.11 | Leader       | running   |  2 |           |
+| m2     | 10.77.0.12 | Sync Standby | streaming |  2 |         0 |
+| m3     | 10.77.0.13 | Replica      | streaming |  2 |         0 |
++--------+------------+--------------+-----------+----+-----------+
+== écriture de contrôle après retour (doit RÉUSSIR) ==
+INSERT 0 5
+compte total = 1030

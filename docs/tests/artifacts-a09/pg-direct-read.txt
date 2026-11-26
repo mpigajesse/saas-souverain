@@ -1,0 +1,6 @@
+ id |         domain         | status  | latency_ms 
+----+------------------------+---------+------------
+  1 | http://httpbin.org/get | success |        244
+  2 | https://api.github.com | success |        518
+(2 rows)
+

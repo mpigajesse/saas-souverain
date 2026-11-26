@@ -1,0 +1,19 @@
+### A-07 — Nettoyage et vérification de l'état d'origine 2026-11-25T21:13:41Z
+== DROP de la table de test dédiée (primaire) ==
+DROP TABLE
+== vérif absence sur réplicas ==
+port 2212 to_regclass: ABSENT
+port 2213 to_regclass: ABSENT
+== état final du cluster ==
++ Cluster: amane (7712168205387665475) ----------+----+-----------+
+| Member | Host       | Role         | State     | TL | Lag in MB |
++--------+------------+--------------+-----------+----+-----------+
+| m1     | 10.77.0.11 | Leader       | running   |  2 |           |
+| m2     | 10.77.0.12 | Sync Standby | streaming |  2 |         0 |
+| m3     | 10.77.0.13 | Replica      | streaming |  2 |         0 |
++--------+------------+--------------+-----------+----+-----------+
+== config synchrone finale (doit être identique à l'origine : strict=true, m2) ==
+synchronous_mode: true
+synchronous_mode_strict: true
+synchronous_standby_names = m2
+== bases jetables résiduelles ? ==

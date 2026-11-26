@@ -1,0 +1,130 @@
+warning: struct `AnnounceRequest` is never constructed
+ --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:7:12
+  |
+7 | pub struct AnnounceRequest {
+  |            ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `AnnounceResponse` is never constructed
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:28:8
+   |
+28 | struct AnnounceResponse {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: struct `NodesResponse` is never constructed
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:34:8
+   |
+34 | struct NodesResponse {
+   |        ^^^^^^^^^^^^^
+
+warning: function `jeton_depuis_env` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:43:8
+   |
+43 | pub fn jeton_depuis_env() -> String {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `avec_jeton` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:48:8
+   |
+48 | pub fn avec_jeton(r: reqwest::RequestBuilder, jeton: &str) -> reqwest::RequestBuilder {
+   |        ^^^^^^^^^^
+
+warning: struct `RelayClient` is never constructed
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:52:12
+   |
+52 | pub struct RelayClient {
+   |            ^^^^^^^^^^^
+
+warning: associated items `new`, `announce`, and `get_peers` are never used
+  --> /home/jose/school/amane/repo/spike/node/src/relay_client.rs:59:12
+   |
+58 | impl RelayClient {
+   | ---------------- associated items in this implementation
+59 |     pub fn new(base_url: impl Into<String>, jeton: impl Into<String>) -> Self {
+   |            ^^^
+...
+68 |     pub async fn announce(&self, req: &AnnounceRequest) -> Result<()> {
+   |                  ^^^^^^^^
+...
+81 |     pub async fn get_peers(&self, tenant_id: Uuid) -> Result<Vec<NodeInfo>> {
+   |                  ^^^^^^^^^
+
+warning: constant `SECRETS_PG` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:29:11
+   |
+29 | pub const SECRETS_PG: &str = "/amane/secrets/postgresql.env";
+   |           ^^^^^^^^^^
+
+warning: constant `VARIABLE_BASE_APPLICATION` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:33:11
+   |
+33 | pub const VARIABLE_BASE_APPLICATION: &str = "AMANE_APP_BASE";
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `Cible` is never constructed
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:37:12
+   |
+37 | pub struct Cible {
+   |            ^^^^^
+
+warning: function `cible_depuis_env` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:51:8
+   |
+51 | pub fn cible_depuis_env(relais: &str, tenant_id: Option<Uuid>) -> Result<Cible> {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: function `bases_a_sauvegarder` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:64:8
+   |
+64 | pub fn bases_a_sauvegarder() -> Vec<&'static str> {
+   |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `bases_pour` is never used
+  --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:68:4
+   |
+68 | fn bases_pour(base_application: Option<&str>) -> Vec<&'static str> {
+   |    ^^^^^^^^^^
+
+warning: function `url_base` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:146:4
+    |
+146 | fn url_base(cible: &Cible, base: &str) -> String {
+    |    ^^^^^^^^
+
+warning: function `url_blob` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:150:4
+    |
+150 | fn url_blob(cible: &Cible, cle: &str) -> String {
+    |    ^^^^^^^^
+
+warning: function `client` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:154:4
+    |
+154 | fn client() -> Result<reqwest::Client> {
+    |    ^^^^^^
+
+warning: function `sauvegarder` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:159:14
+    |
+159 | pub async fn sauvegarder(dek: &Dek, cible: &Cible, base: &str) -> Result<(String, usize)> {
+    |              ^^^^^^^^^^^
+
+warning: function `restaurer` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:182:14
+    |
+182 | pub async fn restaurer(dek: &Dek, cible: &Cible, base: &str, jour: u32) -> Result<NaiveDate> {
+    |              ^^^^^^^^^
+
+warning: function `url_superutilisateur` is never used
+   --> /home/jose/school/amane/repo/spike/node/src/sauvegarde.rs:213:8
+    |
+213 | pub fn url_superutilisateur(fichier_secrets: &str, hote: &str) -> Result<String> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+[1] blob amane emballe : 4214 octets (jour 3)
+[2] PUT sauvegarde-amane-3 -> HTTP 200 OK
+[3] copie vers sauvegarde-application-3 -> HTTP 200 OK
+[4] restauration application REFUSEE (attendu): blob de la base "amane" déposé sous le nom de la base "application" : refusé
+[5] restauration amane legitime: OK date=2026-11-25, export=4101 octets
+[6] AAD amane -> OK, AAD application -> ERREUR (longueurs entete amane=73, app=79)

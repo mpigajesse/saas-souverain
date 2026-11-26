@@ -1,0 +1,24 @@
+=== calme (19:20:30-19:25:20, 30 points, 290 s) ===
+points=30 debut=2026-11-25T19:20:30Z fin=2026-11-25T19:25:20Z duree=290s
+amane-application      CPU 0.00/0.00/0.00 %  MEM 0.00/0.00/0.00 MiB
+amane-etcd             CPU 0.26/1.79/15.66 %  MEM 51.68/54.30/58.48 MiB
+amane-haproxy          CPU 0.00/0.00/0.05 %  MEM 5.73/5.74/5.98 MiB
+amane-orchestrateur    CPU 0.02/0.06/0.19 %  MEM 27.97/28.01/28.73 MiB
+amane-postgresql       CPU 0.00/0.70/11.62 %  MEM 22.36/22.68/27.84 MiB
+pgadmin                CPU 0.01/0.06/1.05 %  MEM 80.91/80.95/81.91 MiB
+ss-node                CPU 0.00/0.00/0.00 %  MEM 3.93/3.94/4.00 MiB
+PILE mem 192.59/195.63/199.65 MiB ; CPU 0.39/2.61/15.74 %
+HOTE load1 2.25/4.31/6.35 ; RAM dispo 13.56/13.70/13.74 GiB ; pkg 59.0/60.8/71.0 C ; disque 1.966 Mo/s lu, 1.561 Mo/s ecrit
+
+=== agitee (19:25:30-19:30:30, 31 points, 300 s) ===
+points=31 debut=2026-11-25T19:25:30Z fin=2026-11-25T19:30:30Z duree=300s
+amane-application      CPU 0.00/0.00/0.00 %  MEM 0.00/0.00/0.00 MiB
+amane-etcd             CPU 0.21/2.03/9.93 %  MEM 51.66/67.99/79.24 MiB
+amane-haproxy          CPU 0.00/0.00/0.00 %  MEM 5.72/5.76/5.78 MiB
+amane-orchestrateur    CPU 0.00/0.05/0.18 %  MEM 27.66/27.76/28.41 MiB
+amane-postgresql       CPU 0.00/0.32/1.77 %  MEM 34.12/65.58/68.08 MiB
+pgadmin                CPU 0.01/0.02/0.07 %  MEM 80.91/85.17/86.22 MiB
+ss-node                CPU 0.00/0.00/0.00 %  MEM 3.96/6.68/7.26 MiB
+PILE mem 204.61/258.94/273.42 MiB ; CPU 0.26/2.43/10.29 %
+HOTE load1 2.49/4.73/8.09 ; RAM dispo 12.45/13.45/13.66 GiB ; pkg 60.0/65.0/76.0 C ; disque 5.393 Mo/s lu, 13.940 Mo/s ecrit
+

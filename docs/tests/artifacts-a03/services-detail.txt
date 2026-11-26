@@ -1,0 +1,60 @@
+=== amane-etcd ===
+ image: 100.64.0.6:5000/amane/etcd@sha256:9344cfb9cbe4df0635478b6a2b62765330128fbdf3ca8fc9f2edac262552f700
+ status: running restarts: 0 startedAt: 2026-11-21T00:49:52.783816361Z exitCode: 0 error: 
+ health: unhealthy
+ user Config.User: ''
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane']
+ binds: ['amane-pme_etcd-data:/etcd-data:rw', 'amane-pme_etcd-conf:/amane/etcd:rw']
+=== amane-postgresql ===
+ image: 100.64.0.6:5000/amane/postgresql@sha256:17bf371c924196e4671f19d129fa86a80f7dcea7b2666cedca955ec0fba0b72b
+ status: running restarts: 0 startedAt: 2026-11-21T00:49:52.800069247Z exitCode: 0 error: 
+ health: (aucune)
+ user Config.User: ''
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane']
+ binds: ['amane-pme_pg-data:/home/postgres/pgdata:rw', 'amane-pme_secrets:/amane/secrets:ro']
+=== amane-orchestrateur ===
+ image: 100.64.0.6:5000/amane/orchestrateur@sha256:6a082c400a2809e927e98bc94f2494e80291df92aa987458f7cdcf351fa63c35
+ status: running restarts: 0 startedAt: 2026-11-21T00:49:52.782391643Z exitCode: 0 error: 
+ health: (aucune)
+ user Config.User: 'amane'
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane']
+ binds: ['amane-pme_secrets:/amane/secrets:rw', 'amane-pme_haproxy:/amane/haproxy:rw', 'amane-pme_secrets-application:/amane/secrets-application:rw']
+=== amane-haproxy ===
+ image: 100.64.0.6:5000/amane/haproxy@sha256:43f51ba59dfffa4095c3dfd8363d11a3795369e985249c6d715f468c7def12d2
+ status: running restarts: 0 startedAt: 2026-11-21T00:49:52.798648941Z exitCode: 0 error: 
+ health: (aucune)
+ user Config.User: 'haproxy'
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane', 'amane-pme_amane-application']
+ binds: ['amane-pme_haproxy:/amane/haproxy:rw']
+=== ss-node ===
+ image: 100.64.0.6:5000/amane/noeud@sha256:cea1862ce5bbcbbc78a111ed77ee22d19bf629c355ab8fc77393188d78387cd4
+ status: running restarts: 0 startedAt: 2026-11-21T00:49:52.783225764Z exitCode: 0 error: 
+ health: (aucune)
+ user Config.User: ''
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane', 'amane-pme_amane-application']
+ binds: ['amane-pme_secrets:/amane/secrets:ro', 'amane-pme_node-data:/data:rw']
+=== amane-application ===
+ image: 100.64.0.6:5000/editeurs/listmonk@sha256:3089042a786beddb096410da3818b98ce9fe35bdc0a4ad4550f92be674b17291
+ status: restarting restarts: 5230 startedAt: 2026-11-25T18:23:44.518554824Z exitCode: 1 error: 
+ health: (aucune)
+ user Config.User: ''
+ CapAdd: None CapDrop: None Privileged: False
+ NanoCpus: 0 CpuQuota: 0 CpuPeriod: 0 CpusetCpus: '' Memory: 0 MemorySwap: 0 PidsLimit: None
+ RestartPolicy: {'Name': 'unless-stopped', 'MaximumRetryCount': 0}
+ networks: ['amane-pme_amane-application']
+ binds: ['amane-pme_amane-bin:/amane/bin:ro', 'amane-pme_secrets-application:/amane/secrets-application:ro']

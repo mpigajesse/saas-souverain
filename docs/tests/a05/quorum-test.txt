@@ -1,0 +1,45 @@
+   |
+13 | pub struct AppState {
+   |            -------- field in this struct
+14 |     pub pool: PgPool,
+15 |     pub node_id: Uuid,
+   |         ^^^^^^^
+   |
+   = note: `AppState` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `delete_session` is never used
+   --> node/src/auth/mod.rs:250:14
+    |
+250 | pub async fn delete_session(pool: &PgPool, session_id: Uuid) -> Result<()> {
+    |              ^^^^^^^^^^^^^^
+
+warning: struct `AnnounceResponse` is never constructed
+  --> node/src/relay_client.rs:28:8
+   |
+28 | struct AnnounceResponse {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: `node` (bin "ss-node" test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 40.79s
+     Running unittests src/main.rs (target/debug/deps/ss_node-466559bdafa1b24e)
+
+running 1 test
+test cmd::run::tests::quorum_perdu_interdit_l_ecriture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/ss_consensus-2cfe435929d36dbc)
+
+running 8 tests
+test cluster::tests::quorum_majority ... ok
+test quorum::tests::l_epoque_est_la_plus_haute_timeline ... ok
+test quorum::tests::motifs_lisibles ... ok
+test quorum::tests::patroni_injoignable_signifie_quorum_perdu ... ok
+test quorum::tests::primaire_et_standby_synchrone_donnent_un_cluster_sain ... ok
+test quorum::tests::roles_patroni_reconnus ... ok
+test quorum::tests::sans_primaire_le_quorum_est_perdu ... ok
+test quorum::tests::sans_standby_synchrone_le_cluster_est_sous_le_seuil ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+

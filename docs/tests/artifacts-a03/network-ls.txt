@@ -1,0 +1,12 @@
+NETWORK ID     NAME                          DRIVER    SCOPE
+cbdc4fbefff9   amane-listmonk-net            bridge    local
+e16380dab405   amane-pme_amane               bridge    local
+35983ce23e18   amane-pme_amane-application   bridge    local
+6f30a6e861fe   atelier-cassandra_default     bridge    local
+7337d3d70da1   bridge                        bridge    local
+4795d203b7f8   db_admistration_default       bridge    local
+fe60174ae406   deploiement_ia_default        bridge    local
+ce7c0057ca5e   host                          host      local
+29a06f3db6ae   none                          null      local
+c87b365247dc   tp2-cassandra_default         bridge    local
+3d972887c7ec   tp3-cassandra_net             bridge    local

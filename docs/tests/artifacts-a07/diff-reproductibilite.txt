@@ -1,0 +1,10 @@
+--- reproductibilite/A
++++ reproductibilite/B
+@@ -1,6 +1,6 @@
+ # -----------------------------------------------------------------------------
+ # AMANE — Pile PME, machine SERVEUR — AMANE Test
+-# Générée le : 25/11/2026 à 21:00
++# Générée le : 25/11/2026 à 21:05
+ #
+ # DÉFINITION UNIQUE DE LA PILE (refonte V3, ADR-001, ADR-004, ADR-005). Les
+ # installeurs Windows et Linux la téléchargent depuis le portail ; Windows et

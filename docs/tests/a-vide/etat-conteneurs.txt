@@ -1,0 +1,8 @@
+NAMES                 STATUS                          IMAGE
+ss-node               Up 4 days                       100.64.0.6:5000/amane/noeud
+pgadmin               Up 4 days                       100.64.0.6:5000/amane/pgadmin
+amane-application     Restarting (1) 10 seconds ago   100.64.0.6:5000/editeurs/listmonk
+amane-haproxy         Up 4 days                       100.64.0.6:5000/amane/haproxy
+amane-orchestrateur   Up 4 days                       100.64.0.6:5000/amane/orchestrateur
+amane-postgresql      Up 4 days                       100.64.0.6:5000/amane/postgresql
+amane-etcd            Up 4 days (unhealthy)           100.64.0.6:5000/amane/etcd

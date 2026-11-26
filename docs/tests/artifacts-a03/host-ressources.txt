@@ -1,0 +1,20 @@
+=== uname ===
+Linux GENTLEMAN31 7.2.11-arch1-1 #1 SMP PREEMPT_DYNAMIC Fri, 16 Oct 2026 00:28:58 +0000 x86_64 GNU/Linux
+=== RAM ===
+               total        used        free      shared  buff/cache   available
+Mem:            38Gi        25Gi       676Mi       581Mi        12Gi        13Gi
+Swap:           18Gi        11Gi       6.2Gi
+=== CPU ===
+8
+=== df -h / ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p5  206G  164G   33G  84% /
+=== df -h /var/lib/docker (si séparé) ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p5  206G  164G   33G  84% /
+=== docker system df ===
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          18        12        23.1GB    6.155GB (26%)
+Containers      25        7         18.53MB   18.21MB (98%)
+Local Volumes   27        19        4.755GB   4.221GB (88%)
+Build Cache     0         0         0B        0B

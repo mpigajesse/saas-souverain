@@ -1,0 +1,7 @@
+/amane-etcd restart=0 started=2026-11-21T00:49:52.783816361Z health=unhealthy
+/amane-postgresql restart=0 started=2026-11-21T00:49:52.800069247Z health=n/a
+/amane-orchestrateur restart=0 started=2026-11-21T00:49:52.782391643Z health=n/a
+/amane-haproxy restart=0 started=2026-11-21T00:49:52.798648941Z health=n/a
+/ss-node restart=0 started=2026-11-21T00:49:52.783225764Z health=n/a
+/amane-application restart=5296 started=2026-11-25T19:30:04.099691667Z health=n/a
+/pgadmin restart=0 started=2026-11-21T00:49:52.801061999Z health=n/a

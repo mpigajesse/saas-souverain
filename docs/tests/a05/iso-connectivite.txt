@@ -1,0 +1,23 @@
+### 1. DNS (nslookup 1.1.1.1)
+Server:		127.0.0.11
+Address:	127.0.0.11:53
+
+rc=0
+### 2. HTTP vers 1.1.1.1 (wget, 4s)
+wget: can't connect to remote host (1.1.1.1): Network unreachable
+rc=1
+### 3. vers hote NODE_IP=100.64.0.4 (nc -z -w3 443)
+rc=1
+### 4. PostgreSQL via HAProxy amane-haproxy:5000 (attendu OK)
+rc=0
+### 5. etcd amane-etcd:2379 (attendu echec, absent du reseau)
+nc: bad address 'amane-etcd'
+rc=1
+### 6. PostgreSQL amane-postgresql:5432 (attendu echec)
+nc: bad address 'amane-postgresql'
+rc=1
+### 7. pgadmin:5050 (attendu echec)
+nc: bad address 'pgadmin'
+rc=1
+### 8. ss-node:9001 (present sur le reseau mais rien ecoute)
+rc=1

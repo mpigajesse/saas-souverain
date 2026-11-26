@@ -1,0 +1,17 @@
+Préparation : table a08_manual sur pg-m1
+NOTICE:  relation "a08_manual" already exists, skipping
+Écritures acquittées avant panne : 7
+docker stop pg-m1 à 21:32:17.656
+primaire arrêté à 21:32:27.525 (docker stop a duré 9869 ms)
+Nouveau primaire : pg-m2
+Bascule après arrêt effectif : 506 ms ; total (stop inclus) : 10375 ms
+Redémarrage de pg-m1…
+Rôle de pg-m1 au retour : replica
+===================================================
+RÉSULTAT MANUEL A-08 (extinction pg-m1)
+Écritures acquittées (ACK) au total : 8
+Écritures refusées (FAIL) pendant panne : 38
+Écritures acquittées PERDUES au retour : 0
+Délai bascule après arrêt effectif : 506 ms (total stop inclus : 10375 ms)
+VERDICT : OK — zéro perte, bascule en 506 ms après extinction
+===================================================

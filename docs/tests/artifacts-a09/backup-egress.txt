@@ -1,0 +1,5 @@
+échec attendu: illisible sans la clé
+-- Name: egress_logs; Type: TABLE; Schema: public; Owner: egress
+CREATE TABLE public.egress_logs (
+ALTER TABLE public.egress_logs OWNER TO egress;
+-- Name: egress_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: egress

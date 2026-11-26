@@ -1,0 +1,17 @@
+# Preuves SQL app-multi — A-06 (2026-11-25T19:36:26Z)
+## jobs_results : total / success / distinct
+ total | success | distinct_jobs 
+-------+---------+---------------
+   103 |     103 |           103
+(1 row)
+
+## Répartition par tâche
+  task   | count 
+---------+-------
+ echo    |    33
+ compute |    70
+(2 rows)
+
+## /stats (queue vide = tout consommé)
+{"queue_length":0}
+

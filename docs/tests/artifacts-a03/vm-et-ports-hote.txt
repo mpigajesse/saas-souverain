@@ -1,0 +1,15 @@
+=== VM QEMU du banc (comptage robuste) ===
+qemu-system-x86 qemu-system-x86_64 -name amane-bench-m1 -enable-kvm -cpu host -m 4096 -smp 2 -drive file=/mnt/data/amane-bench/m1/disk.qcow2,if=virtio,format=qcow2 -drive file=/mnt/data/amane-bench/m1/seed.iso,format=raw,if=virtio,readonly=on -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2211-:22,hostfwd=tcp:127.0.0.1:9011-:9001 -device virtio-net-pci,netdev=n0,mac=52:54:00:10:77:11,addr=0x3 -netdev socket,id=n1,mcast=230.0.0.1:7777,localaddr=127.0.0.1 -device virtio-net-pci,netdev=n1,mac=52:54:00:20:77:11,addr=0x4 -display none -monitor unix:/mnt/data/amane-bench/m1/monitor.sock,server,nowait -pidfile /mnt/data/amane-bench/m1/qemu.pid -serial file:/mnt/data/amane-bench/logs/m1-serial.log -daemonize
+qemu-system-x86 qemu-system-x86_64 -name amane-bench-m2 -enable-kvm -cpu host -m 4096 -smp 2 -drive file=/mnt/data/amane-bench/m2/disk.qcow2,if=virtio,format=qcow2 -drive file=/mnt/data/amane-bench/m2/seed.iso,format=raw,if=virtio,readonly=on -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2212-:22,hostfwd=tcp:127.0.0.1:9012-:9001 -device virtio-net-pci,netdev=n0,mac=52:54:00:10:77:12,addr=0x3 -netdev socket,id=n1,mcast=230.0.0.1:7777,localaddr=127.0.0.1 -device virtio-net-pci,netdev=n1,mac=52:54:00:20:77:12,addr=0x4 -display none -monitor unix:/mnt/data/amane-bench/m2/monitor.sock,server,nowait -pidfile /mnt/data/amane-bench/m2/qemu.pid -serial file:/mnt/data/amane-bench/logs/m2-serial.log -daemonize
+qemu-system-x86 qemu-system-x86_64 -name amane-bench-m3 -enable-kvm -cpu host -m 4096 -smp 2 -drive file=/mnt/data/amane-bench/m3/disk.qcow2,if=virtio,format=qcow2 -drive file=/mnt/data/amane-bench/m3/seed.iso,format=raw,if=virtio,readonly=on -netdev user,id=n0,hostfwd=tcp:127.0.0.1:2213-:22,hostfwd=tcp:127.0.0.1:9013-:9001 -device virtio-net-pci,netdev=n0,mac=52:54:00:10:77:13,addr=0x3 -netdev socket,id=n1,mcast=230.0.0.1:7777,localaddr=127.0.0.1 -device virtio-net-pci,netdev=n1,mac=52:54:00:20:77:13,addr=0x4 -display none -monitor unix:/mnt/data/amane-bench/m3/monitor.sock,server,nowait -pidfile /mnt/data/amane-bench/m3/qemu.pid -serial file:/mnt/data/amane-bench/logs/m3-serial.log -daemonize
+nombre=3
+=== ports hôte 2211-2213 / 9011-9013 / 3000 / 5173 / 8000 ===
+2211 ouvert
+2212 ouvert
+2213 ouvert
+9011 ouvert
+9012 ouvert
+9013 ouvert
+3000 fermé
+5173 fermé
+8000 fermé

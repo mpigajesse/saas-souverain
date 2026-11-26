@@ -1,0 +1,16 @@
+# A-04 — métadonnées de la fenêtre de mesure
+debut_demande_epoch=1795634427
+debut_demande_utc=2026-11-25T19:20:27+00:00
+pas_secondes=10
+nombre_points_prevus=61
+duree_prevue_secondes=600
+cpu_logiques=8
+conteneurs_suivis=amane-etcd,amane-postgresql,amane-orchestrateur,amane-haproxy,ss-node,amane-application,pgadmin
+commande=python3 tools/a-vide-mesure.py
+host_cpu=/proc/loadavg ; host_ram=/proc/meminfo (MemAvailable) ; host_io=/proc/diskstats (nvme entiers, secteurs de 512 octets) ; host_temp=sensors -u
+contexte=3 VM QEMU amane-bench (4 Go chacune) laissées allumées, non sollicitées pendant la fenêtre ; aucune modification de la pile
+fin_reelle_epoch=1795635032
+fin_reelle_utc=2026-11-25T19:30:32+00:00
+duree_reelle_secondes=605
+lignes_stats=424
+lignes_hote=61

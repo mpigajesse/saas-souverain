@@ -1,0 +1,9 @@
+{
+  "type_artefact": "docker",
+  "image": "redis@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe",
+  "image_complet": "redis@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe",
+  "commande": [
+    "redis-server"
+  ],
+  "note": "image tierce publique déjà présente sur la machine, installée par manifeste (aucun rebuild, aucune modif)"
+}

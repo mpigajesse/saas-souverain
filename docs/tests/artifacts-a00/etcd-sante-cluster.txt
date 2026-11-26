@@ -1,0 +1,3 @@
+http://10.77.0.11:2379 is healthy: successfully committed proposal: took = 6.04837ms
+http://10.77.0.12:2379 is healthy: successfully committed proposal: took = 5.277864ms
+http://10.77.0.13:2379 is healthy: successfully committed proposal: took = 7.174612ms

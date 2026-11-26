@@ -1,0 +1,18 @@
+=== amane-etcd ===
+health=unhealthy status=running restarts=0 user= privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>
+=== amane-postgresql ===
+health=(aucune sonde déclarée) status=running restarts=0 user= privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>
+=== amane-orchestrateur ===
+health=(aucune sonde déclarée) status=running restarts=0 user=amane privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>
+=== amane-haproxy ===
+health=(aucune sonde déclarée) status=running restarts=0 user=haproxy privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>
+=== ss-node ===
+health=(aucune sonde déclarée) status=running restarts=0 user= privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>
+=== amane-application ===
+health=(aucune sonde déclarée) status=restarting restarts=5230 user= privileged=false
+cpu=0 cpuquota=0 cpuset= mem=0 memswap=0 pids=<no value> capAdd=<no value> capDrop=<no value>

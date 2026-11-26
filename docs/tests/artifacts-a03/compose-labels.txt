@@ -1,0 +1,25 @@
+tp3-cassandra-node3	tp3-cassandra	node3
+tp3-cassandra-node2	tp3-cassandra	node2
+tp3-cassandra-node1	tp3-cassandra	node1
+cassandra-tp2	tp2-cassandra	cassandra
+ss-node	amane-pme	ss-node
+pgadmin	amane-pme	pgadmin
+amane-application	amane-pme	amane-application
+amane-haproxy	amane-pme	amane-haproxy
+amane-orchestrateur	amane-pme	amane-orchestrateur
+amane-postgresql	amane-pme	amane-postgresql
+amane-etcd	amane-pme	amane-etcd
+amane-init	amane-pme	amane-init
+cassandra-node	atelier-cassandra	cassandra
+db_admistration-nodemanager-1	db_admistration	nodemanager
+db_admistration-namenode-1	db_admistration	namenode
+db_admistration-datanode4-1	db_admistration	datanode4
+db_admistration-datanode5-1	db_admistration	datanode5
+db_admistration-resourcemanager-1	db_admistration	resourcemanager
+db_admistration-datanode3-1	db_admistration	datanode3
+db_admistration-datanode2-1	db_admistration	datanode2
+db_admistration-datanode1-1	db_admistration	datanode1
+listmonk-test		
+amane-mailpit		
+amane-registry		
+amane-test-pg		

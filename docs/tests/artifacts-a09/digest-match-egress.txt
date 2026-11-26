@@ -1,0 +1,6 @@
+manifest .image        : 127.0.0.1:5001/editeurs/app-egress@sha256:8e662912e42e891502f63a45bace0b9c567baef8b56f91768b600a2003a4e6df
+container .Image (ID)  : sha256:8e662912e42e891502f63a45bace0b9c567baef8b56f91768b600a2003a4e6df
+image RepoDigests[0]   : 127.0.0.1:5001/editeurs/app-egress@sha256:8e662912e42e891502f63a45bace0b9c567baef8b56f91768b600a2003a4e6df
+manifest digest        : sha256:8e662912e42e891502f63a45bace0b9c567baef8b56f91768b600a2003a4e6df
+executed digest        : sha256:8e662912e42e891502f63a45bace0b9c567baef8b56f91768b600a2003a4e6df
+MATCH: OUI (digest exécuté == digest publié)

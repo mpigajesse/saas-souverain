@@ -1,0 +1,25 @@
+tp3-cassandra-node3	cassandra:5.0.9	Exited (137) 4 hours ago	
+tp3-cassandra-node2	cassandra:5.0.9	Exited (137) 4 hours ago	
+tp3-cassandra-node1	cassandra:5.0.9	Exited (137) 4 hours ago	
+cassandra-tp2	cassandra:5.0.9	Exited (143) 5 hours ago	
+ss-node	100.64.0.6:5000/amane/noeud	Up 4 days	0.0.0.0:9001->9001/tcp, [::]:9001->9001/tcp
+pgadmin	100.64.0.6:5000/amane/pgadmin	Up 4 days	443/tcp, 0.0.0.0:5050->80/tcp, [::]:5050->80/tcp
+amane-application	100.64.0.6:5000/editeurs/listmonk	Restarting (1) 11 seconds ago	
+amane-haproxy	100.64.0.6:5000/amane/haproxy	Up 4 days	
+amane-orchestrateur	100.64.0.6:5000/amane/orchestrateur	Up 4 days	50051/tcp
+amane-postgresql	100.64.0.6:5000/amane/postgresql	Up 4 days	0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp, 0.0.0.0:8008->8008/tcp, [::]:8008->8008/tcp, 8080/tcp
+amane-etcd	100.64.0.6:5000/amane/etcd	Up 4 days (unhealthy)	0.0.0.0:2379-2380->2379-2380/tcp, [::]:2379-2380->2379-2380/tcp
+amane-init	100.64.0.6:5000/amane/orchestrateur	Exited (1) 4 days ago	
+cassandra-node	cassandra:5.0.9	Exited (143) 12 days ago	
+db_admistration-nodemanager-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-namenode-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-datanode4-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-datanode5-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-resourcemanager-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-datanode3-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-datanode2-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+db_admistration-datanode1-1	apache/hadoop:3.3.6	Exited (143) 12 days ago	
+listmonk-test	3089042a786b	Exited (2) 12 days ago	
+amane-mailpit	axllent/mailpit	Exited (0) 12 days ago	
+amane-registry	registry:2	Exited (2) 12 days ago	
+amane-test-pg	postgres:17-alpine	Exited (0) About an hour ago	

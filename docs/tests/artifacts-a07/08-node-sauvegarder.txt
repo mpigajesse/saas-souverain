@@ -1,0 +1,9 @@
+== tentative ss-node sauvegarder (relais éditeur injoignable depuis le banc) ==
+Error: relais injoignable
+
+Caused by:
+    0: error sending request for url (http://10.77.0.254:8080/api/blobs/ea49c4c4-f46f-464d-b5db-4fb5928b7e49/sauvegarde-amane-3)
+    1: client error (Connect)
+    2: tcp connect error
+    3: No route to host (os error 113)
+exit=1

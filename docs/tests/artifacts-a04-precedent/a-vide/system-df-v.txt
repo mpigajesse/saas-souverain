@@ -1,0 +1,85 @@
+Images space usage:
+
+REPOSITORY          TAG                             IMAGE ID       CREATED         SIZE      SHARED SIZE   UNIQUE SIZE   CONTAINERS
+amethyst-builder    latest                          fcf6602f09f7   13 days ago     284MB     2B            284.4MB       0
+tp-deploiement-ia   latest                          5f767469a83a   2 weeks ago     15.3GB    9.633GB       5.632GB       0
+axllent/mailpit     latest                          aef2aacc11f0   2 weeks ago     53MB      12.94MB       40.03MB       1
+postgres            17-alpine                       3540c0362c80   2 weeks ago     424MB     12.94MB       410.9MB       1
+alpine              latest                          f59abe656b69   2 weeks ago     13MB      12.94MB       88.02kB       0
+<none>              <none>                          cea1862ce5bb   2 weeks ago     221MB     0B            220.5MB       1
+cassandra           5.0.9                           7e2afd76d5af   2 weeks ago     542MB     0B            541.6MB       5
+<none>              <none>                          6a082c400a28   2 weeks ago     38.1MB    0B            38.15MB       2
+ubuntu              22.04                           076e7bf82319   4 weeks ago     119MB     0B            119.5MB       0
+ubuntu              24.04                           fe81560990fa   4 weeks ago     119MB     0B            119.3MB       0
+<none>              <none>                          43f51ba59dff   4 weeks ago     46.9MB    32B           46.86MB       1
+<none>              <none>                          3089042a786b   5 months ago    49.7MB    0B            49.72MB       2
+<none>              <none>                          17bf371c9241   15 months ago   2.25GB    32B           2.251GB       1
+<none>              <none>                          2fbd14f87cfc   23 months ago   751MB     0B            750.8MB       1
+pytorch/pytorch     2.5.1-cuda12.4-cudnn9-runtime   c8268a92a69b   2 years ago     9.63GB    9.633GB       6.031kB       0
+registry            2                               a3d8aaa63ed8   3 years ago     37.4MB    0B            37.41MB       1
+apache/hadoop       3.3.6                           62a22627f35a   3 years ago     2.64GB    32B           2.643GB       8
+<none>              <none>                          9344cfb9cbe4   4 years ago     273MB     0B            273.4MB       1
+
+Containers space usage:
+
+CONTAINER ID   IMAGE                                 COMMAND                  LOCAL VOLUMES   SIZE      CREATED       STATUS                          NAMES
+98e532797d97   cassandra:5.0.9                       "docker-entrypoint.s…"   0               3.4MB     5 hours ago   Exited (137) 5 hours ago        tp3-cassandra-node3
+2de93a66a8b6   cassandra:5.0.9                       "docker-entrypoint.s…"   0               3.03MB    5 hours ago   Exited (137) 5 hours ago        tp3-cassandra-node2
+3c53b88ce641   cassandra:5.0.9                       "docker-entrypoint.s…"   0               2.59MB    5 hours ago   Exited (137) 5 hours ago        tp3-cassandra-node1
+fd5a9aa3e791   cassandra:5.0.9                       "docker-entrypoint.s…"   0               3.82MB    5 hours ago   Exited (143) 5 hours ago        cassandra-tp2
+e365d651630b   100.64.0.6:5000/amane/noeud           "/bin/sh -c 'until […"   2               16.4kB    12 days ago   Up 4 days                       ss-node
+558e89cd68c6   100.64.0.6:5000/amane/pgadmin         "/bin/sh -c 'until […"   2               86kB      12 days ago   Up 4 days                       pgadmin
+973068bdc3a2   100.64.0.6:5000/editeurs/listmonk     "/amane/bin/orchestr…"   2               32.8kB    12 days ago   Restarting (1) 46 seconds ago   amane-application
+d066ececc84e   100.64.0.6:5000/amane/haproxy         "docker-entrypoint.s…"   1               12.3kB    12 days ago   Up 4 days                       amane-haproxy
+d13adb2ec9ec   100.64.0.6:5000/amane/orchestrateur   "/usr/local/bin/orch…"   3               20.5kB    12 days ago   Up 4 days                       amane-orchestrateur
+85c8724abd4c   100.64.0.6:5000/amane/postgresql      "/bin/sh -c 'until […"   2               127kB     12 days ago   Up 4 days                       amane-postgresql
+af5773b77e36   100.64.0.6:5000/amane/etcd            "sh -c '. /amane/etc…"   2               16.4kB    12 days ago   Up 4 days (unhealthy)           amane-etcd
+69e915f1a822   100.64.0.6:5000/amane/orchestrateur   "/usr/local/bin/orch…"   6               32.8kB    12 days ago   Exited (1) 4 days ago           amane-init
+8ea29320c464   cassandra:5.0.9                       "docker-entrypoint.s…"   1               3.89MB    2 weeks ago   Exited (143) 12 days ago        cassandra-node
+92b7049266ec   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               176kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-nodemanager-1
+c7d3565b044a   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   0               188kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-namenode-1
+0a7c24129b97   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               176kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-datanode4-1
+e4da324c24e7   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               176kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-datanode5-1
+4a3c67f4ecbb   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               176kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-resourcemanager-1
+0de77fb1e73d   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               172kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-datanode3-1
+b7a8a3fc77c1   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               172kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-datanode2-1
+dd47c20472b4   apache/hadoop:3.3.6                   "/usr/local/bin/dumb…"   1               172kB     2 weeks ago   Exited (143) 12 days ago        db_admistration-datanode1-1
+2ecb01191091   3089042a786b                          "/listmonk/listmonk"     0               4.1kB     2 weeks ago   Exited (2) 12 days ago          listmonk-test
+c76b5913189f   axllent/mailpit                       "/mailpit"               0               8.19kB    2 weeks ago   Exited (0) 12 days ago          amane-mailpit
+ec7504645f73   registry:2                            "/entrypoint.sh /etc…"   1               20.5kB    2 weeks ago   Exited (2) 12 days ago          amane-registry
+ca374f3e8393   postgres:17-alpine                    "docker-entrypoint.s…"   1               16.4kB    2 weeks ago   Exited (0) 2 hours ago          amane-test-pg
+
+Local Volumes space usage:
+
+VOLUME NAME                                                        LINKS     SIZE
+33f603274cd3d30b754351eaa60acc5d791ed40a69170ccc6ebe995344cdb38e   1         0B
+7aec4dc68213fdeec68e8f438a4189ab8efefc36f6e4e7f61ddbaabb63ff8f97   1         0B
+chatbot-bi_clickhousedata                                          0         648.5MB
+maree-simulation_redpanda-data                                     0         285.4MB
+073386217ef553c9acc88f5981182dda3bc9ce26935c3da84137f3162d2ffffb   1         0B
+amane-pme_pg-data                                                  1         277.7MB
+amane-pme_secrets                                                  5         322B
+amane-registry-data                                                1         0B
+atelier-cassandra_cassandra_data                                   1         33.9MB
+d0296b74d86afd8497899954595ef0c080dc5eda205cfad0ff9470a0a1621a2a   1         0B
+amane-pme_haproxy                                                  3         1.101kB
+amane-pme_secrets-application                                      3         297B
+maree-simulation_sim-data                                          0         0B
+maree-simulation_sim-logs                                          0         4.911MB
+amane-pme_amane-bin                                                2         19.16MB
+chatbot-bi_miniodata                                               0         2.234GB
+amane-pme_pgadmin-data                                             1         169.7kB
+chatbot-bi_pgdata                                                  0         214.3MB
+f7dd3306f546bb6b9754b6c072f0ff6cd5bfb984c70cb1b345c7be00f56d610f   1         0B
+amane-pme_node-data                                                1         7.792kB
+c9877250a9741159c8579c0689d83f7385473c3a416bc478ffc2f6096b55beba   1         74.06MB
+amane-pme_etcd-data                                                2         128.9MB
+157032ccd946281947ccfb57781c17856edfb2a6d8a00e2ff57b01ee9b175b06   1         0B
+43ae67d60ec1701e6a404f2b2c99454e68233f9b29234568d4bf384848414d4b   1         0B
+amane-pme_etcd-conf                                                2         644B
+chatbot-bi_neo4jdata                                               0         547.9MB
+maree_redpanda-data                                                0         285.2MB
+
+Build cache usage: 0B
+
+CACHE ID   CACHE TYPE   SIZE      CREATED   LAST USED   USAGE     SHARED

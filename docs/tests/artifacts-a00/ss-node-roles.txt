@@ -1,0 +1,23 @@
+# Rôle vu par ss-node dans chaque machine (2026-11-25T18:10:29+00:00)
+== m1
+=== Noeud 18836c21-247e-4d0a-b6e7-38b320574ded démarré (mode Active) ===
+  PostgreSQL : connecté
+  Patroni  : supervision en lecture (http://amane-postgresql:8008) — la bascule appartient à etcd/Patroni
+  Cluster  : sous le seuil — aucun standby synchrone : les écritures ne sont plus protégées (époque 1)
+  Journal  : prise de rôle primaire consignée (index 0, époque 1)
+  Application : disponible (http://amane-application:9000/health)
+  Journal  : prise de rôle primaire consignée (index 1, époque 2)
+  Cluster  : sain (époque 2)
+== m2
+=== Noeud f0d22753-d6ad-4a90-80c4-b733a43818d4 démarré (mode Passive) ===
+  PostgreSQL : connecté
+  Patroni  : supervision en lecture (http://amane-postgresql:8008) — la bascule appartient à etcd/Patroni
+  Cluster  : sous le seuil — aucun standby synchrone : les écritures ne sont plus protégées (époque 2)
+  Application : disponible (http://amane-application:9000/health)
+  Cluster  : sain (époque 2)
+== m3
+=== Noeud 314e68a0-6318-44a0-999a-07decb1ed7bb démarré (mode Passive) ===
+  PostgreSQL : connecté
+  Patroni  : supervision en lecture (http://amane-postgresql:8008) — la bascule appartient à etcd/Patroni
+  Cluster  : sain (époque 2)
+  Application : disponible (http://amane-application:9000/health)

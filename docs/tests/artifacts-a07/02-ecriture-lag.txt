@@ -1,0 +1,26 @@
+### A-07 — écriture 1000 lignes sur le primaire (m1) 2026-11-25T21:04:12Z
+== LSN avant écriture ==
+0/7000000
+== Exécution du script de test ==
+NOTICE:  table "a07_replication_test" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 1000
+ lignes_inserees 
+-----------------
+            1000
+(1 row)
+
+ lsn_primaire_apres_ecriture 
+-----------------------------
+ 0/703B890
+(1 row)
+
+
+== Lag de réplication immédiat (pg_stat_replication) ==
+ application_name | sync_state | lag_replay |    write_lag    |    flush_lag    |   replay_lag    
+------------------+------------+------------+-----------------+-----------------+-----------------
+ m2               | sync       | 0 bytes    | 00:00:00.008179 | 00:00:00.014185 | 00:00:00.015213
+ m3               | async      | 0 bytes    | 00:00:00.005992 | 00:00:00.016185 | 00:00:00.019552
+(2 rows)
+

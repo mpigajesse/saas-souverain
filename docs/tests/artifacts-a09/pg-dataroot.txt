@@ -1,0 +1,10 @@
+total 136
+drwx------   19 postgres postgres      4096 Nov 25 19:48 .
+drwxrwxrwt    1 postgres postgres      4096 Nov  5 19:09 ..
+-rw-------    1 postgres postgres         3 Nov 25 19:48 PG_VERSION
+drwx------    6 postgres postgres      4096 Nov 25 19:48 base
+drwx------    2 postgres postgres      4096 Nov 25 19:49 global
+drwx------    2 postgres postgres      4096 Nov 25 19:48 pg_commit_ts
+drwx------    2 postgres postgres      4096 Nov 25 19:48 pg_dynshmem
+--- taille ---
+45.9M	/var/lib/postgresql/data

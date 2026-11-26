@@ -1,0 +1,12 @@
+=== etcd --version ===
+etcd Version: 3.5.5
+Git SHA: 19002cfc6
+Go Version: go1.16.15
+Go OS/Arch: linux/amd64
+=== etcdctl endpoint status ===
+{"level":"warn","ts":"2026-11-25T18:25:17.143Z","logger":"etcd-client","caller":"v3/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0xc0001a4000/127.0.0.1:2379","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = context deadline exceeded"}
+Failed to get the status of endpoint http://127.0.0.1:2379 (context deadline exceeded)
++----------+----+---------+---------+-----------+------------+-----------+------------+--------------------+--------+
+| ENDPOINT | ID | VERSION | DB SIZE | IS LEADER | IS LEARNER | RAFT TERM | RAFT INDEX | RAFT APPLIED INDEX | ERRORS |
++----------+----+---------+---------+-----------+------------+-----------+------------+--------------------+--------+
++----------+----+---------+---------+-----------+------------+-----------+------------+--------------------+--------+

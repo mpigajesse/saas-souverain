@@ -1,0 +1,6 @@
+21:26:21  topologie trois-pg : démarrage…
+21:27:20  topologie trois-pg : saine (leader pg-m2)
+21:27:59  → Partition minoritaire d'un standby (trois-pg) : OK — pg-m1 isolé 30 s sans se promouvoir ; pg-m2 reste primaire et acquitte les écritures
+
+=== Bilan des scénarios ===
+Partition minoritaire d'un standby (trois-pg)    OK     pg-m1 isolé 30 s sans se promouvoir ; pg-m2 reste primaire et acquitte les écritures
