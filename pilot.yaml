@@ -780,3 +780,80 @@ tasks:
         kind: md
         require: ["L-02", "L-12", "soak"]
         min_lines: 60
+
+  # =====================================================================
+  # Campagne 3 — fin de couverture du plan exhaustif
+  # =====================================================================
+
+  - id: E-01
+    title: Chaos additionnels (scénarios E du plan exhaustif)
+    tier: free
+    brief: |
+      Les quatre scénarios additionnels du groupe E du plan
+      `plan-tests-exhaustif-v3.md` (§ Groupe E), sur le banc de VM A-00
+      (trois VM réelles, LAN `10.77.0.11-13`) ou sur `ha-lab`.
+
+      1. E-01 : partition asymétrique avec keepalive 1 s entre le primaire et
+         un standby. Attendu : pas de split-brain, le primaire isolé ne
+         s'auto-rétrograde pas avant le TTL Patroni.
+      2. E-02 : double kill du primaire simultané. Attendu : un seul nouveau
+         leader émerge, zéro écriture acquittée perdue.
+      3. E-03 : failover pour coupure REST (< 5 s). Attendu : détection et
+         bascule en moins de 5 s.
+      4. E-04 : arrêt du registry pendant la validation. Attendu : erreur
+         d'infrastructure (pas de 409 masqué).
+
+      Ne toucher qu'au projet `ha-lab` ou au banc A-00. Jamais `docker compose
+      down` sur `amane-*`. Sorties dans `docs/tests/artifacts-e01/`.
+      Écrire `docs/tests/E-CHAOS.md`. Un scénario non exécutable est `BLOQUE`.
+
+      **Obligatoire** : lignes E-01 à E-04 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/E-CHAOS.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| E-0[1-4] ' docs/tests/REGISTRE.md) -eq 4"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/E-CHAOS.md
+        kind: md
+        require: ["E-01", "E-04", "split-brain"]
+        min_lines: 40
+
+  - id: M-01
+    title: Acceptation E2E frontend (scénarios M du plan exhaustif)
+    tier: free
+    brief: |
+      Les trois scénarios d'acceptation E2E du groupe M du plan
+      `plan-tests-exhaustif-v3.md` (§ Groupe M), sur le frontend React.
+
+      1. E2E-01 : Créateur → mon-espace → installer serveur + compose →
+         "En attente du premier démarrage".
+      2. E2E-02 : Login → Applications → brouillon JSON → Valider (503 ou
+         verdict vert) → édition désactivée → rattachement licence.
+      3. E2E-03 : /mon-espace 1 serveur → 2ᵉ apparaît → bannière témoin →
+         télécharger installeur → enregistré → bannière disparaît.
+
+      Exécuter avec `tsc -b` + `vite build` pour la compilation, puis un
+      harnais E2E léger (Playwright ou scripts curl + DOM) sur le frontend
+      local. Jamais la pile `amane-*` en production. Sorties dans
+      `docs/tests/artifacts-m01/`.
+
+      Écrire `docs/tests/M-E2E.md`. Un scénario non exécutable est `BLOQUE`.
+
+      **Obligatoire** : lignes M-01 à M-03 dans `docs/tests/REGISTRE.md`,
+      puis `python3 tools/registre.py --ecrire`.
+    verify:
+      - type: exists
+        path: docs/tests/M-E2E.md
+      - type: shell
+        cmd: "test $(grep -cE '^\\| M-0[1-3] ' docs/tests/REGISTRE.md) -eq 3"
+      - type: shell
+        cmd: "python3 tools/registre.py"
+      - type: artifact
+        path: docs/tests/M-E2E.md
+        kind: md
+        require: ["E2E-01", "E2E-03", "bannière"]
+        min_lines: 40
