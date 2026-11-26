@@ -16,6 +16,7 @@ Usage : render-compose.py [--sans-pgadmin] [--verifier] [-o sortie.yml]
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import sys
 
@@ -66,6 +67,10 @@ def main() -> int:
     args = p.parse_args()
 
     contexte = json.loads(CONTEXTE.read_text(encoding="utf-8"))
+    # Le jeton de relais peut etre injecte par l'environnement (tools/bench/.env)
+    # plutot que code en dur dans pile-bench.json (cf. .env.example).
+    if os.environ.get("AMANE_RELAY_AUTH_TOKEN"):
+        contexte["jeton_relais"] = os.environ["AMANE_RELAY_AUTH_TOKEN"]
     rendu = Template(GABARIT.read_text(encoding="utf-8")).render(Context({
         **contexte,
         "generated_at": datetime.datetime.now().strftime("%d/%m/%Y à %H:%M"),

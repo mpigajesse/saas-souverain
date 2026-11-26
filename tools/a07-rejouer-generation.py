@@ -17,6 +17,7 @@ Aucune donnée modifiée, aucune pile touchée.
 import datetime
 import difflib
 import json
+import os
 import pathlib
 import sys
 
@@ -37,7 +38,7 @@ GABARIT = REPO / "templates" / "tenants" / "docker-compose.yml.tmpl"
 CONTEXTE = REPO / "tools" / "bench" / "pile-bench.json"
 SORTIE = REPO / "docs" / "tests" / "artifacts-a07"
 
-JETON_A = "RELAY_AUTH_TOKEN_REDACTE"
+JETON_A = os.environ.get("AMANE_RELAY_AUTH_TOKEN", "RELAY_AUTH_TOKEN_REDACTE")
 JETON_B = "0" * 64  # autre secret possible : jeton HMAC différent
 
 
