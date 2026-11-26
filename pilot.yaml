@@ -752,6 +752,14 @@ tasks:
       déployée, saine) et le dire explicitement. Ne jamais conclure « NON TENU »
       sans avoir identifié la cause racine.
 
+      **Le banc A-00 est arrêté depuis le 2026-11-25 22:14** (arrêté pour
+      libérer la RAM ; disques qcow2 et journaux conservés). Le recréer est
+      idempotent et ne retélécharge rien :
+      `tools/bench/create-bench.sh` puis `tools/bench/deploy-bench.sh`.
+      Attendre la fin du déploiement (3 VM, ~2 min) avant de mesurer.
+      Après la campagne, laisser le banc **démarré** : les tâches suivantes
+      en ont besoin.
+
       Outil : `k6` (déjà installé dans `~/.local/bin`), scripts dans `load/`.
       Une cible non atteinte se note `NON TENU` avec la mesure, pas « OK ».
 
