@@ -358,7 +358,7 @@ Compte créé le 1er septembre via le vrai parcours réseau (`POST /api/auth/reg
 | **Mot de passe** | `amane2026` |
 | Entreprise | PME Test |
 | Licence | starter, **3 sièges** — donc jusqu'à 3 nœuds |
-| Jeton d'enregistrement | `f49b6360-e87e-40c8-a9ab-5c4411f93744` |
+| Jeton d'enregistrement | `JETON_URL_REDACT` |
 
 Un **seul** compte pour les deux machines : elles sont deux nœuds du même cluster PME, pas deux clients. Chacune génère son propre `installation_id` et apparaît comme un appareil distinct sous ce tenant.
 
@@ -526,7 +526,7 @@ Le premier nœud qui s'annonce devient primaire ; le second passe automatiquemen
 Si l'étape 12.1 est impossible (poste verrouillé, pas d'accès aux réglages Docker), l'image se récupère en archive — aucune configuration de registre n'est alors nécessaire :
 
 ```powershell
-curl.exe -L -o ss-node-v2.tar.gz "http://10.128.177.37:5173/api/node-image/telecharger/?token=f49b6360-e87e-40c8-a9ab-5c4411f93744"
+curl.exe -L -o ss-node-v2.tar.gz "http://10.128.177.37:5173/api/node-image/telecharger/?token=JETON_URL_REDACT"
 docker load -i ss-node-v2.tar.gz
 docker tag ss-node:v2 10.128.177.37:5000/ss-node:v2
 docker compose up -d

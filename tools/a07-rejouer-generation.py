@@ -37,7 +37,7 @@ GABARIT = REPO / "templates" / "tenants" / "docker-compose.yml.tmpl"
 CONTEXTE = REPO / "tools" / "bench" / "pile-bench.json"
 SORTIE = REPO / "docs" / "tests" / "artifacts-a07"
 
-JETON_A = "bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6"
+JETON_A = "RELAY_AUTH_TOKEN_REDACTE"
 JETON_B = "0" * 64  # autre secret possible : jeton HMAC différent
 
 

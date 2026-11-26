@@ -15,7 +15,7 @@ func TestMain(m *testing.M) {
 	// Setup: attendre que la DB soit prête (pour tests d'intégration)
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+		dbURL = "postgres://postgres:MOTDEPASSE_DB_REDACT@localhost:5432/postgres?sslmode=disable"
 	}
 
 	// Attendre DB max 30s

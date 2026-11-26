@@ -110,7 +110,7 @@ services:
       SS_NODE_DIR: /data
       RELAY_URL: "http://relay:8080"
       HOSTNAME: node1
-      PG_URL: "postgres://postgres:pgpass@pg-primary:5432/ss_node"
+      PG_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@pg-primary:5432/ss_node"
     command: ["run", "--mode", "active"]
     depends_on:
       - relay
@@ -136,7 +136,7 @@ services:
       SS_NODE_DIR: /data
       RELAY_URL: "http://relay:8080"
       HOSTNAME: node2
-      PG_URL: "postgres://postgres:pgpass@pg-standby1:5432/ss_node"
+      PG_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@pg-standby1:5432/ss_node"
     command: ["run", "--mode", "passive"]
     depends_on:
       - relay
@@ -162,7 +162,7 @@ services:
       SS_NODE_DIR: /data
       RELAY_URL: "http://relay:8080"
       HOSTNAME: node3
-      PG_URL: "postgres://postgres:pgpass@pg-standby2:5432/ss_node"
+      PG_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@pg-standby2:5432/ss_node"
     command: ["run", "--mode", "passive"]
     depends_on:
       - relay

@@ -1372,7 +1372,7 @@
             "StdinOnce": false,
             "Env": [
                 "NODE_MODE=active",
-                "REGISTRATION_TOKEN=412c9377-8285-400d-a8c0-fa3e9b0b8752",
+                "REGISTRATION_TOKEN=REGISTRATION_TOKEN_REDACTE",
                 "AMANE_APP_SANTE=/health",
                 "SAAS_URL=http://100.64.0.6:5173",
                 "RUST_LOG=info",
@@ -1386,7 +1386,7 @@
                 "WEB_PORT=9001",
                 "AMANE_APP_URL=http://amane-application:9000",
                 "SS_NODE_DIR=/data",
-                "RELAY_AUTH_TOKEN=bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6",
+                "RELAY_AUTH_TOKEN=RELAY_AUTH_TOKEN_REDACTE",
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             ],
             "Cmd": null,

@@ -218,7 +218,7 @@ services:
     container_name: app-migrations
     networks: [lan]
     environment:
-      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@10.77.0.12:5432/amane?sslmode=disable"
       AMANE_APP_DB_UTILISATEUR: postgres
       AMANE_APP_DB_MOT_DE_PASSE: postgres
       AMANE_APP_DB_HOTE: "10.77.0.12"
@@ -233,7 +233,7 @@ services:
     container_name: app-multi-web
     networks: [lan]
     environment:
-      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@10.77.0.12:5432/amane?sslmode=disable"
       AMANE_APP_DB_UTILISATEUR: postgres
       AMANE_APP_DB_MOT_DE_PASSE: postgres
       AMANE_APP_DB_HOTE: "10.77.0.12"
@@ -251,7 +251,7 @@ services:
     container_name: app-multi-worker
     networks: [lan]
     environment:
-      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@10.77.0.12:5432/amane?sslmode=disable"
       AMANE_APP_DB_UTILISATEUR: postgres
       AMANE_APP_DB_MOT_DE_PASSE: postgres
       AMANE_APP_DB_HOTE: "10.77.0.12"
@@ -269,7 +269,7 @@ services:
     container_name: app-egress
     networks: [lan]
     environment:
-      DATABASE_URL: "postgres://postgres:postgres@10.77.0.12:5432/amane?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:MOTDEPASSE_DB_REDACT@10.77.0.12:5432/amane?sslmode=disable"
       AMANE_APP_DB_UTILISATEUR: postgres
       AMANE_APP_DB_MOT_DE_PASSE: postgres
       AMANE_APP_DB_HOTE: "10.77.0.12"

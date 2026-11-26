@@ -28,5 +28,5 @@
     "volumes": []
   },
   "relay_url": "http://100.64.0.6:8080",
-  "jeton_relais": "bfe31518d11a37ae096cbe6b3890e8ae6f6a899d6fe14e183cd0a2ea4d6794b6"
+  "jeton_relais": "RELAY_AUTH_TOKEN_REDACTE"
 }

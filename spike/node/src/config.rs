@@ -24,7 +24,7 @@ pub struct NodeConfig {
     /// URL du relais éditeur
     #[serde(default = "default_relay_url")]
     pub relay_url: String,
-    /// URL de connexion PostgreSQL local (ex: postgres://postgres:pass@localhost/ss)
+    /// URL de connexion PostgreSQL local (ex: postgres://postgres:MOTDEPASSE_DB_REDACT@localhost/ss)
     pub pg_url: Option<String>,
     /// Époque courante de ce nœud (jeton de fencing monotone)
     #[serde(default = "default_epoch")]

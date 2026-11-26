@@ -1,5 +1,5 @@
 === amane-init ===
-user=0 status=exited exit=1 cmd=[init -nom=pme-100-64-0-4 -ip=100.64.0.4 -portail=http://100.64.0.6:5173 -jeton=412c9377-8285-400d-a8c0-fa3e9b0b8752 -dossier-secrets=/amane/secrets -dossier-haproxy=/amane/haproxy -copier-binaire=/amane/bin -dossier-secrets-application=/amane/secrets-application] entrypoint=[/usr/local/bin/orchestrator]
+user=0 status=exited exit=1 cmd=[init -nom=pme-100-64-0-4 -ip=100.64.0.4 -portail=http://100.64.0.6:5173 -jeton=REGISTRATION_TOKEN_REDACTE -dossier-secrets=/amane/secrets -dossier-haproxy=/amane/haproxy -copier-binaire=/amane/bin -dossier-secrets-application=/amane/secrets-application] entrypoint=[/usr/local/bin/orchestrator]
 === entrée du template (init) ===
   # Internet (ADR-003, étape 4). Seuls le nœud (interface) et HAProxy (base)
   # y sont joignables : l'application ne peut rien envoyer à son éditeur.

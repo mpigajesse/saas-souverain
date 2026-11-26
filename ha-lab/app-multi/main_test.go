@@ -14,7 +14,7 @@ import (
 func TestMain(m *testing.M) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+		dbURL = "postgres://postgres:MOTDEPASSE_DB_REDACT@localhost:5432/postgres?sslmode=disable"
 	}
 
 	var db *sql.DB

@@ -49,7 +49,7 @@ func TestRendreDatabaseURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rendu: %v", err)
 	}
-	if rendus["DATABASE_URL"] != "postgres://application:s3cr3t-Base64_url@amane-haproxy:5000/application" {
+	if rendus["DATABASE_URL"] != "postgres://application:MOTDEPASSE_DB_REDACT@amane-haproxy:5000/application" {
 		t.Fatalf("DATABASE_URL inattendue : %s", rendus["DATABASE_URL"])
 	}
 	if rendus["DB_HOST"] != "amane-haproxy" {

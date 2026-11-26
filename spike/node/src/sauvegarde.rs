@@ -249,7 +249,7 @@ mod tests {
         let f = std::env::temp_dir().join(format!("secrets-{}.env", Uuid::new_v4()));
         std::fs::write(&f, "# en-tête\nexport PGPASSWORD_SUPERUSER='abc-123'\nexport X='y'\n").unwrap();
         let url = url_superutilisateur(f.to_str().unwrap(), "amane-haproxy:5000").unwrap();
-        assert_eq!(url, "postgres://postgres:abc-123@amane-haproxy:5000");
+        assert_eq!(url, "postgres://postgres:MOTDEPASSE_DB_REDACT@amane-haproxy:5000");
         std::fs::write(&f, "export X='y'\n").unwrap();
         assert!(url_superutilisateur(f.to_str().unwrap(), "h:1").is_err());
         let _ = std::fs::remove_file(f);
