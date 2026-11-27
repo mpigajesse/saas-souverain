@@ -16,6 +16,7 @@ use anyhow::{anyhow, Context, Result};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use ss_crypto::{Dek, DevicePublicKey};
+use subtle::ConstantTimeEq;
 
 /// Durée de validité d'un code.
 pub const VALIDITE: Duration = Duration::from_secs(15 * 60);
@@ -48,21 +49,34 @@ impl Invitations {
         brut.as_bytes().chunks(4).map(|g| std::str::from_utf8(g).unwrap()).collect::<Vec<_>>().join("-")
     }
 
-    /// Consomme un code valide (usage unique). Après `ECHECS_MAX` codes faux,
-    /// tous les codes en cours sont annulés.
+    /// Consomme un code valide (usage unique). Les échecs sur un code ne
+    /// révoquent pas les autres codes légitimes (pas de `clear()`). La
+    /// comparaison parcourt toute la liste en constant-temps pour résister
+    /// aux attaques par canal latéral (timing attack).
     pub fn consommer(&self, code: &str) -> bool {
         let code = normaliser(code);
         let mut codes = self.codes.lock().unwrap();
         codes.retain(|(_, emis)| emis.elapsed() < VALIDITE);
-        if let Some(i) = codes.iter().position(|(c, _)| *c == code) {
+
+        let mut trouve: Option<usize> = None;
+        for (i, (c, _)) in codes.iter().enumerate() {
+            if c.as_bytes().ct_eq(code.as_bytes()).into() {
+                trouve = Some(i);
+                // Parcours complet de la liste (pas de `break`) pour
+                // résister aux attaques par canal latéral.
+            }
+        }
+        if let Some(i) = trouve {
             codes.remove(i);
             *self.echecs.lock().unwrap() = 0;
             return true;
         }
+        // Échec : on ne supprime que le code soumis s'il était présent ; tous
+        // les autres codes légitimes restent intacts.
+        codes.retain(|(c, _)| !c.as_bytes().ct_eq(code.as_bytes()).into());
         let mut echecs = self.echecs.lock().unwrap();
         *echecs += 1;
         if *echecs >= ECHECS_MAX {
-            codes.clear();
             *echecs = 0;
         }
         false
@@ -114,10 +128,13 @@ mod tests {
     fn trop_d_echecs_annulent_les_codes() {
         let inv = Invitations::default();
         let code = inv.emettre();
+        // Échecs répétés sur un mauvais code : ils ne révoquent pas les
+        // autres codes légitimes (plus de `codes.clear()`).
         for _ in 0..ECHECS_MAX {
             assert!(!inv.consommer("AAAA-BBBB-CCCC-DDDD"));
         }
-        assert!(!inv.consommer(&code), "le code valide a été annulé après trop d'échecs");
+        assert!(inv.consommer(&code), "le code valide survit aux échecs sur un autre code");
+        assert!(!inv.consommer(&code), "un code ne sert qu'une fois");
     }
 
     #[test]

@@ -2,6 +2,10 @@ use anyhow::Result;
 use argon2::password_hash::{rand_core::OsRng, SaltString};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::net::IpAddr;
+use std::sync::Mutex;
+use std::time::Instant;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -19,6 +23,9 @@ pub struct AppState {
     pub dek: Option<std::sync::Arc<ss_crypto::Dek>>,
     /// Codes d'enrôlement émis par ce nœud.
     pub invitations: std::sync::Arc<crate::enrolement::Invitations>,
+    /// Échecs d'enrôlement par adresse IP, fenêtre glissante de 1 minute
+    /// (protection contre le DoS par force brute sur `/api/enrolement`).
+    pub echecs_enrolement_par_ip: Mutex<HashMap<IpAddr, (Instant, u32)>>,
     /// Relais où déposer le blob de récupération (étape 8, ADR-010).
     pub relais: Option<crate::recuperation::Relais>,
 }

@@ -26,9 +26,12 @@ hex          = { workspace = true }
 data-encoding = { workspace = true }
 rpassword    = "7"
 zeroize      = { workspace = true }
+subtle       = { workspace = true }
 tracing      = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow       = { workspace = true }
 rand         = { workspace = true }
 axum         = { workspace = true }
 argon2       = { workspace = true }
+bytes        = { workspace = true }
+futures-core = { workspace = true }

@@ -15,13 +15,19 @@
 //! blob déplacé (autre jour, autre base, autre tenant) au lieu de rendre
 //! silencieusement d'anciennes données, et affiche la date de la sauvegarde.
 
+use std::pin::Pin;
 use std::process::Stdio;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
+use bytes::Bytes;
 use chrono::{Datelike, NaiveDate, Utc};
+use futures_core::stream::Stream;
+use reqwest::Body;
 use ss_crypto::Dek;
-use tokio::io::AsyncWriteExt;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use uuid::Uuid;
 
@@ -91,21 +97,53 @@ pub fn cle_blob(base: &str, jour: u32) -> Result<String> {
 const FORMAT: &str = "amane-sauvegarde/1";
 /// Longueur maximale de l'en-tête : format, UUID, nom de base, date.
 const ENTETE_MAX: usize = 160;
+/// Taille d'un chunk lu depuis pg_dump et chiffré indépendamment (64 Ko).
+const CHUNK_SIZE: usize = 64 * 1024;
+/// Longueur du nonce XChaCha20 préfixé à chaque chunk chiffré par la DEK.
+const NONCE_LEN: usize = 24;
+/// Marqueur de fin de blob permettant de localiser l'index des offsets.
+const INDEX_MAGIC: u64 = 0x414d414e53415645;
 
 fn entete(tenant_id: Uuid, base: &str, date: NaiveDate) -> String {
     format!("{FORMAT} {tenant_id} {base} {date}\n")
 }
 
-/// Blob déposé sur le relais : en-tête en clair, puis l'export chiffré par la
-/// DEK avec l'en-tête pour donnée associée.
+/// Blob déposé sur le relais : en-tête en clair, puis l'export découpé en
+/// chunks de 64 Ko, chacun chiffré indépendamment par la DEK (AEAD par chunk,
+/// nonce unique, contexte = en-tête + index du chunk) et suivi d'un index des
+/// offsets pour la restauration partielle.
 pub fn emballer(dek: &Dek, tenant_id: Uuid, base: &str, date: NaiveDate, export: &[u8]) -> Result<Vec<u8>> {
     let entete = entete(tenant_id, base, date);
-    let chiffre = dek
-        .encrypt_avec_contexte(export, entete.as_bytes())
-        .map_err(|e| anyhow!("chiffrement : {e:?}"))?;
-    let mut blob = Vec::with_capacity(entete.len() + chiffre.len());
-    blob.extend_from_slice(entete.as_bytes());
-    blob.extend_from_slice(&chiffre);
+    let entete_bytes = entete.as_bytes();
+    let mut blob = Vec::new();
+    blob.extend_from_slice(entete_bytes);
+    let mut offset = entete_bytes.len() as u64;
+    let mut nb_chunks: u64 = 0;
+    let mut index: Vec<(u64, u64)> = Vec::new();
+    for chunk in export.chunks(CHUNK_SIZE) {
+        let mut contexte = entete_bytes.to_vec();
+        contexte.extend_from_slice(&nb_chunks.to_le_bytes());
+        let chiffre = dek
+            .encrypt_avec_contexte(chunk, &contexte)
+            .map_err(|e| anyhow!("chiffrement chunk {nb_chunks} : {e:?}"))?;
+        let len = chiffre.len() as u64;
+        blob.extend_from_slice(&chiffre);
+        index.push((offset, len));
+        offset += len;
+        nb_chunks += 1;
+    }
+    // Index des offsets à la fin du blob, suffixé de sa longueur et d'un
+    // marqueur magique pour le localiser à la lecture.
+    let mut index_bytes = Vec::new();
+    index_bytes.extend_from_slice(&nb_chunks.to_le_bytes());
+    for (o, l) in &index {
+        index_bytes.extend_from_slice(&o.to_le_bytes());
+        index_bytes.extend_from_slice(&l.to_le_bytes());
+    }
+    let index_len = index_bytes.len() as u64;
+    blob.extend_from_slice(&index_bytes);
+    blob.extend_from_slice(&index_len.to_le_bytes());
+    blob.extend_from_slice(&INDEX_MAGIC.to_le_bytes());
     Ok(blob)
 }
 
@@ -117,7 +155,7 @@ pub fn deballer(dek: &Dek, blob: &[u8], tenant_id: Uuid, base: &str, jour: u32) 
         .take(ENTETE_MAX)
         .position(|&o| o == b'\n')
         .ok_or_else(|| anyhow!("blob sans en-tête : format antérieur à l'étape 9, ou blob corrompu"))?;
-    let (entete, chiffre) = blob.split_at(fin + 1);
+    let (entete, reste) = blob.split_at(fin + 1);
     let texte = std::str::from_utf8(&entete[..fin]).map_err(|_| anyhow!("en-tête de sauvegarde illisible"))?;
     let champs: Vec<&str> = texte.split(' ').collect();
     let [format, tenant, base_lue, date] = champs[..] else {
@@ -137,9 +175,46 @@ pub fn deballer(dek: &Dek, blob: &[u8], tenant_id: Uuid, base: &str, jour: u32) 
     if jour_lu != jour {
         bail!("sauvegarde du {date} (jour {jour_lu}) déposée sous le nom du jour {jour} : refusée");
     }
-    let export = dek
-        .decrypt_avec_contexte(chiffre, entete)
-        .map_err(|e| anyhow!("déchiffrement impossible (mauvaise DEK, ou en-tête modifié) : {e:?}"))?;
+    // Lecture de l'index des offsets en fin de blob (longueur + marqueur).
+    if reste.len() < 16 {
+        bail!("blob tronqué : index des offsets manquant");
+    }
+    let index_len = u64::from_le_bytes(reste[reste.len() - 16..reste.len() - 8].try_into()?);
+    let magic = u64::from_le_bytes(reste[reste.len() - 8..].try_into()?);
+    if magic != INDEX_MAGIC {
+        bail!("index de sauvegarde manquant ou corrompu");
+    }
+    let index_start = (reste.len() - 16)
+        .checked_sub(index_len as usize)
+        .ok_or_else(|| anyhow!("index des offsets hors des limites"))?;
+    let index_data = &reste[index_start..reste.len() - 16];
+    let entete_len = fin + 1;
+    let mut pos = 0;
+    let nb_chunks = u64::from_le_bytes(index_data[pos..pos + 8].try_into()?);
+    pos += 8;
+    let mut export = Vec::new();
+    for i in 0..nb_chunks {
+        let offset = u64::from_le_bytes(index_data[pos..pos + 8].try_into()?);
+        pos += 8;
+        let len = u64::from_le_bytes(index_data[pos..pos + 8].try_into()?);
+        pos += 8;
+        let chunk_debut = offset
+            .checked_sub(entete_len as u64)
+            .ok_or_else(|| anyhow!("offset de chunk {i} invalide"))? as usize;
+        let chunk_fin = chunk_debut
+            .checked_add(len as usize)
+            .ok_or_else(|| anyhow!("longueur de chunk {i} invalide"))?;
+        if chunk_fin > reste.len() {
+            bail!("chunk {i} hors des limites du blob");
+        }
+        let chunk = &reste[chunk_debut..chunk_fin];
+        let mut contexte = entete.to_vec();
+        contexte.extend_from_slice(&i.to_le_bytes());
+        let partie = dek
+            .decrypt_avec_contexte(chunk, &contexte)
+            .map_err(|e| anyhow!("déchiffrement chunk {i} : {e:?}"))?;
+        export.extend_from_slice(&partie);
+    }
     Ok((date, export))
 }
 
@@ -155,26 +230,120 @@ fn client() -> Result<reqwest::Client> {
     Ok(reqwest::Client::builder().timeout(Duration::from_secs(600)).build()?)
 }
 
-/// Exporte, chiffre et dépose une base. Renvoie la clé et la taille du blob.
+/// Exporte, chiffre par chunk et dépose une base. Renvoie la clé et la taille
+/// du blob. La lecture de pg_dump, le chiffrement et l'écriture se font par
+/// chunks de 64 Ko : un seul chunk est en RAM à la fois (RSS < 128 Mo).
 pub async fn sauvegarder(dek: &Dek, cible: &Cible, base: &str) -> Result<(String, usize)> {
     let date = Utc::now().date_naive();
     let cle = cle_blob(base, date.weekday().number_from_monday())?;
-    let sortie = Command::new("pg_dump")
+    let entete = entete(cible.tenant_id, base, date);
+    let entete_bytes = entete.as_bytes();
+    let entete_len = entete_bytes.len() as u64;
+
+    // Fichier de sortie temporaire : écriture incrémentale, pas de Vec global.
+    let tmp_path = std::env::temp_dir().join(format!("amane-sauvegarde-{}.tmp", Uuid::new_v4()));
+    let mut fichier = File::create(&tmp_path).await?;
+    fichier.write_all(entete_bytes).await?;
+
+    let mut enfant = Command::new("pg_dump")
         .args(["--format=custom", "--no-owner", "--dbname", &url_base(cible, base)])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .output()
-        .await
+        .spawn()
         .context("pg_dump introuvable dans l'image du nœud")?;
-    if !sortie.status.success() {
-        bail!("pg_dump {base} : {}", String::from_utf8_lossy(&sortie.stderr).trim());
+    let mut stdout = enfant
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow!("stdout de pg_dump indisponible"))?;
+    let mut buf = [0u8; CHUNK_SIZE];
+    let mut index: Vec<(u64, u64)> = Vec::new();
+    let mut offset = entete_len;
+    let mut nb_chunks: u64 = 0;
+    loop {
+        let n = stdout.read(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+        let chunk = &buf[..n];
+        let mut contexte = entete_bytes.to_vec();
+        contexte.extend_from_slice(&nb_chunks.to_le_bytes());
+        let chiffre = dek
+            .encrypt_avec_contexte(chunk, &contexte)
+            .map_err(|e| anyhow!("chiffrement chunk {nb_chunks} : {e:?}"))?;
+        fichier.write_all(&chiffre).await?;
+        index.push((offset, chiffre.len() as u64));
+        offset += chiffre.len() as u64;
+        nb_chunks += 1;
     }
-    let blob = emballer(dek, cible.tenant_id, base, date, &sortie.stdout)?;
-    let taille = blob.len();
-    let req = client()?.put(url_blob(cible, &cle)).body(blob);
+    let fin = enfant
+        .wait_with_output()
+        .await
+        .context("pg_dump n'a pas pu se terminer")?;
+    drop(stdout);
+    if !fin.status.success() {
+        let _ = std::fs::remove_file(&tmp_path);
+        bail!("pg_dump {base} : {}", String::from_utf8_lossy(&fin.stderr).trim());
+    }
+
+    // Index des offsets à la fin du fichier, suffixé de sa longueur et d'un
+    // marqueur magique pour permettre la restauration partielle.
+    let mut index_bytes = Vec::new();
+    index_bytes.extend_from_slice(&nb_chunks.to_le_bytes());
+    for (o, l) in &index {
+        index_bytes.extend_from_slice(&o.to_le_bytes());
+        index_bytes.extend_from_slice(&l.to_le_bytes());
+    }
+    let index_len = index_bytes.len() as u64;
+    fichier.write_all(&index_bytes).await?;
+    fichier.write_all(&index_len.to_le_bytes()).await?;
+    fichier.write_all(&INDEX_MAGIC.to_le_bytes()).await?;
+    fichier.flush().await?;
+    let taille = fichier.metadata().await?.len() as usize;
+    drop(fichier);
+
+    // Dépôt sur le relais en flux : un seul chunk du fichier en RAM à la fois.
+    let req = client()?
+        .put(url_blob(cible, &cle))
+        .body(Body::from_stream(FileStream {
+            file: File::open(&tmp_path).await?,
+            buf: [0u8; CHUNK_SIZE],
+            eof: false,
+        }));
     crate::relay_client::avec_jeton(req, &cible.jeton_relais)
-        .send().await.context("relais injoignable")?.error_for_status().context("dépôt refusé par le relais")?;
+        .send()
+        .await
+        .context("relais injoignable")?
+        .error_for_status()
+        .context("dépôt refusé par le relais")?;
+    let _ = std::fs::remove_file(&tmp_path);
     Ok((cle, taille))
+}
+
+/// Lit un fichier par chunks de 64 Ko pour le streamer vers le relais sans
+/// le charger en mémoire (borne RSS).
+struct FileStream {
+    file: File,
+    buf: [u8; CHUNK_SIZE],
+    eof: bool,
+}
+
+impl Stream for FileStream {
+    type Item = Result<Bytes, std::io::Error>;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.eof {
+            return Poll::Ready(None);
+        }
+        let Self { file, buf, eof } = Pin::get_mut(&mut self);
+        match Pin::new(file).poll_read(cx, buf) {
+            Poll::Ready(Ok(0)) => {
+                *eof = true;
+                Poll::Ready(None)
+            }
+            Poll::Ready(Ok(n)) => Poll::Ready(Some(Ok(Bytes::copy_from_slice(&buf[..n])))),
+            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
 /// Récupère, vérifie, déchiffre et restaure une base depuis le relais.

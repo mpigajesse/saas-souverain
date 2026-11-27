@@ -29,6 +29,8 @@ sha2             = "0.10"
 rand             = "0.8"
 rand_core        = { version = "0.6", features = ["getrandom"] }
 zeroize          = { version = "1", features = ["derive"] }
+# Comparaison constant-temps (résistance aux attaques par canal latéral).
+subtle           = "2"
 # Partage de Shamir (ADR-010) : bibliothèque reconnue, en remplacement de
 # l'arithmétique GF(256) maison. Elle suit rand_core 0.10, d'où les deux
 # dépendances renommées qui lui fournissent l'aléa du système.
@@ -75,3 +77,7 @@ anyhow    = "1"
 
 # Tests
 tempfile = "3"
+
+# Streaming de fichiers (lecture/écriture par chunks, borne mémoire).
+bytes = "1"
+futures-core = "0.3"

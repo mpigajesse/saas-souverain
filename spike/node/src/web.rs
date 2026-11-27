@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use axum::{
     extract::{Request, State},
@@ -79,6 +80,7 @@ pub async fn serve(
         web_port: port,
         dek,
         invitations: Arc::new(crate::enrolement::Invitations::default()),
+        echecs_enrolement_par_ip: Mutex::new(HashMap::new()),
         relais,
     });
 

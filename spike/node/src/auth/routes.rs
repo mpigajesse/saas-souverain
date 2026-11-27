@@ -1,7 +1,9 @@
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use axum::{
-    extract::{Extension, Path, State},
+    extract::{ConnectInfo, Extension, HeaderMap, Path, State},
     http::header,
     response::{Html, IntoResponse, Redirect, Response},
     Form,
@@ -498,15 +500,63 @@ pub async fn enrolement_emettre(State(state): State<Arc<AppState>>, Extension(us
 
 /// `POST /amane/api/enrolement` — appelé par `ss-node enroler` sur le nouveau
 /// serveur. Authentifié par le seul code à usage unique.
+/// Rate-limit par adresse IP : 5 échecs sur une fenêtre glissante de 1 min,
+/// au-delà retour `429 Too Many Requests` (protection contre le DoS).
 pub async fn api_enrolement(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     axum::Json(demande): axum::Json<crate::enrolement::Demande>,
 ) -> Response {
     use axum::http::StatusCode;
+    /// Seuil d'échecs par IP sur la fenêtre glissante.
+    const ECHECS_MAX_IP: u32 = 5;
+    /// Fenêtre glissante du rate-limit (1 minute).
+    const FENETRE_IP: Duration = Duration::from_secs(60);
+
+    // Adresse du client : X-Forwarded-For en priorité (derrière reverse
+    // proxy / HAProxy), sinon l'adresse de la connexion directe.
+    let ip = headers
+        .get(header::X_FORWARDED_FOR)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| {
+            v.split(',')
+                .next()
+                .map(str::trim)
+                .and_then(|s| s.parse::<IpAddr>().ok())
+        })
+        .unwrap_or(addr.ip());
+
+    // Rate-limit : refuser avant tout traitement si l'IP a dépassé le seuil.
+    {
+        let maintenant = Instant::now();
+        let mut echecs = state.echecs_enrolement_par_ip.lock().unwrap();
+        echecs
+            .retain(|_, (instant, _)| maintenant.duration_since(*instant) < FENETRE_IP);
+        if let Some((_, count)) = echecs.get(&ip) {
+            if *count >= ECHECS_MAX_IP {
+                return (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    [("Retry-After", FENETRE_IP.as_secs().to_string())],
+                    "Trop de tentatives d'enrôlement depuis cette adresse IP. Réessayez plus tard.",
+                )
+                    .into_response();
+            }
+        }
+    }
+
     let Some(dek) = state.dek.as_ref() else {
         return (StatusCode::CONFLICT, "Cette machine ne détient pas la DEK du cluster.").into_response();
     };
     if !state.invitations.consommer(&demande.code) {
+        // Échec d'enrôlement : incrémenter le compteur de cette IP.
+        {
+            let maintenant = Instant::now();
+            let mut echecs = state.echecs_enrolement_par_ip.lock().unwrap();
+            let entree = echecs.entry(ip).or_insert((maintenant, 0));
+            entree.0 = maintenant;
+            entree.1 += 1;
+        }
         println!("  Enrôlement : code refusé");
         return (StatusCode::FORBIDDEN, "Code d'enrôlement invalide, expiré ou déjà utilisé.").into_response();
     }
